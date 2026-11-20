@@ -37,4 +37,14 @@ describe("board", () => {
     expect(a.runId).toBeTruthy();
     expect(a.session).toBeUndefined();
   });
+
+  it("archives and restores a card without deleting it", async () => {
+    const card = (await app.inject({ method: "POST", url: "/api/board", payload: { title: "keep me" } })).json();
+    const a = (await app.inject({ method: "PATCH", url: `/api/board/${card.id}`, payload: { archived: true } })).json();
+    expect(a.archived).toBe(true);
+    expect((await app.inject({ method: "GET", url: "/api/board" })).json()).toHaveLength(1);
+    const r = (await app.inject({ method: "PATCH", url: `/api/board/${card.id}`, payload: { archived: false } })).json();
+    expect(r.archived).toBeUndefined();
+    expect((await app.inject({ method: "PATCH", url: `/api/board/${card.id}`, payload: { archived: "yes" } })).statusCode).toBe(400);
+  });
 });

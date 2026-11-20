@@ -9,6 +9,8 @@ import { loadJson, saveJson, type Config, type Teams } from "../config";
 import { LabelStore } from "../labels";
 import { BotColors } from "../botColors";
 import { History } from "../history";
+import { Archive } from "../archive";
+import { SearchIndex } from "../search";
 import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 
@@ -26,6 +28,14 @@ export class Company {
   labels = new LabelStore();
   botColors = new BotColors();
   history = new History();
+  archive = new Archive();
+  private _search?: SearchIndex;
+  /** The full-text index is created on first use (it opens a SQLite file). */
+  get search(): SearchIndex { return (this._search ??= new SearchIndex()); }
+  /** Index new/changed transcripts in the background; cheap when nothing changed. */
+  indexSessions(): Promise<void> {
+    return this.search.build([...this.sessions.values()].map((s) => ({ path: s.file, session: s.id, size: s.sizeBytes, mtime: s.mtimeMs })));
+  }
   sessionStats = new Map<string, WorkStats>();
   constructor(public cfg: Config, public teams: Teams) {}
 
@@ -118,7 +128,8 @@ export class Company {
     const byTeam = new Map<string, Team>();
     for (const s of this.sessions.values()) {
       const r = this.runtimes.get(s.id)!; const liveInfo = this.live.get(s.id);
-      if (!liveInfo && s.mtimeMs < cutoff) continue; // archive: older & not live
+      if (!liveInfo && s.mtimeMs < cutoff) continue; // older & not live: not shown
+      if (this.archive.has(s.id)) continue;           // archived by the user
       const team = teamFor(s.cwd, this.teams.merges);
       const bot = this.botColors.resolve(s.id, team);
       const w: Worker = { id: s.id, team, cwd: s.cwd, title: s.title, name: this.botColors.names[s.id], state: r.state, activity: r.activity,

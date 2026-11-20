@@ -9,7 +9,10 @@ import { checkRequest, makeToken, stableToken } from "./security";
 import { execFile } from "node:child_process";
 import { Company } from "./model/company";
 import { claudeDir } from "./adapters/claude-code/discover";
-import { registerRoutes } from "./routes";
+import { registerRoutes, tasks as taskSig } from "./routes";
+import { Hub } from "./sync";
+import { nerdSnapshot, startLagSampler } from "./nerd";
+import { listSubagents } from "./adapters/claude-code/subagents";
 import { sync as syncBoard } from "./board/routes";
 
 import { runCli } from "./cli";
@@ -41,8 +44,11 @@ app.addHook("onRequest", async (req, reply) => {
 });
 app.get("/api/snapshot", async () => company.snapshot());
 app.get("/api/stats", async () => company.stats.snapshot());
-const runs = registerRoutes(app, company, () => push());
-setInterval(() => syncBoard(runs), 3000);
+const ping: Hub["changed"] = (k, id) => hub?.changed(k, id);
+const runs = registerRoutes(app, company, () => push(), ping);
+startLagSampler();
+app.get("/api/nerd", async () => nerdSnapshot({ company, runs, clients: () => wss.clients.size, rev: () => hub?.rev ?? 0 }));
+setInterval(() => { if (syncBoard(runs)) ping("board"); }, 3000);
 app.get("/*", async (req, reply) => {
   const p = req.url.split("?")[0]; const f = join(dist, p === "/" ? "index.html" : p);
   try { if (!f.startsWith(dist)) throw 0; await stat(f); } catch { return reply.type("text/html").send(await readFile(join(dist, "index.html")).catch(() => "run vite build")); }
@@ -53,28 +59,38 @@ const wss = new WebSocketServer({ noServer: true });
 app.server.on("upgrade", (req, sock, head) => {
   const r = guard(req as never);
   if (!r.ok) { sock.write(`HTTP/1.1 ${r.status} ${r.reason}\r\n\r\n`); return sock.destroy(); }
-  wss.handleUpgrade(req, sock, head, (ws: WebSocket) => ws.send(JSON.stringify(company.snapshot())));
+  wss.handleUpgrade(req, sock, head, (ws: WebSocket) => hub?.hello(ws));
 });
-let last = "";
-const push = () => {
-  const s = company.snapshot(); const body = JSON.stringify({ ...s, at: 0 });
-  if (body === last) return; last = body;
-  const msg = JSON.stringify(s);
-  for (const c of wss.clients) if (c.readyState === 1) c.send(msg);
-};
-
+let hub: Hub | undefined; // created once the first sessions are loaded
+const push = () => { hub?.flush(); };
 await company.refreshSessions(); await company.refreshLiveness();
 for (const id of company.sessions.keys()) await company.ingest(id, true);
-company.buildStats().catch(() => {});
+hub = new Hub(wss, company);
+company.indexSessions().catch((e) => console.log(`(search index: ${(e as Error).message})`));
+setInterval(() => { company.indexSessions().catch(() => {}); }, 60_000);
+company.buildStats().then(() => { push(); ping("stats"); }).catch(() => {});
 chokidar.watch(join(claudeDir(), "projects"), { depth: 1, ignoreInitial: true, ignored: /observer-sessions/ })
   .on("add", async () => { await company.refreshSessions(); })
   .on("change", async (f) => {
     if (!f.endsWith(".jsonl")) return;
     await company.refreshSessions(); // updates mtime
     const id = f.split("/").pop()!.replace(".jsonl", ""); await company.ingest(id);
-    company.tickAll(); push();
+    company.tickAll(); push(); ping("messages", id);
   });
-setInterval(async () => { await company.refreshLiveness(); company.tickAll(); push(); }, 2000);
+// Slices browsers fetch themselves: ping when a cheap signature changes.
+const sigs = { history: -1, live: "", tasks: "", stats: "", subs: "" };
+setInterval(async () => {
+  await company.refreshLiveness(); company.tickAll(); push();
+  if (company.history.version !== sigs.history) { sigs.history = company.history.version; ping("history"); }
+  const live = JSON.stringify([...company.live.entries()].map(([k, i]) => [k, i.pid, i.kind]));
+  if (live !== sigs.live) { sigs.live = live; ping("processes"); }
+}, 2000);
+setInterval(() => {
+  const t = taskSig.fn(); if (t !== sigs.tasks) { sigs.tasks = t; ping("tasks"); }
+  const st = JSON.stringify(company.stats.snapshot()); if (st !== sigs.stats) { sigs.stats = st; ping("stats"); }
+  const subs = JSON.stringify([...company.sessions.values()].filter((s) => s.mtimeMs > Date.now() - 24 * 3_600_000).map((s) => [s.id, listSubagents(s.file).map((x) => [x.id, x.finished, Math.floor(x.mtimeMs / 15_000)])]));
+  if (subs !== sigs.subs) { sigs.subs = subs; ping("subagents"); }
+}, 10_000);
 
 await app.listen({ host: "127.0.0.1", port: cfg.port });
 const url = `http://127.0.0.1:${cfg.port}/?t=${token}`;

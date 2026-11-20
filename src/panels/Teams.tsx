@@ -159,6 +159,12 @@ export function Teams() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const tasks = useStore((s) => s.tasks);
   const filters = useStore((s) => s.filters);
+  const focus = useStore((s) => s.focus);
+  useEffect(() => { // "Open in Teams" from the 3D office: expand that project and scroll to it
+    if (focus?.kind !== "team") return;
+    setExpanded((e) => ({ ...e, [focus.id]: true }));
+    setTimeout(() => document.getElementById(`team-${focus.id}`)?.scrollIntoView({ block: "start", behavior: "smooth" }), 50);
+  }, [focus?.n]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!snapshot) return <section className="panel"><p className="muted">Loading…</p></section>;
   const defs = snapshot.labelDefs ?? [];
   const visible = filterAndSort(snapshot.teams, filters, tasks);
@@ -185,13 +191,14 @@ export function Teams() {
         const tot = totals(t.workers);
         const tk = tasks[t.name];
         return (
-          <div className="team" key={t.name}>
+          <div className="team" key={t.name} id={`team-${t.name}`}>
             <h2 className="team-head" onClick={() => setExpanded({ ...expanded, [t.name]: !open })}>
               <span className="caret">{open ? "▾" : "▸"}</span>
               <BotIcon color={t.botColor} size={34} title="Project bot color: recolors this project's robots in the 3D room (click to change)"
                 onPick={(c) => { void api.setTeamBotColor(t.name, c).catch(() => {}); }} />
               {t.name}
               {t.labels.map((id) => defs.find((d) => d.id === id)).filter((d): d is LabelDef => !!d).map((d) => <LabelChip key={d.id} d={d} />)}
+              <button className="small" title="Fly the 3D camera to this project" onClick={(e) => { e.stopPropagation(); useStore.getState().focusTeam(t.name); }}>📍</button>
               <LabelMenu team={t.name} defs={defs} current={t.labels} />
               <TeamActions team={t.name} />
             </h2>

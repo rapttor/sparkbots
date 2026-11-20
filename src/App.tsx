@@ -1,71 +1,47 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BRAND } from "./shared/brand";
-import { startSync, useStore, type PanelId } from "./state/store";
-import { Teams } from "./panels/Teams";
-import { ControlRoom } from "./panels/ControlRoom";
-import { Stats } from "./panels/Stats";
-import { WorkerPanel } from "./panels/Worker";
-import { Board } from "./panels/Board";
-import { Settings } from "./panels/Settings";
-import { ServerRoom } from "./panels/ServerRoom";
+import { startSync, useStore } from "./state/store";
+import { PanelMenu } from "./dock/PanelMenu";
+import { Dock } from "./dock/Dock";
+import { Dialog } from "./dock/Dialog";
+import { useNarrow } from "./dock/useLayout";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { FilterBar } from "./panels/FilterBar";
-import { api, poll } from "./api";
+import { api } from "./api";
+import { useLive } from "./state/live";
 import { makeFixtureSnapshot } from "./world/fixture";
 
 const World = lazy(() => import("./world/World"));
 
-const MENU: { id: PanelId; label: string }[] = [
-  { id: "world", label: "Office (3D)" },
-  { id: "teams", label: "Teams" },
-  { id: "control", label: "Control Room" },
-  { id: "stats", label: "Stats" },
-  { id: "board", label: "Board" },
-  { id: "server", label: "Server Room" },
-  { id: "settings", label: "Settings" },
-];
 
 export function App() {
-  const { panel, setPanel, connected, snapshot, selectedWorker } = useStore();
-  const [open, setOpen] = useState(true);
+  const { connected, snapshot, dock } = useStore();
+  const narrow = useNarrow();
   useEffect(() => {
     // ?fixture=N renders N fake workers (3D performance check) instead of live data
     const n = Number(new URLSearchParams(location.search).get("fixture"));
-    if (n > 0) { useStore.setState({ snapshot: makeFixtureSnapshot(n), connected: true, panel: "world" }); return; }
+    if (n > 0) { useStore.setState({ snapshot: makeFixtureSnapshot(n), connected: true }); return; }
     return startSync();
   }, []);
 
-  useEffect(() => poll(async () => {
-    try { useStore.setState({ tasks: await api.tasks() }); } catch { /* ignore */ }
-  }, 10000), []);
+  useLive(async () => { try { useStore.setState({ tasks: await api.tasks() }); } catch { /* ignore */ } }, ["tasks"]);
 
+  // the 3D office is always on screen; its keys pause while a dialog (or, on a phone, the bottom sheet) covers it
+  const worldActive = !dock.dialog && !(narrow && dock.open);
   return (
     <div className="shell">
       <header className="topbar">
-        <button className="icon-btn" aria-label="Toggle menu" onClick={() => setOpen(!open)}>☰</button>
         <strong>{BRAND.name}</strong>
         <FilterBar />
         <div id="topbar-slot" className="topbar-slot" />
+        <span className="spacer" />
+        <PanelMenu />
       </header>
       <div className="body">
-        {open && (
-          <nav className="sidebar">
-            {MENU.map((m) => (
-              <button key={m.id} className={m.id === panel ? "active" : ""} onClick={() => setPanel(m.id)}>
-                {m.label}
-              </button>
-            ))}
-          </nav>
-        )}
-        <main className="main">
-          {panel === "world" && <Suspense fallback={<p className="muted">Loading…</p>}><World /></Suspense>}
-          {panel === "teams" && <Teams />}
-          {panel === "control" && <ControlRoom />}
-          {panel === "stats" && <Stats />}
-          {panel === "board" && <Board />}
-          {panel === "server" && <ServerRoom />}
-          {panel === "settings" && <Settings />}
+        <main className="stage">
+          <ErrorBoundary label="the 3D office"><Suspense fallback={<p className="muted">Loading the 3D office…</p>}><World active={worldActive} /></Suspense></ErrorBoundary>
         </main>
-        {selectedWorker && <WorkerPanel />}
+        <Dock narrow={narrow} />
       </div>
       <footer className="footer">
         <span className={connected ? "dot ok" : "dot bad"} />
@@ -73,6 +49,7 @@ export function App() {
         <span className="spacer" />
         Skipped lines: {snapshot?.skippedLines ?? 0}
       </footer>
+      <Dialog />
     </div>
   );
 }

@@ -37,6 +37,8 @@ export interface Config {
   streamingMode: boolean;
   doneWaveSec: number;
   errorSec: number;
+  runModel: string;      // model for runs started from SparkBots ("" = Claude Code default)
+  cleanEnv: boolean;     // start runs without ANTHROPIC_* variables inherited from the server's shell
 }
 
 export const defaultConfig: Config = {
@@ -48,6 +50,8 @@ export const defaultConfig: Config = {
   streamingMode: false,
   doneWaveSec: 5,
   errorSec: 120,
+  runModel: "",
+  cleanEnv: false,
 };
 
 export function loadConfig(): Config {

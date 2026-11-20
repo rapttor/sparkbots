@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, poll, type WorkSpan } from "../api";
+import { api, type WorkSpan } from "../api";
+import { useLive } from "../state/live";
 import { applyFilters } from "./teamFilters";
 import { useStore } from "../state/store";
 import { displayName, fmtDuration, relTime } from "../util";
@@ -13,9 +14,7 @@ function History() {
   const { snapshot, selectWorker } = useStore();
   const [spans, setSpans] = useState<WorkSpan[]>([]);
   const [team, setTeam] = useState("");
-  useEffect(() => poll(async () => {
-    try { setSpans((await api.history()).spans); } catch { /* ignore */ }
-  }, 3000), []);
+  useLive(async () => { try { setSpans((await api.history()).spans); } catch { /* ignore */ } }, ["history"]);
   const color = (name: string) => snapshot?.teams.find((t) => t.name === name)?.botColor ?? "#d97757";
   const teams = [...new Set(spans.map((s) => s.team))].sort();
   const shown = spans.filter((s) => !team || s.team === team);

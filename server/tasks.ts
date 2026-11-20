@@ -28,6 +28,23 @@ export function parseTasks(text: string): Omit<TaskInfo, "file"> {
   return { open, done, phase };
 }
 
+export interface TaskItem { text: string; done: boolean; phase: string }
+/** Every markdown checkbox line as an item (text without the box), with the heading it sits under. */
+export function listTasks(text: string, max = 300): TaskItem[] {
+  const out: TaskItem[] = [];
+  let heading = "";
+  for (const line of text.split("\n")) {
+    const h = /^#{1,4}\s+(.*)$/.exec(line);
+    if (h) { heading = h[1]!.trim(); continue; }
+    const c = /^\s*[-*]\s+\[( |x|X)\]\s*(.*)$/.exec(line);
+    if (!c) continue;
+    const t = c[2]!.replace(/\s+/g, " ").trim();
+    if (t) out.push({ text: t, done: c[1] !== " ", phase: heading });
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 const cache = new Map<string, { mtimeMs: number; info: TaskInfo | null }>();
 
 /** Cached per cwd by file mtime so polling stays cheap. */

@@ -2,9 +2,15 @@ import type { FastifyInstance } from "fastify";
 import type { Company } from "./model/company";
 import { RunManager, CommandError, type RunEvent } from "./adapters/claude-code/command";
 import { teamFor } from "./adapters/claude-code/discover";
+import type { Slice } from "../src/shared/sync";
 import { registerBoard } from "./board/routes";
 import { LabelError } from "./labels";
 import { BotColorError } from "./botColors";
+import { ArchiveError } from "./archive";
+import { cleanEnv } from "./adapters/claude-code/command";
+import { registerNotes } from "./notes";
+import { registerServices } from "./services/routes";
+import { listSubagents } from "./adapters/claude-code/subagents";
 import { recentMessages } from "./adapters/claude-code/transcript";
 import { runPrompt, taskInfo, type TaskInfo } from "./tasks";
 import { saveJson, type Config, type Teams } from "./config";
@@ -12,26 +18,31 @@ import { hookToEvents, isInstalled, readSettings, settingsPath } from "./adapter
 
 const str = (v: unknown): string | undefined => (typeof v === "string" && v.length > 0 && v.length < 100_000 ? v : undefined);
 
-export function registerRoutes(app: FastifyInstance, c: Company, onChange: () => void = () => {}): RunManager {
+/** Lets index.ts ask whether the task lists changed (it pings browsers when the signature differs). */
+export const tasks: { fn: () => string } = { fn: () => "" };
+
+export function registerRoutes(app: FastifyInstance, c: Company, onChange: () => void = () => {}, ping: (kind: Slice, id?: string) => void = () => {}): RunManager {
   const runs = new RunManager((id) => c.live.get(id)?.kind === "interactive");
   const log = new Map<string, unknown[]>(); // runId -> recent stream lines (in memory, for the chat panel)
-  runs.listeners.add((e: RunEvent) => { const a = log.get(e.runId) ?? []; a.push(e.line); log.set(e.runId, a.slice(-200)); });
+  runs.listeners.add((e: RunEvent) => { const a = log.get(e.runId) ?? []; a.push(e.line); log.set(e.runId, a.slice(-200)); ping("runs"); });
+  runs.onChange = () => { ping("runs"); ping("processes"); };
 
-  const overrides = (cwd: string) => c.teams.overrides[teamFor(cwd, c.teams.merges)] ?? {};
+  const overrides = (cwd: string) => ({ ...(c.cfg.runModel ? { model: c.cfg.runModel } : {}), ...(c.teams.overrides[teamFor(cwd, c.teams.merges)] ?? {}) });
+  runs.envProvider = () => (c.cfg.cleanEnv ? cleanEnv(process.env) : process.env);
   const wrap = <T>(fn: () => T) => { try { return fn(); } catch (e) { if (e instanceof CommandError) throw Object.assign(new Error(e.message), { statusCode: e.status }); throw e; } };
 
   app.get("/api/runs", async () => runs.runs.slice(-50));
   app.get<{ Params: { id: string } }>("/api/runs/:id/log", async (r) => log.get(r.params.id) ?? []);
-  app.post<{ Body: { session?: string; prompt?: string; fork?: boolean } }>("/api/send", async (req) => {
+  app.post<{ Body: { session?: string; prompt?: string; fork?: boolean; model?: string } }>("/api/send", async (req) => {
     const session = str(req.body?.session), prompt = str(req.body?.prompt);
     const s = session ? c.sessions.get(session) : undefined;
     if (!s || !prompt) throw Object.assign(new Error("session and prompt required"), { statusCode: 400 });
-    return wrap(() => runs.send(s.id, s.cwd, prompt, { ...overrides(s.cwd), fork: !!req.body.fork }));
+    return wrap(() => runs.send(s.id, s.cwd, prompt, { ...overrides(s.cwd), fork: !!req.body.fork, ...(str(req.body.model) ? { model: str(req.body.model) } : {}) }));
   });
-  app.post<{ Body: { cwd?: string; prompt?: string } }>("/api/spawn", async (req) => {
+  app.post<{ Body: { cwd?: string; prompt?: string; model?: string } }>("/api/spawn", async (req) => {
     const cwd = str(req.body?.cwd), prompt = str(req.body?.prompt);
     if (!cwd || !prompt || ![...c.sessions.values()].some((s) => s.cwd === cwd)) throw Object.assign(new Error("known project cwd and prompt required"), { statusCode: 400 });
-    return wrap(() => runs.spawnNew(cwd, prompt, overrides(cwd)));
+    return wrap(() => runs.spawnNew(cwd, prompt, { ...overrides(cwd), ...(str(req.body?.model) ? { model: str(req.body?.model) } : {}) }));
   });
   app.post<{ Body: { runId?: string } }>("/api/stop", async (req) => wrap(() => { runs.stop(str(req.body?.runId) ?? ""); return { ok: true }; }));
   app.get("/api/processes", async () => ({
@@ -40,11 +51,13 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
   }));
   app.post<{ Body: Record<string, unknown> }>("/hook", async (req) => { await c.applyHook(hookToEvents(req.body ?? {})); onChange(); return {}; });
   const teamSessions = (team: string) => [...c.sessions.values()].filter((x) => teamFor(x.cwd, c.teams.merges) === team).sort((a, b) => b.mtimeMs - a.mtimeMs);
-  app.get("/api/tasks", async () => {
+  const tasksNow = () => {
     const out: Record<string, TaskInfo | null> = {}; const seen = new Set<string>();
     for (const s of c.sessions.values()) { const t = teamFor(s.cwd, c.teams.merges); if (!seen.has(t)) { seen.add(t); out[t] = taskInfo(teamSessions(t)[0].cwd); } }
     return out;
-  });
+  };
+  app.get("/api/tasks", async () => tasksNow());
+  tasks.fn = () => JSON.stringify(tasksNow());
   /** Run/Continue buttons: resume the team's newest session (not live in a terminal) or start a new one. */
   app.post<{ Body: { team?: string; mode?: string; target?: string; dryRun?: boolean } }>("/api/teams/run", async (req) => {
     const { team, mode, target, dryRun } = req.body ?? {};
@@ -90,16 +103,65 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     }
     onChange(); return { name: c.botColors.names[r.params.id] ?? null };
   });
+  /** Sub-agents of recently active sessions (for the minibots in the 3D office). */
+  app.get("/api/subagents", async () => {
+    const since = Date.now() - 24 * 3_600_000;
+    const out: Record<string, ReturnType<typeof listSubagents>> = {};
+    for (const s of c.sessions.values()) {
+      if (s.mtimeMs < since) continue;
+      const l = listSubagents(s.file).filter((x) => !x.finished || Date.now() - x.mtimeMs < 10 * 60_000).slice(0, 12);
+      if (l.length) out[s.id] = l;
+    }
+    return out;
+  });
+  /** Data room: full-text search over everything said in the sessions. Optional `team` narrows it to one project. */
+  app.get<{ Querystring: { q?: string; team?: string; limit?: string } }>("/api/search", async (r) => {
+    const q = String(r.query.q ?? "").slice(0, 200), team = r.query.team ? String(r.query.team) : "";
+    const ids = team ? new Set([...c.sessions.values()].filter((s) => teamFor(s.cwd, c.teams.merges) === team).map((s) => s.id)) : undefined;
+    const hits = c.search.search(q, { sessions: ids, limit: Number(r.query.limit) || 30 });
+    return hits.map((h) => {
+      const s = c.sessions.get(h.session);
+      return { ...h, title: s?.title ?? h.session, team: s ? teamFor(s.cwd, c.teams.merges) : "", name: c.botColors.names[h.session], archived: c.archive.has(h.session) };
+    });
+  });
+  app.get("/api/search/status", async () => ({ ...c.search.stats(), building: c.search.building, sessions: c.sessions.size }));
+  app.get("/api/archive", async () => Object.entries(c.archive.items).map(([id, i]) => {
+    const s = c.sessions.get(id);
+    return { id, at: i.at, title: s?.title ?? id, team: s ? teamFor(s.cwd, c.teams.merges) : "", name: c.botColors.names[id] };
+  }).sort((a, b) => b.at - a.at));
+  app.post<{ Params: { id: string }; Body: { archived?: unknown; confirm?: unknown } }>("/api/archive/:id", async (r) => {
+    const s = c.sessions.get(r.params.id);
+    if (!s) throw Object.assign(new Error("unknown session"), { statusCode: 404 });
+    try { c.archive.set(s.id, r.body?.archived, r.body?.confirm, c.live.get(s.id)?.kind === "interactive"); } catch (e) {
+      if (e instanceof ArchiveError) throw Object.assign(e, { statusCode: e.status }); throw e;
+    }
+    onChange(); ping("archive"); return { ok: true };
+  });
   app.delete<{ Params: { id: string } }>("/api/labels/:id", async (r) => lw(() => { c.labels.remove(r.params.id); return { ok: true }; }));
   app.get("/api/hooks", async () => ({ installed: isInstalled(readSettings()), settingsPath: settingsPath() }));
 
   const bad = (m: string) => Object.assign(new Error(m), { statusCode: 400 });
   app.get("/api/config", async () => c.cfg);
+  /** What the next run will talk to, without ever showing a token: the gateway host (if one is inherited) and the model. */
+  app.get("/api/claude-setup", async () => {
+    const env = c.cfg.cleanEnv ? cleanEnv(process.env) : process.env;
+    let host: string | null = null;
+    try { host = env.ANTHROPIC_BASE_URL ? new URL(env.ANTHROPIC_BASE_URL).host : null; } catch { host = "(invalid URL)"; }
+    return { cleanEnv: c.cfg.cleanEnv, model: c.cfg.runModel || "(Claude Code default)", inheritedGatewayHost: host, inheritedToken: !!(env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_API_KEY) };
+  });
+  /** "Test run": a tiny prompt in a known project, so the Settings page can show whether the setup works. */
+  app.post("/api/test-run", async () => {
+    const cwd = [...c.sessions.values()].sort((a, b) => b.mtimeMs - a.mtimeMs)[0]?.cwd;
+    if (!cwd) throw Object.assign(new Error("no project known yet"), { statusCode: 400 });
+    return wrap(() => runs.spawnNew(cwd, "Reply with just the word: hello", overrides(cwd)));
+  });
   app.put<{ Body: Partial<Config> }>("/api/config", async (req) => {
     const b = req.body ?? {}; const next: Config = { ...c.cfg };
     for (const k of ["idleThresholdSec", "asleepAfterMin", "historyDays", "doneWaveSec", "errorSec"] as const) {
       if (b[k] !== undefined) { if (typeof b[k] !== "number" || !Number.isFinite(b[k]) || b[k]! <= 0 || b[k]! > 100_000) throw bad(`${k} must be a positive number`); next[k] = b[k]!; }
     }
+    if (b.runModel !== undefined) { if (typeof b.runModel !== "string" || (b.runModel !== "" && !/^[A-Za-z0-9][A-Za-z0-9._:\-\[\]]{0,79}$/.test(b.runModel))) throw bad("runModel must be empty or a model name"); next.runModel = b.runModel; }
+    if (b.cleanEnv !== undefined) { if (typeof b.cleanEnv !== "boolean") throw bad("cleanEnv must be boolean"); next.cleanEnv = b.cleanEnv; }
     if (b.streamingMode !== undefined) { if (typeof b.streamingMode !== "boolean") throw bad("streamingMode must be boolean"); next.streamingMode = b.streamingMode; }
     Object.assign(c.cfg, next); saveJson("config.json", c.cfg); onChange(); return c.cfg;
   });
@@ -115,6 +177,8 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     c.teams.merges = b.merges ?? {}; c.teams.colors = b.colors ?? {}; c.teams.overrides = b.overrides ?? {};
     saveJson("teams.json", c.teams); onChange(); return c.teams;
   });
-  registerBoard(app, c, runs);
+  registerBoard(app, c, runs, () => ping("board"));
+  registerNotes(app, () => ping("notes"));
+  registerServices(app, () => ping("services"));
   return runs;
 }

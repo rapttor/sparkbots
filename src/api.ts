@@ -11,6 +11,10 @@ export type { RunRecord, Card, Column, WorkSpan, ChatMessage };
 export interface LiveProc { session: string; pid: number; kind: string; startedAt: number; cwd?: string; title?: string }
 export interface Processes { live: LiveProc[]; runs: RunRecord[] }
 export type SendResult = { queued: true; position: number } | { queued: false; run: RunRecord };
+export type NerdInfo = ReturnType<typeof import("../server/nerd").nerdSnapshot>;
+export interface SearchHit { session: string; at: number; role: string; snippet: string; title: string; team: string; name?: string; archived: boolean }
+export interface SubagentInfo { id: string; type: string; description: string; model?: string; finished: boolean; mtimeMs: number }
+export interface ArchivedItem { id: string; at: number; title: string; team: string; name?: string }
 export type StreamLine = { type?: string; message?: { content?: { type?: string; text?: string }[] }; result?: string };
 
 export interface TaskInfo { file: string; open: number; done: number; phase?: string }
@@ -19,7 +23,7 @@ export interface TeamRunResult { prompt: string; cwd: string; target: "continue"
 
 const token = () => new URLSearchParams(location.search).get("t") ?? "";
 
-async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
+export async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
   const r = await fetch(`${path}?t=${encodeURIComponent(token())}`, {
     method,
     headers: body !== undefined ? { "content-type": "application/json" } : undefined,
@@ -37,12 +41,13 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 export const api = {
   runs: () => call<RunRecord[]>("GET", "/api/runs"),
   runLog: (id: string) => call<StreamLine[]>("GET", `/api/runs/${id}/log`),
-  send: (session: string, prompt: string, fork = false) => call<SendResult>("POST", "/api/send", { session, prompt, fork }),
-  spawn: (cwd: string, prompt: string) => call<RunRecord>("POST", "/api/spawn", { cwd, prompt }),
+  send: (session: string, prompt: string, fork = false, model?: string) => call<SendResult>("POST", "/api/send", { session, prompt, fork, model }),
+  spawn: (cwd: string, prompt: string, model?: string) => call<RunRecord>("POST", "/api/spawn", { cwd, prompt, model }),
   stop: (runId: string) => call<{ ok: true }>("POST", "/api/stop", { runId }),
   board: () => call<Card[]>("GET", "/api/board"),
+  importTasks: (team: string) => call<{ added: number; skipped: number; file: string }>("POST", "/api/board/import", { team }),
   addCard: (title: string, body: string, team: string) => call<Card>("POST", "/api/board", { title, body, team }),
-  patchCard: (id: string, p: { column?: Column; title?: string; body?: string }) => call<Card>("PATCH", `/api/board/${id}`, p),
+  patchCard: (id: string, p: { column?: Column; title?: string; body?: string; archived?: boolean }) => call<Card>("PATCH", `/api/board/${id}`, p),
   deleteCard: (id: string) => call<{ ok: true }>("DELETE", `/api/board/${id}`),
   assign: (id: string, target: { session?: string; cwd?: string; fork?: boolean }) => call<Card>("POST", `/api/board/${id}/assign`, target),
   config: () => call<Config>("GET", "/api/config"),
@@ -58,6 +63,14 @@ export const api = {
     call<{ labels: string[] }>("PUT", `/api/labels/teams/${encodeURIComponent(team)}`, { labels }),
   history: () => call<{ spans: WorkSpan[] }>("GET", "/api/history"),
   setTeamBotColor: (team: string, color: string | null) => call<{ color: string | null }>("PUT", `/api/bots/teams/${encodeURIComponent(team)}/color`, { color }),
+  search: (q: string, team = "") => call<SearchHit[]>("GET", `/api/search?q=${encodeURIComponent(q)}${team ? `&team=${encodeURIComponent(team)}` : ""}`),
+  searchStatus: () => call<{ sessions: number; messages: number; building: boolean }>("GET", "/api/search/status"),
+  nerd: () => call<NerdInfo>("GET", "/api/nerd"),
+  subagents: () => call<Record<string, SubagentInfo[]>>("GET", "/api/subagents"),
+  archived: () => call<ArchivedItem[]>("GET", "/api/archive"),
+  archive: (id: string, archived: boolean) => call<{ ok: true }>("POST", `/api/archive/${encodeURIComponent(id)}`, { archived, confirm: true }),
+  claudeSetup: () => call<{ cleanEnv: boolean; model: string; inheritedGatewayHost: string | null; inheritedToken: boolean }>("GET", "/api/claude-setup"),
+  testRun: () => call<RunRecord>("POST", "/api/test-run"),
   setBotName: (id: string, name: string | null) => call<{ name: string | null }>("PUT", `/api/bots/${encodeURIComponent(id)}/name`, { name }),
   setBotColor: (id: string, color: string | null) => call<{ color: string }>("PUT", `/api/bots/${encodeURIComponent(id)}/color`, { color }),
   deleteLabel: (id: string) => call<unknown>("DELETE", `/api/labels/${encodeURIComponent(id)}`),

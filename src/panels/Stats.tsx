@@ -1,3 +1,7 @@
+import { useState } from "react";
+import { NerdStats } from "./NerdStats";
+import { call } from "../api";
+import { useLive } from "../state/live";
 import { useStore } from "../state/store";
 import type { Tokens } from "../../server/stats/aggregate";
 import { fmtNum } from "../util";
@@ -28,6 +32,32 @@ function Table({ rows }: { rows: Record<string, Tokens> }) {
         {list.length === 0 && <tr><td colSpan={5} className="muted">No data</td></tr>}
       </tbody>
     </table>
+  );
+}
+
+interface ServiceRow { id: string; name: string; kind: string; status?: { up: boolean; latencyMs?: number; loaded?: string[]; models?: string[] } }
+/** Other AI services you added or found (Ollama, LM Studio, ...): are they up, how fast, what is loaded. Manage them under Services. */
+function ServiceStats() {
+  const [rows, setRows] = useState<ServiceRow[]>([]);
+  useLive(async () => { try { setRows(await call<ServiceRow[]>("GET", "/api/services")); } catch { /* ignore */ } }, ["services"]);
+  if (!rows.length) return null;
+  return (
+    <>
+      <h2>Other services</h2>
+      <table>
+        <thead><tr><th>Name</th><th>Kind</th><th>Status</th><th>Latency</th><th>Loaded models</th></tr></thead>
+        <tbody>
+          {rows.map((s) => (
+            <tr key={s.id}>
+              <td>{s.name}</td><td>{s.kind}</td>
+              <td className={s.status ? (s.status.up ? "s-working" : "s-error") : "muted"}>{s.status ? (s.status.up ? "up" : "down") : "not tested"}</td>
+              <td>{s.status?.latencyMs !== undefined ? `${s.status.latencyMs} ms` : "–"}</td>
+              <td>{s.status?.loaded?.join(", ") || (s.status?.models?.length ? `${s.status.models.length} available` : "–")}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
   );
 }
 
@@ -75,6 +105,8 @@ export function Stats() {
         </tbody>
       </table>
 
+      <ServiceStats />
+      <NerdStats />
       <h2>By project</h2><Table rows={stats.byProject} />
       <h2>By model</h2><Table rows={stats.byModel} />
     </section>

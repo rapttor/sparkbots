@@ -11,8 +11,9 @@ import { STATE_COLORS } from "./colors";
  *  status color (amber = needs you, teal = finished, red = error, blue/green = information). Click opens the chat. */
 const POOL = 14;
 const FRESH_MS = 12 * 3_600_000; // older messages are history, not news
-const W = 2.6, H = 1.3;
-const CW = 520, CH = 260;
+const LINES = 6; // up to six lines of the message; the full text is one click away (chat, scrollable)
+const W = 2.6, H = 1.8;
+const CW = 520, CH = 360;
 
 const LABEL: Record<string, string> = { waiting: "NEEDS YOU", done: "FINISHED", error: "ERROR", working: "UPDATE", idle: "MESSAGE", asleep: "MESSAGE" };
 
@@ -31,25 +32,32 @@ const wrap = (ctx: CanvasRenderingContext2D, text: string, max: number, lines: n
   return out;
 };
 
+/** The bubble grows with its text (1 to LINES lines): the tail stays put at the bottom, the body grows upward. */
 export function drawBubble(ctx: CanvasRenderingContext2D, w: Worker): void {
   const accent = STATE_COLORS[w.state];
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, CW, CH);
-  const bw = CW - 8, bh = CH - 48, r = 26;
+  const bw = CW - 8, r = 26;
+  ctx.font = "24px system-ui, sans-serif";
+  const lines = wrap(ctx, w.said?.text ?? "", bw - 56, LINES);
+  const bh = 76 + Math.max(1, lines.length) * 32 + 14; // header + text + padding
+  ctx.translate(0, CH - 48 - bh);                       // bottom-align: tip of the tail always at the canvas bottom
   ctx.fillStyle = "#0e1424"; ctx.strokeStyle = accent; ctx.lineWidth = 8;
   ctx.beginPath();
   ctx.roundRect(4, 4, bw, bh, r);
   ctx.fill(); ctx.stroke();
-  // tail pointing down at the bot
-  ctx.beginPath(); ctx.moveTo(CW / 2 - 26, bh); ctx.lineTo(CW / 2, CH - 4); ctx.lineTo(CW / 2 + 26, bh);
+  const tip = bh + 44;
+  ctx.beginPath(); ctx.moveTo(CW / 2 - 26, bh); ctx.lineTo(CW / 2, tip); ctx.lineTo(CW / 2 + 26, bh);
   ctx.fillStyle = "#0e1424"; ctx.fill();
-  ctx.beginPath(); ctx.moveTo(CW / 2 - 26, bh + 2); ctx.lineTo(CW / 2, CH - 4); ctx.lineTo(CW / 2 + 26, bh + 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(CW / 2 - 26, bh + 2); ctx.lineTo(CW / 2, tip); ctx.lineTo(CW / 2 + 26, bh + 2); ctx.stroke();
   ctx.fillStyle = "#0e1424"; ctx.fillRect(CW / 2 - 24, bh - 6, 48, 10);
 
   ctx.fillStyle = accent; ctx.font = "bold 24px system-ui, sans-serif"; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
   ctx.beginPath(); ctx.arc(40, 44, 9, 0, Math.PI * 2); ctx.fill();
   ctx.fillText(LABEL[w.state] ?? "MESSAGE", 60, 53);
   ctx.fillStyle = "#e8ecf8"; ctx.font = "24px system-ui, sans-serif";
-  wrap(ctx, w.said?.text ?? "", bw - 56, 3).forEach((line, i) => ctx.fillText(line, 28, 96 + i * 32));
+  lines.forEach((line, i) => ctx.fillText(line, 28, 96 + i * 32));
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 export function SpeechBubbles({ layout, getPos }: { layout: Layout; getPos: (id: string) => { x: number; z: number } | undefined }) {
@@ -94,7 +102,7 @@ export function SpeechBubbles({ layout, getPos }: { layout: Layout; getPos: (id:
       if (!g) return;
       const p = s.id ? getPos(s.id) : undefined;
       g.visible = !!p;
-      if (p) g.position.set(p.x, 2.35 + Math.sin(t * 2 + k) * 0.06, p.z);
+      if (p) g.position.set(p.x, 2.6 + Math.sin(t * 2 + k) * 0.06, p.z);
     });
   });
 

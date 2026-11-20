@@ -1,233 +1,105 @@
-import { createPortal } from "react-dom";
-import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, Text } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import {
-  BoxGeometry, Color, CylinderGeometry, InstancedMesh, Matrix4, Object3D, SphereGeometry, Vector3,
-  type Group,
+  BoxGeometry, Color, CylinderGeometry, InstancedMesh, SphereGeometry, Sphere, Vector3,
+  type Group, type Mesh,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import fontUrl from "three/examples/fonts/ttf/kenpixel.ttf?url";
-import type { Worker as BotWorker, WorkerState } from "../../server/adapters/types";
+import type { Worker as BotWorker } from "../../server/adapters/types";
 import { useStore } from "../state/store";
+import { api, type SubagentInfo } from "../api";
+import { useLive } from "../state/live";
 import { DESK_D, DESK_W, PLAYER_RADIUS, deskBoxes, resolveMove } from "./collide";
 import { DeskScreens } from "./screens";
-import { WorkerChat } from "./WorkerChat";
 import { SpeechBubbles } from "./bubbles";
-import type { ChatDock } from "./WorkerChat";
-import { Minimap, ViewControls, stateColor, type ViewState, type Warp, type ZoomReq } from "./controls3d";
+import { AgentMenu, type SceneApi } from "./AgentMenu";
+import { KeymapLegend, type KeyEntry } from "./KeymapLegend";
+import { KEYMAP } from "./keymap";
+import { viewState, type PanReq, type ViewState, type Warp, type ZoomReq } from "./controls3d";
 import { applyFilters } from "../panels/teamFilters";
-import { MAX_DESKS, computeLayout, visibleTeams, type DeskSlot, type Layout, type TeamArea } from "./layout";
-import { STATE_COLORS, STATE_LABELS, STATE_ORDER } from "./colors";
-import { roams, player as playerState, separate, pushPlayerOut, type BotMode, type Roam } from "./roam";
-import { ACTIONS, zapLevel } from "./actions";
-import { Zaps } from "./zap";
+import { MAX_DESKS, computeLayout, visibleTeams, type Layout, type TeamArea } from "./layout";
+import { nav, Flow, buildNav } from "./nav";
+import { ZonesLayer } from "./zonelayer";
+import { lunchAll, wakeAll, followerList, insideRoom, meeting, MAX_SEATS, setFollowers, startErrand, setPois } from "./roam";
+import { roams, setLook, clearLook, player as playerState, pushPlayerOut } from "./roam";
+import { ACTIONS } from "./actions";
+import { Minibots } from "./minibots";
+import { MANAGER_ID, requestCoffee, ServiceBots } from "./servicebots";
+import { ManagerWalls } from "./walls";
+import { nerd, sampleFrame } from "../state/nerd";
+import { clearView, loadView, saveView } from "./viewDefault";
+import { zoneIcon } from "./zones";
+import { Labels, type LabelItem, type LabelsApi } from "./labels";
+import { RoomMenu } from "./RoomMenu";
+import { FxLayer } from "./fxlayer";
+import { Icons } from "./icons";
+import { ConferenceLayer } from "./conference";
+import { FollowBar } from "./FollowBar";
+import { MeetingChat } from "./MeetingChat";
+import { NameTags } from "./nametags";
+import { dummy, modeOf, poseBot, stepRoam, writeStatic, type Meshes } from "./bots";
+import { StatusLegend } from "./legends";
+import { onView } from "./viewBus";
+import { nearestBot, nearestDesk, selectWorker, typing } from "./sceneUtils";
 
 type Mode = "overview" | "walk";
 interface Nearby { id: string; title: string }
 
-const WHITE = new Color("#ffffff");
-const STATE_THREE = Object.fromEntries(
-  (Object.keys(STATE_COLORS) as WorkerState[]).map((k) => [k, new Color(STATE_COLORS[k])]),
-) as Record<WorkerState, Color>;
-const VISOR_GAIN: Record<WorkerState, number> = { asleep: 0.6, idle: 0.8, working: 1.4, waiting: 1.1, done: 1.2, error: 1.3 };
-const BODY_TINT: Record<WorkerState, number> = { asleep: 0.12, idle: 0.22, working: 0.28, waiting: 0.28, done: 0.28, error: 0.3 };
-
-// Reused temporaries (no per-frame allocation).
-const dummy = new Object3D();
-const grp = new Object3D();
-const tmp = new Matrix4();
-const col = new Color();
-
-const visorColor = (state: WorkerState): Color => col.copy(STATE_THREE[state]).multiplyScalar(VISOR_GAIN[state]);
-const bodyColor = (state: WorkerState): Color => col.copy(WHITE).lerp(STATE_THREE[state], BODY_TINT[state]);
-
-/** Sets instance i of `mesh` to grp.matrix * local(pos, rotZ, scale). */
-function put(mesh: InstancedMesh, i: number, lx: number, ly: number, lz: number, rz = 0, s = 1): void {
-  dummy.position.set(lx, ly, lz);
-  dummy.rotation.set(0, 0, rz);
-  dummy.scale.setScalar(s);
-  dummy.updateMatrix();
-  tmp.multiplyMatrices(grp.matrix, dummy.matrix);
-  mesh.setMatrixAt(i, tmp);
-}
-
-function putWorld(mesh: InstancedMesh, i: number, x: number, y: number, z: number, s = 1): void {
-  dummy.position.set(x, y, z);
-  dummy.rotation.set(0, 0, 0);
-  dummy.scale.setScalar(s);
-  dummy.updateMatrix();
-  mesh.setMatrixAt(i, dummy.matrix);
-}
-
-interface Meshes { desk: InstancedMesh; ring: InstancedMesh; body: InstancedMesh; visor: InstancedMesh; antenna: InstancedMesh; beacon: InstancedMesh }
-
-/** Where a bot currently is. Bots leave their chair when idle (wander), lie down when asleep, and run back to the
- *  desk when they are working or when you open their chat. */
-/** Where a bot currently is (see roam.ts). */
-const ZAP_TINT = new Color("#fff3a0");
-const chairOf = (d: DeskSlot) => ({ x: d.x, z: d.z + 0.95 });
-const bedOf = (d: DeskSlot) => ({ x: d.x + 1.45, z: d.z + 1.1 }); // on the floor beside the desk
-const speedOf: Record<BotMode, number> = { desk: 3, wander: 0.7, sleep: 1.4, rush: 6 };
-
-function roamOf(d: DeskSlot): Roam {
-  let r = roams.get(d.worker.id);
-  if (!r) {
-    const c = d.worker.state === "asleep" ? bedOf(d) : chairOf(d);
-    r = { x: c.x, z: c.z, tx: c.x, tz: c.z, wait: 0, ry: 0, lying: d.worker.state === "asleep", moving: false, mode: "desk", awakeUntil: 0, flash: false };
-    roams.set(d.worker.id, r);
-  }
-  return r;
-}
-
-function modeOf(d: DeskSlot, fetchedId: string | undefined): BotMode {
-  if (d.worker.id === fetchedId) return "rush";
-  switch (d.worker.state) {
-    case "asleep": return (roams.get(d.worker.id)?.awakeUntil ?? 0) > performance.now() ? "wander" : "sleep"; // a zapped sleeper stays up for a while
-    case "idle": return "wander";
-    default: return "desk";
-  }
-}
-
-/** Advances one bot toward its goal. Wander targets stay in the open floor in front of its own desk, clear of desks. */
-function stepRoam(d: DeskSlot, dt: number, mode: BotMode): Roam {
-  const r = roamOf(d);
-  r.mode = mode;
-  if (mode === "wander") {
-    if (Math.hypot(r.tx - r.x, r.tz - r.z) < 0.05) {
-      r.wait -= dt;
-      if (r.wait <= 0) {
-        const c = chairOf(d);
-        r.tx = c.x + (Math.random() * 2.8 - 1.4); r.tz = c.z + 0.3 + Math.random() * 1.6; r.wait = 1 + Math.random() * 4;
-      }
-    }
-  } else {
-    const g = mode === "sleep" ? bedOf(d) : chairOf(d);
-    r.tx = g.x; r.tz = g.z;
-  }
-  const dx = r.tx - r.x, dz = r.tz - r.z, dist = Math.hypot(dx, dz);
-  r.moving = dist > 0.05;
-  if (r.moving) {
-    const step = Math.min(dist, speedOf[mode] * dt);
-    r.x += (dx / dist) * step; r.z += (dz / dist) * step;
-    r.ry = Math.atan2(-dx, -dz);
-  } else {
-    r.ry = mode === "wander" ? r.ry : 0; // sitting bots face their desk
-  }
-  separate(d.worker.id, r);
-  r.lying = mode === "sleep" && !r.moving;
-  return r;
-}
-
-/** A bot that has arrived and has nothing to animate can be skipped by the frame loop (asleep or error, parked). */
-const settled = (d: DeskSlot, r: Roam, mode: BotMode) => !r.moving && mode !== "rush" && (mode === "sleep" || d.worker.state === "error");
-
-function poseBot(m: Meshes, i: number, d: DeskSlot, t: number, animate: boolean, r: Roam): void {
-  const { activity } = d.worker;
-  const state = d.worker.state === "asleep" && !r.lying && animate ? "idle" : d.worker.state;
-  const ph = i * 0.7;
-  let bob = 0, sway = 0, wave = 0, beacon = 0;
-  if (r.lying) { /* asleep on the floor: no animation */ }
-  else if (r.moving) bob = Math.abs(Math.sin(t * 10 + ph)) * 0.06;
-  else if (animate) {
-    if (state === "idle") bob = Math.sin(t * 1.2 + ph) * 0.03;
-    else if (state === "working") {
-      if (activity === "coding") bob = Math.sin(t * 8 + ph) * 0.04;
-      else if (activity === "researching") { bob = Math.sin(t * 1.5 + ph) * 0.03; sway = Math.sin(t * 1.2 + ph) * 0.12; }
-      else bob = Math.sin(t * 3.5 + ph) * 0.05;
-    } else if (state === "done") wave = Math.sin(t * 12) * 0.7;
-    else if (state === "waiting") bob = Math.sin(t * 1.2 + ph) * 0.02;
-  }
-  const c = chairOf(d);
-  if (d.worker.state === "waiting") beacon = animate ? 0.8 + 0.4 * Math.sin(t * 5 + ph) : 1;
-  // Zapped: shake, hop and spin, with the body flashing white-yellow (restored when it fades).
-  const zl = zapLevel(d.worker.id);
-  let jx = 0, jz = 0, hop = 0, spin = 0;
-  if (zl > 0) {
-    jx = (Math.random() - 0.5) * 0.14 * zl; jz = (Math.random() - 0.5) * 0.14 * zl;
-    hop = Math.sin((1 - zl) * Math.PI) * 0.45; spin = (1 - zl) * Math.PI * 2;
-    const c = col.set(d.worker.color).lerp(ZAP_TINT, Math.min(1, zl * 1.3));
-    m.body.setColorAt(i, c); m.antenna.setColorAt(i, c);
-    r.flash = true;
-  } else if (r.flash) {
-    const c = col.set(d.worker.color);
-    m.body.setColorAt(i, c); m.antenna.setColorAt(i, c);
-    r.flash = false;
-  }
-  if (r.flash || zl > 0) { if (m.body.instanceColor) m.body.instanceColor.needsUpdate = true; if (m.antenna.instanceColor) m.antenna.instanceColor.needsUpdate = true; }
-  grp.position.set(r.x + jx, (r.lying ? 0.45 : 0.6 + bob) + hop, r.z + jz);
-  grp.rotation.set(0, r.ry + spin, r.lying ? Math.PI / 2 : sway);
-  grp.updateMatrix();
-  put(m.body, i, 0, 0, 0);
-  put(m.visor, i, 0, 0.07, -0.255);
-  put(m.antenna, i, 0, -0.07, 0, wave);
-  putWorld(m.beacon, i, c.x, 1.9, c.z, beacon);
-}
-
-function writeStatic(m: Meshes, layout: Layout, fetchedId: string | undefined): number[] {
-  const n = layout.desks.length;
-  const animated: number[] = [];
-  for (const mesh of Object.values(m)) mesh.count = n;
-  layout.desks.forEach((d, i) => {
-    putWorld(m.desk, i, d.x, 0.4, d.z);
-    putWorld(m.ring, i, d.x, 0.02, d.z + 0.95);
-    const st = d.worker.state;
-    m.ring.setColorAt(i, STATE_THREE[st]);
-    m.desk.setColorAt(i, WHITE);
-    const body = col.set(d.worker.color); // bots use their color; the ring still shows the state
-    m.body.setColorAt(i, body);
-    m.antenna.setColorAt(i, body);
-    m.visor.setColorAt(i, visorColor(st));
-    m.beacon.setColorAt(i, STATE_THREE.waiting);
-    const mode = modeOf(d, fetchedId);
-    const r = roamOf(d);
-    poseBot(m, i, d, 0, false, r);
-    if (!settled(d, r, mode)) animated.push(i);
-  });
-  for (const mesh of Object.values(m)) {
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }
-  return animated;
-}
-
-/** Talk to a worker right in the room (speech bubble), instead of leaving for the Teams tab. */
-function selectWorker(id: string): void {
-  useStore.getState().openChat(id);
-}
-
-const typing = (e: KeyboardEvent) => {
-  const el = e.target as HTMLElement | null;
-  return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
-};
+const WALK_SPEED = 5, SPRINT_SPEED = 11, SPRINT_ACCEL = 1.8; // units per second; accel = how quickly the sprint builds up (higher = faster)
+const WALK_PITCH = Math.atan2(4.5, 6.5); // default camera elevation behind the manager
+const WALK_DIST = Math.hypot(4.5, 6.5);
 
 interface JumpReq { area: TeamArea; n: number }
 
-interface SceneCtl { zoom: ZoomReq | null; reset: number; locked: boolean; warp: Warp | null; view: { current: ViewState } }
+export interface AngleReq { dyaw: number; dpitch: number; n: number }
+interface SceneCtl { onReady: () => void; saveView: number; clearView: number; labels: { current: LabelsApi | null }; active: boolean; subs: Record<string, SubagentInfo[]>; tags: boolean; api: { current: SceneApi | null }; onPick: (id: string, x: number, y: number) => void; pan: PanReq | null; angle: AngleReq | null; zoom: ZoomReq | null; reset: number; locked: boolean; warp: Warp | null; view: { current: ViewState } }
 
 function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; layout: Layout; jump: JumpReq | null; onNearby: (n: Nearby | null) => void; onEnter: (a: TeamArea) => void; ctl: SceneCtl }) {
+  const activeRef = useRef(ctl.active);
+  activeRef.current = ctl.active;
+  useEffect(() => { if (!ctl.active) keys.current.clear(); }, [ctl.active]); // a key held while you switched panels must not keep walking
   const lockedRef = useRef(ctl.locked);
   lockedRef.current = ctl.locked;
   const flight = useRef<{ t: number; fromC: Vector3; toC: Vector3; fromT: Vector3; toT: Vector3 } | null>(null);
   const layoutRef = useRef(layout);
-  const boxes = useMemo(() => deskBoxes(layout.desks), [layout]);
+  const boxes = useMemo(() => [
+    ...deskBoxes(layout.desks),
+    ...layout.zones.flatMap((z) => z.props.filter((p) => p.solid).map((p) => ({ minX: p.x - p.w / 2, maxX: p.x + p.w / 2, minZ: p.z - p.d / 2, maxZ: p.z + p.d / 2 }))),
+  ], [layout]);
+  // shared navigation + the spots idle robots can visit follow the layout
+  useMemo(() => {
+    nav.flow = new Flow(buildNav(layout, boxes)); setPois(layout.zones.flatMap((z) => z.pois));
+    const c = layout.zones.find((z) => z.zone.id === "conference-room");
+    meeting.room = c ? { x: c.x, z: c.z, w: c.w, d: c.d } : null;
+  }, [layout, boxes]);
+  useEffect(() => { setFollowers(useStore.getState().followers); return useStore.subscribe((s) => setFollowers(s.followers)); }, []);
   const animatedRef = useRef<number[]>([]);
   const meshesRef = useRef<Meshes | null>(null);
   const refs = {
     desk: useRef<InstancedMesh>(null), ring: useRef<InstancedMesh>(null), body: useRef<InstancedMesh>(null),
+    legA: useRef<InstancedMesh>(null), legB: useRef<InstancedMesh>(null),
     visor: useRef<InstancedMesh>(null), antenna: useRef<InstancedMesh>(null), beacon: useRef<InstancedMesh>(null),
   };
   const { camera, gl } = useThree();
+  const pick = (id: string, ev: MouseEvent) => { // popup position relative to the 3D view; shift+click = follow me / stop following
+    if (ev.shiftKey) { useStore.getState().toggleFollower(id); return; }
+    const r = gl.domElement.getBoundingClientRect();
+    ctl.onPick(id, ev.clientX - r.left, ev.clientY - r.top);
+  };
   const managerColor = useStore((s) => s.managerColor);
   const chatId = useStore((s) => s.chatId); // this worker runs to its desk and opens its laptop
   const fetchedRef = useRef(chatId);
   fetchedRef.current = chatId;
   const dest = useRef<Vector3 | null>(null); // click-to-move target (walk mode)
   const goTo = (pt: Vector3) => { if (modeRef.current === "walk") dest.current = new Vector3(pt.x, 0, pt.z); };
-  const walkZoom = useRef(1); // 1 = default follow distance; scroll down zooms out, up zooms in
+  const walkZoom = useRef(loadView()?.walk.zoom ?? 1); // 1 = default follow distance; scroll down zooms out, up zooms in
   const controls = useRef<{ target: Vector3; update: () => void } | null>(null);
   const framed = useRef(false);
   const player = useRef<Group>(null);
+  const speedNow = useRef(5), stride = useRef(0);
+  const readyOnce = useRef(false);
+  const pLegA = useRef<Mesh>(null), pLegB = useRef<Mesh>(null), pArms = useRef<Mesh>(null); // the manager walks too
   const pos = useRef(new Vector3(0, 0, 12));
   const keys = useRef(new Set<string>());
   const nearbyId = useRef<string | null>(null);
@@ -238,10 +110,11 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   const assets = useMemo(() => {
     // Blocky pixel bot: body + four legs merged; arm bar (waves when done); two eye boxes (glow in the state color).
     const box = (w: number, h: number, d: number, x: number, y: number, z = 0) => { const g = new BoxGeometry(w, h, d); g.translate(x, y, z); return g; };
-    const body = mergeGeometries([
-      box(0.86, 0.58, 0.5, 0, 0, 0),
-      ...[-0.33, -0.18, 0.18, 0.32].map((x) => box(0.09, 0.22, 0.09, x, -0.4)),
-    ])!;
+    const body = box(0.86, 0.58, 0.5, 0, 0, 0);
+    // legs hang from their top (pivot at the body's underside) so they can swing; two diagonal pairs
+    const leg = (x: number) => box(0.09, 0.22, 0.09, x, -0.11);
+    const legsA = mergeGeometries([leg(-0.33), leg(0.18)])!;
+    const legsB = mergeGeometries([leg(-0.18), leg(0.32)])!;
     const arms = box(1.15, 0.15, 0.2, 0, 0);
     const eyes = mergeGeometries([box(0.07, 0.14, 0.04, -0.255, 0), box(0.07, 0.14, 0.04, 0.255, 0)])!;
     const mats = {
@@ -250,7 +123,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     return {
       deskG: new BoxGeometry(DESK_W, 0.8, DESK_D),
       ringG: new CylinderGeometry(0.55, 0.55, 0.03, 24),
-      bodyG: body,
+      bodyG: body, legAG: legsA, legBG: legsB,
       visorG: eyes,
       antennaG: arms,
       beaconG: new SphereGeometry(0.18, 12, 10),
@@ -260,8 +133,19 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
 
   const frame = useCallback(() => {
     const l = layoutRef.current;
-    const span = Math.max(l.maxX - l.minX, l.maxZ - l.minZ) + 10;
-    const cx = (l.minX + l.maxX) / 2, cz = (l.minZ + l.maxZ) / 2;
+    const saved = loadView(); // the view you saved as your default wins
+    if (saved) {
+      camera.position.set(...saved.cam);
+      if (controls.current) { controls.current.target.set(...saved.target); controls.current.update(); } else camera.lookAt(...saved.target);
+      return;
+    }
+    // otherwise: look at the rooms in the middle (and the projects right around them), not the whole campus
+    const zs = l.zones;
+    const box = zs.length
+      ? { minX: Math.min(...zs.map((z) => z.x - z.w / 2)), maxX: Math.max(...zs.map((z) => z.x + z.w / 2)), minZ: Math.min(...zs.map((z) => z.z - z.d / 2)), maxZ: Math.max(...zs.map((z) => z.z + z.d / 2)) }
+      : { minX: l.minX, maxX: l.maxX, minZ: l.minZ, maxZ: l.maxZ };
+    const span = Math.max(box.maxX - box.minX, box.maxZ - box.minZ) + (zs.length ? 26 : 10);
+    const cx = (box.minX + box.maxX) / 2, cz = (box.minZ + box.maxZ) / 2;
     camera.position.set(cx, span * 0.85, cz + span * 0.3);
     if (controls.current) { controls.current.target.set(cx, 0, cz); controls.current.update(); }
     else camera.lookAt(cx, 0, cz);
@@ -270,11 +154,14 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   useLayoutEffect(() => {
     layoutRef.current = layout;
     const r = refs;
-    if (!r.desk.current || !r.ring.current || !r.body.current || !r.visor.current || !r.antenna.current || !r.beacon.current) return;
+    if (!r.desk.current || !r.ring.current || !r.body.current || !r.visor.current || !r.antenna.current || !r.legA.current || !r.legB.current || !r.beacon.current) return;
     meshesRef.current = {
-      desk: r.desk.current, ring: r.ring.current, body: r.body.current,
+      desk: r.desk.current, ring: r.ring.current, body: r.body.current, legA: r.legA.current, legB: r.legB.current,
       visor: r.visor.current, antenna: r.antenna.current, beacon: r.beacon.current,
     };
+    // Clicks on instanced meshes are first tested against one cached bounding sphere. Robots wander, lie down and move away from
+    // where they were when it was computed, so make it cover the whole campus: otherwise idle or sleeping robots cannot be clicked.
+    for (const m of [r.desk.current, r.body.current, r.antenna.current]) m.boundingSphere = new Sphere(new Vector3(), 1e5);
     animatedRef.current = writeStatic(meshesRef.current, layout, chatId);
     if (!framed.current && layout.desks.length > 0) { framed.current = true; frame(); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -313,7 +200,67 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       controls.current.update();
     }
   }, [ctl.zoom, camera]);
-  useEffect(() => { if (ctl.reset > 0) { walkZoom.current = 1; if (modeRef.current === "overview") frame(); } }, [ctl.reset, frame]);
+  // Walk view angle: yaw (turn around the manager) and pitch (camera height). Slight by design: limited ranges.
+  const yaw = useRef(loadView()?.walk.yaw ?? 0), pitch = useRef(loadView()?.walk.pitch ?? WALK_PITCH);
+  const turn = useCallback((dyaw: number, dpitch: number) => {
+    yaw.current = Math.max(-1.3, Math.min(1.3, yaw.current + dyaw));
+    pitch.current = Math.max(0.3, Math.min(1.2, pitch.current + dpitch));
+  }, []);
+  useEffect(() => {
+    const a = ctl.angle;
+    if (!a) return;
+    if (modeRef.current === "walk") { turn(a.dyaw, a.dpitch); return; }
+    const c = controls.current; // overview: orbit the camera around what it looks at (turn) and raise/lower it (tilt)
+    if (!c) return;
+    const off = camera.position.clone().sub(c.target);
+    const len = off.length(), r = Math.hypot(off.x, off.z);
+    const ang = Math.atan2(off.x, off.z) + a.dyaw;
+    const el = Math.max(0.25, Math.min(1.35, Math.atan2(off.y, r) + a.dpitch));
+    camera.position.set(c.target.x + Math.sin(ang) * Math.cos(el) * len, c.target.y + Math.sin(el) * len, c.target.z + Math.cos(ang) * Math.cos(el) * len);
+    c.update();
+  }, [ctl.angle, turn, camera]);
+  useEffect(() => { // overview pan: slide the camera and its target over the floor, relative to the view direction
+    const pn = ctl.pan, c = controls.current;
+    if (!pn || !c || modeRef.current !== "overview") return;
+    const off = camera.position.clone().sub(c.target);
+    const dist = off.length();
+    const fx = -off.x, fz = -off.z, fl = Math.hypot(fx, fz) || 1; // forward on the ground
+    const gx = fx / fl, gz = fz / fl;                 // ground forward; ground right is (-gz, gx)
+    const dx = gx * pn.forward - gz * pn.right, dz = gz * pn.forward + gx * pn.right;
+    const k = dist * 0.8;
+    c.target.x += dx * k; c.target.z += dz * k;
+    camera.position.x += dx * k; camera.position.z += dz * k;
+    c.update();
+  }, [ctl.pan, camera]);
+  useEffect(() => { // right mouse button drag changes the angle
+    const el = gl.domElement;
+    let drag: { x: number; y: number } | null = null;
+    const down = (e: PointerEvent) => { if (e.button === 2 && modeRef.current === "walk") { drag = { x: e.clientX, y: e.clientY }; el.setPointerCapture(e.pointerId); } };
+    const move = (e: PointerEvent) => { if (!drag) return; turn(-(e.clientX - drag.x) * 0.006, (e.clientY - drag.y) * 0.004); drag = { x: e.clientX, y: e.clientY }; };
+    const up = () => { drag = null; };
+    const menu = (e: Event) => { if (modeRef.current === "walk") e.preventDefault(); };
+    el.addEventListener("pointerdown", down); el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up); el.addEventListener("contextmenu", menu);
+    return () => { el.removeEventListener("pointerdown", down); el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up); el.removeEventListener("contextmenu", menu); };
+  }, [gl, turn]);
+  useEffect(() => {
+    if (ctl.reset > 0) {
+      const w = loadView()?.walk;
+      walkZoom.current = w?.zoom ?? 1; yaw.current = w?.yaw ?? 0; pitch.current = w?.pitch ?? WALK_PITCH;
+      if (modeRef.current === "overview") frame();
+    }
+  }, [ctl.reset, frame]);
+  useEffect(() => { // "Save as default view": remember the overview camera (when in overview) and the walk zoom / angle
+    if (!ctl.saveView) return;
+    const prev = loadView();
+    const inOverview = modeRef.current === "overview" && controls.current;
+    saveView({
+      cam: inOverview ? [camera.position.x, camera.position.y, camera.position.z] : prev?.cam ?? [camera.position.x, camera.position.y, camera.position.z],
+      target: inOverview ? [controls.current!.target.x, controls.current!.target.y, controls.current!.target.z] : prev?.target ?? [0, 0, 0],
+      walk: { zoom: walkZoom.current, yaw: yaw.current, pitch: pitch.current },
+    });
+  }, [ctl.saveView, camera]);
+  useEffect(() => { if (ctl.clearView) { clearView(); walkZoom.current = 1; yaw.current = 0; pitch.current = WALK_PITCH; if (modeRef.current === "overview") frame(); } }, [ctl.clearView, frame]);
   useEffect(() => {
     const w = ctl.warp;
     if (!w) return;
@@ -337,23 +284,54 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     return () => el.removeEventListener("wheel", onWheel);
   }, [gl]);
 
+  // Sleepers and parked robots are skipped by the frame loop; anything that needs them to move (an action, an errand, following) adds them back.
+  const ensureAnimated = (id: string) => {
+    const i = layoutRef.current.desks.findIndex((d) => d.worker.id === id);
+    if (i >= 0 && !animatedRef.current.includes(i)) animatedRef.current = [...animatedRef.current, i];
+  };
+  useEffect(() => { // followers are always animated
+    const wake = () => useStore.getState().followers.forEach(ensureAnimated);
+    wake();
+    return useStore.subscribe((s, p) => { if (s.followers !== p.followers) wake(); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout]);
+  // What the popup menu, the legend and the key handler can ask the scene to do (always about the current layout).
+  useEffect(() => {
+    const animate = ensureAnimated;
+    ctl.api.current = {
+      talk: () => { const d = nearestDesk(layoutRef.current, pos.current); if (d) selectWorker(d.worker.id); },
+      act: (key, id) => {
+        const a = ACTIONS.find((x) => x.key === key);
+        const target = id ?? nearestBot(layoutRef.current, pos.current)?.worker.id;
+        if (!a || !target) return;
+        const w = layoutRef.current.desks.find((d) => d.worker.id === target)?.worker;
+        if (a.kind === "real") { // real actions never run without the exact text being confirmed first
+          if (!w || a.can?.(w) || !window.confirm(a.confirm!(w))) return;
+          void Promise.resolve(a.run(target, w)).catch((e: Error) => window.alert(e.message));
+          return;
+        }
+        a.run(target, w); animate(target);
+      },
+      sendTo: (id, poiId) => { if (startErrand(id, poiId, () => {}, 60_000)) animate(id); },
+      archive: (id, done) => {
+        // walk to the data room to file itself away; without one the archive happens at once
+        if (!startErrand(id, "data-room:console", done)) done();
+        else { const i = layoutRef.current.desks.findIndex((d) => d.worker.id === id); if (i >= 0 && !animatedRef.current.includes(i)) animatedRef.current = [...animatedRef.current, i]; }
+      },
+      look: (id, state, sit) => { if (state) { setLook(id, state, !!sit); animate(id); } else clearLook(id); },
+    };
+    return () => { ctl.api.current = null; };
+  }, [ctl.api]);
+
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!activeRef.current || typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
       keys.current.add(k);
-      if (k === "e" && modeRef.current === "walk") {
-        const d = nearestDesk(layoutRef.current, pos.current);
-        if (d) selectWorker(d.worker.id);
-      }
-      const act = ACTIONS.find((a) => a.key === k);
-      if (act && modeRef.current === "walk") {
-        const b = nearestBot(layoutRef.current, pos.current);
-        if (b) {
-          act.run(b.worker.id);
-          if (!animatedRef.current.includes(b.index)) animatedRef.current = [...animatedRef.current, b.index]; // sleepers must animate to react
-        }
-      }
+      if (e.repeat) return; // holding a key must not fire an action (or a confirmation) over and over
+      if (modeRef.current !== "walk") return;
+      if (k === "e") ctl.api.current?.talk();
+      else if (ACTIONS.some((a) => a.key === k)) ctl.api.current?.act(k);
     };
     const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
     const clear = () => keys.current.clear();
@@ -369,8 +347,15 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
 
   // Single frame loop: only non-asleep (and non-error) workers touch their matrices.
   useFrame((state, dt) => {
+    ctl.labels.current?.update(camera, gl.domElement.clientWidth, gl.domElement.clientHeight); // floating titles follow the camera
+    if (!readyOnce.current) { readyOnce.current = true; ctl.onReady(); }
+    sampleFrame(dt, state.clock.elapsedTime, gl.info);
+    nerd.bots = roams.size;
     ctl.view.current.mode = modeRef.current;
+    const mvx = pos.current.x - playerState.x, mvz = pos.current.z - playerState.z, mv = Math.hypot(mvx, mvz);
+    if (mv > 0.002) { playerState.hx = mvx / mv; playerState.hz = mvz / mv; playerState.still = 0; } else playerState.still += dt; // followers trail, then huddle
     playerState.on = modeRef.current === "walk"; playerState.x = pos.current.x; playerState.z = pos.current.z;
+    meeting.count = meeting.room && followerList().length && insideRoom(meeting.room, pos.current.x, pos.current.z) ? Math.min(followerList().length, MAX_SEATS) : 0;
     if (modeRef.current === "walk") { ctl.view.current.x = pos.current.x; ctl.view.current.z = pos.current.z; }
     else if (controls.current) { ctl.view.current.x = controls.current.target.x; ctl.view.current.z = controls.current.target.z; }
     const fl = flight.current;
@@ -394,6 +379,8 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       m.body.instanceMatrix.needsUpdate = true;
       m.visor.instanceMatrix.needsUpdate = true;
       m.antenna.instanceMatrix.needsUpdate = true;
+      m.legA.instanceMatrix.needsUpdate = true;
+      m.legB.instanceMatrix.needsUpdate = true;
       m.beacon.instanceMatrix.needsUpdate = true;
     }
 
@@ -404,6 +391,10 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     const ks = keys.current;
     let dx = (ks.has("d") || ks.has("arrowright") ? 1 : 0) - (ks.has("a") || ks.has("arrowleft") ? 1 : 0);
     let dz = (ks.has("s") || ks.has("arrowdown") ? 1 : 0) - (ks.has("w") || ks.has("arrowup") ? 1 : 0);
+    if (dx !== 0 || dz !== 0) { // keys move relative to the camera: W is always "away from the camera"
+      const c = Math.cos(yaw.current), sn = Math.sin(yaw.current);
+      [dx, dz] = [dx * c + dz * sn, -dx * sn + dz * c];
+    }
     const p = pos.current;
     const g = player.current;
     if (dx !== 0 || dz !== 0) dest.current = null; // keyboard cancels click-to-move
@@ -411,24 +402,42 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       const tx = dest.current.x - p.x, tz = dest.current.z - p.z, dist = Math.hypot(tx, tz);
       if (dist < 0.2) dest.current = null; else { dx = tx / dist; dz = tz / dist; }
     }
-    if (dx !== 0 || dz !== 0) {
+    // Holding Shift sprints: the speed builds up smoothly from walking pace towards a top speed, and drops back when you stop.
+    const moving = dx !== 0 || dz !== 0;
+    const want = moving && ks.has("shift") ? SPRINT_SPEED : WALK_SPEED;
+    if (!moving) speedNow.current = WALK_SPEED;
+    else speedNow.current += (want - speedNow.current) * (1 - Math.exp(-(want > speedNow.current ? SPRINT_ACCEL : 9) * dt));
+    const spd = speedNow.current;
+    if (moving) {
       const len = Math.hypot(dx, dz);
       dx /= len; dz /= len;
       const l = layoutRef.current;
       const r = resolveMove(
         p,
-        { x: Math.min(l.maxX + 6, Math.max(l.minX - 6, p.x + dx * 5 * dt)), z: Math.min(l.maxZ + 8, Math.max(l.minZ - 6, p.z + dz * 5 * dt)) },
+        { x: Math.min(l.maxX + 6, Math.max(l.minX - 6, p.x + dx * spd * dt)), z: Math.min(l.maxZ + 8, Math.max(l.minZ - 6, p.z + dz * spd * dt)) },
         boxes, PLAYER_RADIUS,
       );
       const moved = Math.hypot(r.x - p.x, r.z - p.z);
       p.x = r.x; p.z = r.z;
       pushPlayerOut(p);
-      if (dest.current && moved < 5 * dt * 0.25) dest.current = null; // blocked by a desk: stop
+      if (dest.current && moved < spd * dt * 0.25) dest.current = null; // blocked by a desk: stop
       if (g) g.rotation.y = Math.atan2(-dx, -dz);
+    }
+    // the manager's own walk cycle: legs swing in diagonal pairs, hands seesaw; eases back to rest when standing
+    const walking = dx !== 0 || dz !== 0;
+    stride.current += dt * 11 * (spd / WALK_SPEED); // faster legs when sprinting
+    const ph = stride.current;
+    const sw = walking ? Math.sin(ph) * 0.85 : 0;
+    const ease = 1 - Math.exp(-14 * dt);
+    if (pLegA.current && pLegB.current && pArms.current) {
+      pLegA.current.rotation.x += (sw - pLegA.current.rotation.x) * ease;
+      pLegB.current.rotation.x += (-sw - pLegB.current.rotation.x) * ease;
+      pArms.current.rotation.z += ((walking ? -Math.sin(ph) * 0.6 : 0) - pArms.current.rotation.z) * ease;
     }
     if (g) g.position.copy(p);
     const z = walkZoom.current;
-    camera.position.lerp(dummy.position.set(p.x, 4.5 * z, p.z + 6.5 * z), 1 - Math.exp(-6 * dt));
+    const D = WALK_DIST * z * (1 + ((spd - WALK_SPEED) / (SPRINT_SPEED - WALK_SPEED)) * 0.15), ce = Math.cos(pitch.current); // the camera drops back a little when sprinting
+    camera.position.lerp(dummy.position.set(p.x + Math.sin(yaw.current) * ce * D, Math.sin(pitch.current) * D, p.z + Math.cos(yaw.current) * ce * D), 1 - Math.exp(-6 * dt));
     camera.lookAt(p.x, 1, p.z);
 
     const near = nearestDesk(layoutRef.current, p);
@@ -462,10 +471,6 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
             <planeGeometry args={[a.w, a.d]} />
             <meshStandardMaterial color={color} />
           </mesh>
-          <Suspense fallback={null}><Text font={new URL(fontUrl, location.href).href} fontSize={0.8} color="#dfe6ff" anchorX="center" anchorY="middle"
-            rotation={[-Math.PI / 2, 0, 0]} position={[a.x, 0.03, a.z - a.d / 2 + 0.6]}>
-            {a.name}
-          </Text></Suspense>
         </group>
       ))}
 
@@ -473,20 +478,35 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
         onClick={(e) => {
           e.stopPropagation();
           const d = e.instanceId !== undefined ? layoutRef.current.desks[e.instanceId] : undefined;
-          if (d) selectWorker(d.worker.id);
+          if (d) pick(d.worker.id, e.nativeEvent);
         }}>
         <meshStandardMaterial color="#3a4256" roughness={0.8} />
       </instancedMesh>
+      <ZonesLayer layout={layout} onZone={(id) => { if (id === "data-room") useStore.getState().setPanel("data"); }} />
+      <ConferenceLayer layout={layout} />
       <DeskScreens layout={layout} openId={chatId} />
-      <Zaps />
+      <FxLayer />
+      <Icons />
+      <Minibots layout={layout} subs={ctl.subs} />
+      <ServiceBots layout={layout} />
+      <ManagerWalls layout={layout} onOpenBoard={() => useStore.getState().setPanel("board")} onOpenNotes={() => useStore.getState().setPanel("notes")} />
+      {ctl.tags && <NameTags layout={layout} getCenter={() => (modeRef.current === "walk" ? pos.current : controls.current?.target ?? pos.current)} />}
       <SpeechBubbles layout={layout} getPos={(id) => roams.get(id)} />
       <instancedMesh ref={refs.ring} args={[assets.ringG, undefined, MAX_DESKS]} frustumCulled={false}>
         <meshBasicMaterial toneMapped={false} />
       </instancedMesh>
-      <instancedMesh ref={refs.body} args={[assets.bodyG, undefined, MAX_DESKS]} frustumCulled={false}>
+      <instancedMesh ref={refs.body} args={[assets.bodyG, undefined, MAX_DESKS]} frustumCulled={false}
+        onClick={(e) => { e.stopPropagation(); const d = e.instanceId !== undefined ? layoutRef.current.desks[e.instanceId] : undefined; if (d) pick(d.worker.id, e.nativeEvent); }}>
         <meshStandardMaterial {...assets.mats.solid} />
       </instancedMesh>
-      <instancedMesh ref={refs.antenna} args={[assets.antennaG, undefined, MAX_DESKS]} frustumCulled={false}>
+      <instancedMesh ref={refs.legA} args={[assets.legAG, undefined, MAX_DESKS]} frustumCulled={false}>
+        <meshStandardMaterial {...assets.mats.solid} />
+      </instancedMesh>
+      <instancedMesh ref={refs.legB} args={[assets.legBG, undefined, MAX_DESKS]} frustumCulled={false}>
+        <meshStandardMaterial {...assets.mats.solid} />
+      </instancedMesh>
+      <instancedMesh ref={refs.antenna} args={[assets.antennaG, undefined, MAX_DESKS]} frustumCulled={false}
+        onClick={(e) => { e.stopPropagation(); const d = e.instanceId !== undefined ? layoutRef.current.desks[e.instanceId] : undefined; if (d) pick(d.worker.id, e.nativeEvent); }}>
         <meshStandardMaterial {...assets.mats.solid} />
       </instancedMesh>
       <instancedMesh ref={refs.visor} args={[assets.visorG, undefined, MAX_DESKS]} frustumCulled={false}>
@@ -499,8 +519,10 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       {/* Player bot (walk mode only) */}
       <group ref={player} visible={mode === "walk"}>
         <mesh geometry={assets.bodyG} position={[0, 0.6, 0]}><meshStandardMaterial {...assets.mats.solid} color={managerColor} /></mesh>
+        <mesh ref={pLegA} geometry={assets.legAG} position={[0, 0.31, 0]}><meshStandardMaterial {...assets.mats.solid} color={managerColor} /></mesh>
+        <mesh ref={pLegB} geometry={assets.legBG} position={[0, 0.31, 0]}><meshStandardMaterial {...assets.mats.solid} color={managerColor} /></mesh>
         <mesh geometry={assets.visorG} position={[0, 0.67, -0.255]}><meshBasicMaterial color="#7dffb0" toneMapped={false} /></mesh>
-        <mesh geometry={assets.antennaG} position={[0, 0.53, 0]}><meshStandardMaterial {...assets.mats.solid} color={managerColor} /></mesh>
+        <mesh ref={pArms} geometry={assets.antennaG} position={[0, 0.53, 0]}><meshStandardMaterial {...assets.mats.solid} color={managerColor} /></mesh>
       </group>
 
       {mode === "overview" && (
@@ -511,114 +533,15 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   );
 }
 
-/** The robot closest to the manager (where it stands right now, not its desk), within reach. */
-function nearestBot(l: Layout, p: Vector3): { worker: BotWorker; index: number } | null {
-  let best: { worker: BotWorker; index: number } | null = null, bd = 4 * 4;
-  l.desks.forEach((d, index) => {
-    const r = roams.get(d.worker.id);
-    const dx = (r?.x ?? d.x) - p.x, dz = (r?.z ?? d.z) - p.z, dd = dx * dx + dz * dz;
-    if (dd < bd) { bd = dd; best = { worker: d.worker, index }; }
-  });
-  return best;
-}
-
-function nearestDesk(l: Layout, p: Vector3): DeskSlot | null {
-  let best: DeskSlot | null = null;
-  let bd = 2 * 2;
-  for (const d of l.desks) {
-    const dx = d.x - p.x, dz = d.z - p.z;
-    const q = dx * dx + dz * dz;
-    if (q < bd) { bd = q; best = d; }
-  }
-  return best;
-}
-
-function StatusLegend() {
-  const snapshot = useStore((s) => s.snapshot);
-  const counts = useMemo(() => {
-    const c: Record<WorkerState, number> = { asleep: 0, idle: 0, working: 0, waiting: 0, done: 0, error: 0 };
-    for (const t of snapshot?.teams ?? []) for (const w of t.workers) c[w.state]++;
-    return c;
-  }, [snapshot]);
-  return (
-    <div className="legend status-legend">
-      {STATE_ORDER.map((s) => (
-        <div key={s} className="legend-row">
-          <span className="legend-dot" style={{ background: STATE_COLORS[s] }} />
-          <span>{STATE_LABELS[s]}</span>
-          <b className="legend-n">{counts[s]}</b>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ProjectLegend({ layout, onJump, hidden, showAll, onShowAll }: { layout: Layout; onJump: (a: TeamArea) => void; hidden: number; showAll: boolean; onShowAll: (v: boolean) => void }) {
-  const [filter, setFilter] = useState("");
-  const rows = useMemo(() => {
-    const byTeam = new Map<string, Record<WorkerState, number>>();
-    for (const d of layout.desks) {
-      let c = byTeam.get(d.worker.team);
-      if (!c) { c = { asleep: 0, idle: 0, working: 0, waiting: 0, done: 0, error: 0 }; byTeam.set(d.worker.team, c); }
-      c[d.worker.state]++;
-    }
-    return layout.areas.map((area) => {
-      const c = byTeam.get(area.name) ?? { asleep: 0, idle: 0, working: 0, waiting: 0, done: 0, error: 0 };
-      const top = STATE_ORDER.find((s) => c[s] > 0) ?? "asleep";
-      const summary = STATE_ORDER.filter((s) => c[s] > 0).map((s) => `${c[s]} ${s}`).join(" \u00b7 ");
-      return { area, c, top, summary };
-    }).sort((a, b) =>
-      b.c.waiting - a.c.waiting || b.c.working - a.c.working || (a.area.name < b.area.name ? -1 : a.area.name > b.area.name ? 1 : 0));
-  }, [layout]);
-  const f = filter.trim().toLowerCase();
-  const shown = f ? rows.filter((r) => r.area.name.toLowerCase().includes(f)) : rows;
-  const [open, setOpen] = useState(false);
-  const wrap = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: MouseEvent) => { if (!wrap.current?.contains(e.target as Node)) setOpen(false); };
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", away);
-    document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
-  }, [open]);
-  const picker = (
-    <div className="project-picker" ref={wrap}>
-      <button className="small" onClick={() => setOpen(!open)}>Projects ({layout.areas.length}) ▾</button>
-      {open && (
-        <div className="project-dropdown">
-          <input autoFocus value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter projects" />
-          {(hidden > 0 || showAll) && (
-            <label className="project-sum" style={{ cursor: "pointer", paddingLeft: 0 }}>
-              <input type="checkbox" checked={showAll} onChange={(e) => onShowAll(e.target.checked)} style={{ width: "auto" }} /> Show finished/abandoned{hidden > 0 ? ` (${hidden} hidden)` : ""}
-            </label>
-          )}
-          <div className="project-list">
-            {shown.map(({ area, top, summary }) => (
-              <div key={area.name} className="legend-row project-row" onClick={() => { onJump(area); setOpen(false); }} title={`Jump to ${area.name}`}>
-                <span className="legend-dot" style={{ background: `#${area.color.getHexString()}` }} />
-                <span className="project-name">{area.name}</span>
-                <span className="legend-dot" style={{ background: STATE_COLORS[top] }} />
-                <span className="project-sum">{summary}</span>
-              </div>
-            ))}
-            {shown.length === 0 && <div className="project-sum">No projects</div>}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-  // Lives in the app header (slot rendered by App); falls back to inline if the slot is missing.
-  const slot = document.getElementById("topbar-slot");
-  return slot ? createPortal(picker, slot) : picker;
-}
 
 const box: React.CSSProperties = {
   position: "absolute", padding: "8px 10px", background: "rgba(10,12,20,0.78)", color: "#dfe6ff",
   font: "12px/1.5 system-ui, sans-serif", borderRadius: 6, pointerEvents: "none",
 };
 
-export default function World() {
+/** `active` = the 3D office is the panel on screen. It stays mounted while you look at other panels, so the camera, zoom,
+ *  position, followers and open chats are exactly as you left them; while inactive it draws nothing and ignores keys. */
+export default function World({ active = true }: { active?: boolean }) {
   const [mode, setMode] = useState<Mode>("overview");
   const [hidden, setHidden] = useState(() => document.hidden);
   const [nearby, setNearby] = useState<Nearby | null>(null);
@@ -645,19 +568,57 @@ export default function World() {
   const layout = useMemo(() => computeLayout(shownSnap, showAll), [shownSnap, showAll]);
   const hiddenTeams = shownSnap ? shownSnap.teams.length - visibleTeams(shownSnap, false).length : 0;
   const [jump, setJump] = useState<JumpReq | null>(null);
+  // other panels ask the camera to go somewhere: "fly to this agent / project" (Teams, Control Room, search results)
+  const focus = useStore((st) => st.focus);
+  useEffect(() => {
+    if (!focus) return;
+    if (focus.kind === "point") { if (focus.x !== undefined && focus.z !== undefined) setWarp((w) => ({ x: focus.x!, z: focus.z!, n: (w?.n ?? 0) + 1 })); return; }
+    if (focus.kind === "agent") {
+      const d = layout.desks.find((x) => x.worker.id === focus.id);
+      if (d) setJump((j) => ({ area: { name: d.worker.title, x: d.x, z: d.z, w: 5, d: 5, color: d.color }, n: (j?.n ?? 0) + 1 }));
+    } else {
+      const a = layout.areas.find((x) => x.name === focus.id);
+      if (a) setJump((j) => ({ area: a, n: (j?.n ?? 0) + 1 }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus?.n]);
+  // floating titles: one per project and per room / leisure area; clicking one takes you there
+  const labelItems = useMemo<LabelItem[]>(() => [
+    ...layout.areas.map((a): LabelItem => ({ id: `p:${a.name}`, name: a.name, x: a.x, z: a.z, y: 3.2, color: `#${a.color.getHexString()}`, kind: "project", area: a })),
+    ...layout.zones.map(({ zone, x, z, w, d }): LabelItem => ({
+      id: `z:${zone.id}`, name: `${zoneIcon(zone)} ${zone.name}`, x, z, y: 3.6, color: "#7a869c", kind: "room", poiId: zone.pois[0] ? `${zone.id}:${zone.pois[0].id}` : undefined,
+      area: { name: zone.name, x, z, w, d, color: new Color(zone.floor) },
+    })),
+  ], [layout]);
+  useEffect(() => { nerd.labels = labelItems.length; }, [labelItems]);
   const lsGet = (k: string) => { try { return localStorage.getItem(k) === "1"; } catch { return false; } };
   const lsSet = (k: string, v: boolean) => { try { localStorage.setItem(k, v ? "1" : "0"); } catch { /* private mode */ } };
-  const [dock, setDock] = useState<ChatDock>(() => { try { const v = localStorage.getItem("ao.chatDock"); return v === "left" || v === "right" ? v : "float"; } catch { return "float"; } });
-  const setDockPersist = (d: ChatDock) => { setDock(d); try { localStorage.setItem("ao.chatDock", d); } catch { /* private mode */ } };
   const [locked, setLocked] = useState(() => lsGet("ao.zoomLock"));
-  const [minimap, setMinimap] = useState(() => lsGet("ao.minimap"));
   const [zoom, setZoom] = useState<ZoomReq | null>(null);
   const [reset, setReset] = useState(0);
+  const [saveN, setSaveN] = useState(0);
+  const [ready, setReady] = useState(false);
+  const onReady = useCallback(() => setReady(true), []);
+  const [clearN, setClearN] = useState(0);
+  const [hasDefault, setHasDefault] = useState(() => loadView() !== null);
+  const [angle, setAngle] = useState<AngleReq | null>(null);
+  const [pan, setPan] = useState<PanReq | null>(null);
+  const sceneApi = useRef<SceneApi | null>(null);
+  const labelsApi = useRef<LabelsApi | null>(null);
+  const [subs, setSubs] = useState<Record<string, SubagentInfo[]>>({});
+  useLive(async () => { try { setSubs(await api.subagents()); } catch { /* ignore */ } }, ["subagents"]);
+  const [tags, setTags] = useState(() => lsGet("ao.nametags"));
+  const showKeymap = useStore((st) => st.showKeymap);
+  const showStatusCounts = useStore((st) => st.showStatusCounts);
+  const setShowKeymap = useStore((st) => st.setShowKeymap);
+  const frame = useRef<HTMLDivElement>(null);
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [roomMenu, setRoomMenu] = useState<{ item: LabelItem; x: number; y: number } | null>(null);
+  const allWorkers = useMemo(() => snapshot?.teams.flatMap((t) => t.workers) ?? [], [snapshot]);
+  const onPick = useCallback((id: string, x: number, y: number) => setMenu({ id, x, y }), []);
+  const menuWorker = menu ? snapshot?.teams.flatMap((t) => t.workers).find((x) => x.id === menu.id) : undefined;
   const [warp, setWarp] = useState<Warp | null>(null);
-  const view = useRef<ViewState>({ x: 0, z: 0, mode: "overview" });
-  const getBots = useCallback(
-    () => layout.desks.map((d) => { const r = roams.get(d.worker.id); return { x: r?.x ?? d.x, z: r?.z ?? d.z, color: stateColor(d.worker.state) }; }),
-    [layout]);
+  const view = useRef<ViewState>(viewState);
   // Double-click a project area in overview: switch to walk mode and stand next to that project.
   const enterTeam = useCallback((area: TeamArea) => {
     setMode("walk");
@@ -667,48 +628,108 @@ export default function World() {
   useEffect(() => {
     const vis = () => setHidden(document.hidden);
     document.addEventListener("visibilitychange", vis);
-    return () => document.removeEventListener("visibilitychange", vis);
+    window.addEventListener("focus", vis);
+    const t = setInterval(vis, 1500); // some embedded panes never send visibilitychange: do not stay frozen
+    return () => { document.removeEventListener("visibilitychange", vis); window.removeEventListener("focus", vis); clearInterval(t); };
   }, []);
 
+  // One list of things the keyboard (and the clickable keymap) can do from here.
+  const toggleMode = () => setMode((m) => (m === "overview" ? "walk" : "overview"));
+  const openMap = () => useStore.getState().setPanel("map"); // the minimap lives in the Map tab
+  const toggleLock = () => { lsSet("ao.zoomLock", !locked); setLocked(!locked); };
+  const resetView = () => setReset((n) => n + 1);
+  const closeOverlays = () => { if (menu) setMenu(null); else if (chatId) openChat(undefined); };
+  const toggleTags = () => { lsSet("ao.nametags", !tags); setTags(!tags); };
+  // the View and Projects panels (in the dock) drive the office through this bus; the office mirrors its state back for them
+  const busRef = useRef<(c: import("./viewBus").ViewCmd) => void>(() => {});
+  busRef.current = (c) => {
+    if (c.t === "mode") setMode((m) => c.mode ?? (m === "overview" ? "walk" : "overview"));
+    else if (c.t === "zoom") setZoom((z) => ({ factor: c.factor, n: (z?.n ?? 0) + 1 }));
+    else if (c.t === "pan") setPan((q) => ({ right: c.right, forward: c.forward, n: (q?.n ?? 0) + 1 }));
+    else if (c.t === "angle") setAngle((a) => ({ dyaw: c.dyaw, dpitch: c.dpitch, n: (a?.n ?? 0) + 1 }));
+    else if (c.t === "reset") setReset((n) => n + 1);
+    else if (c.t === "lock") toggleLock();
+    else if (c.t === "tags") toggleTags();
+    else if (c.t === "saveDefault") { setSaveN((n) => n + 1); setTimeout(() => setHasDefault(loadView() !== null), 100); }
+    else if (c.t === "clearDefault") { setClearN((n) => n + 1); setHasDefault(false); }
+    else if (c.t === "showAll") setShowAll(c.on);
+    else if (c.t === "animate") c.ids.forEach((id) => sceneApi.current?.look(id, "idle"));
+  };
+  useEffect(() => onView((c) => busRef.current(c)), []);
+  useEffect(() => { useStore.getState().setViewInfo({ mode, locked, hasDefault, tags, showAll }); }, [mode, locked, hasDefault, tags, showAll]);
+  const clearFollowers = useStore((st) => st.clearFollowers);
+  const meetingOpen = useStore((st) => st.meetingOpen);
+  const setMeetingOpen = useStore((st) => st.setMeetingOpen);
+  const nFollowers = useStore((st) => st.followers.length);
+  // group moves: rally every waiting agent round you, wake every sleeper, send the idle ones to lunch
+  const ids = (pred: (w: BotWorker) => boolean) => layout.desks.filter((d) => pred(d.worker)).map((d) => d.worker.id);
+  const rallying = useStore((st) => st.followers.length > 0 && st.followers.every((f) => layout.desks.find((d) => d.worker.id === f)?.worker.state === "waiting"));
+  const rally = () => { if (rallying) clearFollowers(); else useStore.getState().setFollowers(ids((w) => w.state === "waiting")); };
+  const wakeEveryone = () => { const a = ids((w) => w.state === "asleep"); wakeAll(a); a.forEach((id) => sceneApi.current?.look(id, "idle")); };
+  const lunch = () => { lunchAll(ids((w) => w.state === "idle")); };
+  const orderCoffee = () => { requestCoffee(MANAGER_ID); };
+  const hotkeys = { o: orderCoffee, r: rally, u: wakeEveryone, i: lunch, x: clearFollowers, q: () => setMeetingOpen(!meetingOpen), v: toggleMode, m: openMap, l: toggleLock, t: toggleTags, "0": resetView };
+  const hotRef = useRef(hotkeys); hotRef.current = hotkeys;
+  const activeRef2 = useRef(active); activeRef2.current = active;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key.toLowerCase() === "v") setMode((m) => (m === "overview" ? "walk" : "overview"));
+      if (!activeRef2.current || typing(e) || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      (hotRef.current as Record<string, (() => void) | undefined>)[e.key.toLowerCase()]?.();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+  const walking = mode === "walk";
+  const nearWhy = !walking ? "Walk mode only" : !nearby ? "No agent close by" : null;
+  const entries: KeyEntry[] = KEYMAP.map((def) => {
+    const act = def.id.startsWith("action:") ? def.id.slice(7) : "";
+    const run: Record<string, [() => void, string | null]> = {
+      mode: [toggleMode, null], talk: [() => sceneApi.current?.talk(), nearWhy], minimap: [openMap, null],
+      rally: [rally, ids((w) => w.state === "waiting").length || rallying ? null : "Nobody is waiting for you"],
+      wake: [wakeEveryone, ids((w) => w.state === "asleep").length ? null : "Nobody is asleep"],
+      lunch: [lunch, ids((w) => w.state === "idle").length ? null : "Nobody is idle"],
+      coffee: [orderCoffee, layout.zones.some((z) => z.zone.id === "coffee-station") ? null : "There is no coffee station"],
+      lock: [toggleLock, null], tags: [toggleTags, null], dismiss: [clearFollowers, nFollowers ? null : "Nobody is following you"],
+      meeting: [() => setMeetingOpen(!meetingOpen), nFollowers ? null : "Nobody is following you"], reset: [resetView, null], esc: [closeOverlays, menu || chatId ? null : "Nothing is open"],
+    };
+    if (act) run[def.id] = [() => sceneApi.current?.act(act), nearWhy];
+    const r = run[def.id];
+    return { def, run: r?.[0], why: r?.[1] };
+  });
 
-  const chat = chatId ? <WorkerChat workerId={chatId} onClose={() => openChat(undefined)} dock={dock} onDock={setDockPersist} /> : null;
   return (
     <div style={{ display: "flex", width: "100%", height: "100%", minHeight: 240 }}>
-    {dock === "left" && chat && <div className="wc-dock">{chat}</div>}
-    <div style={{ position: "relative", flex: 1, minWidth: 0, height: "100%" }}>
-      <Canvas frameloop={hidden ? "never" : "always"} dpr={[1, 2]} camera={{ position: [0, 40, 20], fov: 50, near: 0.1, far: 1000 }}>
-        <Scene mode={mode} layout={layout} jump={jump} onNearby={setNearby} onEnter={enterTeam} ctl={{ zoom, reset, locked, warp, view }} />
+    <div ref={frame} style={{ position: "relative", flex: 1, minWidth: 0, height: "100%" }}>
+      <Canvas onPointerMissed={() => { setMenu(null); setRoomMenu(null); }} frameloop={hidden || !active ? "never" : "always"} dpr={[1, 2]} camera={{ position: [0, 40, 20], fov: 50, near: 0.1, far: 1000 }}>
+        <Scene mode={mode} layout={layout} jump={jump} onNearby={setNearby} onEnter={enterTeam} ctl={{ onReady, saveView: saveN, clearView: clearN, labels: labelsApi, active, subs, tags, api: sceneApi, onPick, pan, angle, zoom, reset, locked, warp, view }} />
       </Canvas>
-      <ViewControls mode={mode} onMode={() => setMode((m) => (m === "overview" ? "walk" : "overview"))}
-        onZoom={(factor) => setZoom((z) => ({ factor, n: (z?.n ?? 0) + 1 }))} onReset={() => setReset((n) => n + 1)}
-        locked={locked} onLock={() => { lsSet("ao.zoomLock", !locked); setLocked(!locked); }}
-        minimap={minimap} onMinimap={() => { lsSet("ao.minimap", !minimap); setMinimap(!minimap); }} />
-      {minimap && <Minimap layout={layout} view={view} getBots={getBots} onGo={(x, z) => setWarp((w) => ({ x, z, n: (w?.n ?? 0) + 1 }))} />}
-      <StatusLegend />
+      {showStatusCounts && <StatusLegend />}
       <button onClick={clearBubbles} style={{ position: "absolute", top: 10, right: 10, padding: "4px 10px", cursor: "pointer", fontSize: 12 }} title="Mark every speech bubble as read">Clear bubbles</button>
-      <ProjectLegend layout={layout} hidden={hiddenTeams} showAll={showAll} onShowAll={setShowAll} onJump={(area) => setJump((j) => ({ area, n: (j?.n ?? 0) + 1 }))} />
-      <div style={{ ...box, left: 10, bottom: 10 }}>
-        <div><b>V</b> toggle overview / walk</div>
-        <div>Overview: drag to orbit, scroll to zoom, <b>double-click</b> a project to walk in</div>
-        <div>Walk: <b>WASD</b> or <b>click the floor</b> to move, <b>E</b> talk to the nearby bot, <b>Z</b> zap the closest bot, <b>scroll</b> to zoom</div>
-        <div>Click a desk to talk to its bot</div>
-      </div>
-      {dock === "float" && chat && <div style={{ position: "absolute", right: 10, bottom: 10, zIndex: 5 }}>{chat}</div>}
+      {!ready && <p className="muted" style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", margin: 0, pointerEvents: "none" }}>Building the office…</p>}
+      <Labels apiRef={labelsApi} items={labelItems} onPick={(it, cx, cy) => {
+        const r = frame.current?.getBoundingClientRect();
+        setMenu(null); setRoomMenu({ item: it, x: cx - (r?.left ?? 0), y: cy - (r?.top ?? 0) + 12 });
+      }} />
+      {roomMenu && (
+        <RoomMenu item={roomMenu.item} x={Math.max(4, Math.min(roomMenu.x, (frame.current?.clientWidth ?? 800) - 262))} y={Math.max(4, Math.min(roomMenu.y, (frame.current?.clientHeight ?? 600) - 340))}
+          workers={roomMenu.item.kind === "project" ? allWorkers.filter((w) => w.team === roomMenu.item.area.name) : []} everyone={allWorkers}
+          scene={sceneApi.current ?? { talk() {}, act() {}, look() {}, sendTo() {}, archive: (_id, done) => done() }}
+          onGo={() => setJump((j) => ({ area: roomMenu.item.area, n: (j?.n ?? 0) + 1 }))} onClose={() => setRoomMenu(null)} />
+      )}
+      <FollowBar />
+      {meetingOpen && <div style={{ position: "absolute", right: 10, bottom: 10, zIndex: 6 }}><MeetingChat onClose={() => setMeetingOpen(false)} /></div>}
+      {showKeymap && <KeymapLegend entries={entries} onHide={() => setShowKeymap(false)} />}
+      {menu && menuWorker && (
+        <AgentMenu worker={menuWorker} scene={sceneApi.current ?? { talk() {}, act() {}, look() {}, sendTo() {}, archive: (_id, done) => done() }} onClose={() => setMenu(null)}
+          x={Math.max(4, Math.min(menu.x + 6, (frame.current?.clientWidth ?? 800) - 262))} y={Math.max(4, Math.min(menu.y, (frame.current?.clientHeight ?? 600) - 330))} />
+      )}
       {nearby && (
         <div style={{ ...box, left: "50%", bottom: 24, transform: "translateX(-50%)", fontSize: 14 }}>
           Press <b>E</b> to talk to {nearby.title} · <b>Z</b> zap
         </div>
       )}
     </div>
-    {dock === "right" && chat && <div className="wc-dock">{chat}</div>}
     </div>
   );
 }
+

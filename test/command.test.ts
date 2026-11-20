@@ -46,3 +46,22 @@ describe("commands", () => {
     expect(m2.runs.find((r) => r.runId === "r")?.status).toBe("orphaned");
   });
 });
+
+describe("buildArgs model", () => {
+  it("passes a model alias or id as --model, and rejects anything flag-like", async () => {
+    const { buildArgs } = await import("../server/adapters/claude-code/command");
+    expect(buildArgs("hi", "s1", { model: "sonnet" })).toEqual(expect.arrayContaining(["--model", "sonnet"]));
+    expect(buildArgs("hi", undefined, { model: "claude-haiku-5-5" })).toContain("claude-haiku-5-5");
+    expect(buildArgs("hi", undefined, {})).not.toContain("--model");
+    expect(() => buildArgs("hi", undefined, { model: "--dangerously-skip-permissions" })).toThrow();
+    expect(() => buildArgs("hi", undefined, { model: "a b" })).toThrow();
+  });
+});
+
+describe("cleanEnv", () => {
+  it("drops ANTHROPIC_* variables and keeps the rest", async () => {
+    const { cleanEnv } = await import("../server/adapters/claude-code/command");
+    const out = cleanEnv({ ANTHROPIC_BASE_URL: "x", ANTHROPIC_AUTH_TOKEN: "y", PATH: "/bin", HOME: "/h" });
+    expect(out).toEqual({ PATH: "/bin", HOME: "/h" });
+  });
+});

@@ -1,8 +1,8 @@
-# CLAUDE.md — Agent Office (working title)
+# CLAUDE.md — SparkBots (formerly "Agent Office")
 
 A local, browser-based 3D "company" where every Claude Code session is a worker, every project is a team, and you can walk up to a desk and talk to the agent sitting there. Personal tool first, open-source (MIT) second.
 
-> Working title only. Name is undecided — do not hardcode it outside `src/shared/brand.ts`.
+> The product name is SparkBots (set in `src/shared/brand.ts`; do not hardcode it elsewhere). The data folder `~/.agent-office/` and the `agent-office` CLI name are kept for compatibility. Terms: an *agent* is one session/chat; a *sub-agent* is started by an agent (shown as a minibot of its parent).
 
 ---
 
@@ -13,7 +13,7 @@ A local, browser-based 3D "company" where every Claude Code session is a worker,
 - **No `--dangerously-skip-permissions`, ever.** Nothing the office spawns may bypass Claude Code permissions. This is a hard rule, not a default.
 - **Undocumented formats get `[VERIFY]`.** Claude Code's on-disk formats (`~/.claude/sessions/`, JSONL record shapes) are not a public API. Every parser is defensive: unknown fields are ignored, unparseable lines are skipped and counted, and nothing crashes the server.
 - **Original mascot only.** Workers are an original low-poly "spark bot" design. No Claude/Anthropic logo, wordmark or likeness anywhere in the repo, assets or screenshots (trademark; required for open source).
-- **Scope discipline.** Build in the phase order in §9. Don't start a later phase until the earlier phase's acceptance checks pass.
+- **Scope discipline.** Phases 1-5 are done; later work is tracked in `docs/TASKS.md` (phases 7-11).
 
 ---
 
@@ -98,7 +98,7 @@ type AgentEvent =
   | { kind: "error"; session; message: string; at };
 ```
 
-Only Claude Code is implemented. Don't build a second adapter until Phase 4 is done.
+Only Claude Code has an adapter (sessions). Other AI servers (Ollama, LM Studio, llama.cpp, ...) are tracked as *services* (`server/services/`: probe, scan, registry; the Services panel), at the user's request: they are listed with status and loaded models, not as session workers. Scanning beyond localhost only runs when the user types a range.
 
 ---
 

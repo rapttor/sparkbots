@@ -1,15 +1,37 @@
+import type { PlacedPoi } from "./zones";
+
 /** Where a bot currently is. Bots leave their chair when idle (wander), lie down when asleep, and run back to the
  *  desk when they are working or when you open their chat. */
-export type BotMode = "desk" | "wander" | "sleep" | "rush";
+export type BotMode = "desk" | "wander" | "sleep" | "rush" | "circle" | "follow";
 export interface Roam {
   x: number; z: number; tx: number; tz: number; wait: number; ry: number; lying: boolean; moving: boolean;
   mode: BotMode;
   awakeUntil: number; // performance.now() until which a sleeping bot stays up (after being zapped)
   flash: boolean;     // body color is currently tinted by an action and must be restored
+  angle: number;      // position on the circle walked by a "circle" robot
+  clip: { id: string; t0: number; until: number } | null; // idle clip currently playing
+  icon: string;       // emoji floating above the head ("" = none)
+  followFace?: number; // where a follower should face once it has arrived
+  errand: { x: number; z: number; done: () => void; hold?: number; arrivedAt?: number } | null; // a walk with a purpose (e.g. filing itself into the archive); done() runs on arrival
+  visit: { poi: PlacedPoi; slot: number; arrived: boolean; until: number } | null; // idle trip to a zone (see pickVisit)
 }
 export const roams = new Map<string, Roam>();
+
+/** A purely visual override ("show as ..."): the robot acts out a status for a while. The real status never changes. */
+export interface Look { state: "asleep" | "idle" | "working" | "waiting" | "done" | "error"; sit?: boolean; until: number }
+export const looks = new Map<string, Look>();
+export const LOOK_MS = 30_000;
+export function setLook(id: string, state: Look["state"], sit = false, ms = LOOK_MS): void { looks.set(id, { state, sit, until: performance.now() + ms }); }
+export function clearLook(id: string): void { looks.delete(id); }
+/** The status a robot should act out right now: the look override if one is active, else the real status. */
+export function effectiveState<S extends string>(id: string, real: S): S | Look["state"] {
+  const l = looks.get(id);
+  if (!l) return real;
+  if (l.until <= performance.now()) { looks.delete(id); return real; }
+  return l.state;
+}
 /** The manager's position in walk mode (null in overview): bots step out of the way. */
-export const player: { x: number; z: number; on: boolean } = { x: 0, z: 0, on: false };
+export const player: { x: number; z: number; on: boolean; hx: number; hz: number; still: number } = { x: 0, z: 0, on: false, hx: 0, hz: -1, still: 0 };
 
 const SEP = 0.8;        // bots keep at least this far apart
 const PLAYER_SEP = 0.95;
@@ -44,4 +66,110 @@ export function pushPlayerOut(p: { x: number; z: number }): void {
     const dx = p.x - o.x, dz = p.z - o.z, d = Math.hypot(dx, dz);
     if (d < 0.7 && d > 1e-3) { const k = (0.7 - d) / d; p.x += dx * k; p.z += dz * k; }
   }
+}
+
+
+/** Spots idle robots may walk to, and who stands where. Reset whenever the layout changes. */
+let pois: PlacedPoi[] = [];
+const taken = new Map<string, (string | null)[]>();
+let allPois: PlacedPoi[] = [];
+export function setPois(list: PlacedPoi[]): void { allPois = list; pois = list.filter((p) => p.idle); taken.clear(); }
+/** Send a robot to a named spot (any POI, idle or not); `done` runs when it gets there. False if the spot does not exist. */
+export function startErrand(worker: string, poiId: string, done: () => void, holdMs = 0): boolean {
+  const p = allPois.find((q) => q.id === poiId), r = roams.get(worker);
+  if (!p || !r) return false;
+  r.errand = { x: p.x, z: p.z, done, hold: holdMs || undefined };
+  return true;
+}
+/** One entry per zone that has spots: where "Send to..." can take a robot. */
+export function poiChoices(): { id: string; label: string }[] {
+  const seen = new Set<string>(), out: { id: string; label: string }[] = [];
+  for (const p of allPois) if (!seen.has(p.zone)) { seen.add(p.zone); out.push({ id: p.id, label: p.label }); }
+  return out;
+}
+export const poiCount = () => pois.length;
+
+/** Where robot number `slot` stands at a POI: the first one on the spot, the others in a ring around it. */
+export function slotPos(p: PlacedPoi, slot: number): { x: number; z: number } {
+  if (slot === 0) return { x: p.x, z: p.z };
+  const a = (slot / p.slots) * Math.PI * 2 + p.face;
+  return { x: p.x + Math.sin(a) * 0.75, z: p.z + Math.cos(a) * 0.75 };
+}
+
+/** Picks a random free POI (popular zones more often) and reserves a slot for the robot; null when everything is full. */
+export function pickVisit(worker: string, rnd = Math.random()): { poi: PlacedPoi; slot: number } | null {
+  const free = pois.filter((p) => (taken.get(p.id) ?? []).filter(Boolean).length < p.slots);
+  const total = free.reduce((n, p) => n + p.weight, 0);
+  if (!free.length || total <= 0) return null;
+  let x = rnd * total, poi = free[free.length - 1]!;
+  for (const p of free) { x -= p.weight; if (x <= 0) { poi = p; break; } }
+  const arr = taken.get(poi.id) ?? [];
+  let slot = arr.findIndex((w) => !w);
+  if (slot < 0) slot = arr.length;
+  arr[slot] = worker; taken.set(poi.id, arr);
+  return { poi, slot };
+}
+export function releaseVisit(worker: string, poi: PlacedPoi, slot: number): void {
+  const arr = taken.get(poi.id);
+  if (arr && arr[slot] === worker) arr[slot] = null;
+}
+export const poiExists = (id: string) => pois.some((p) => p.id === id);
+
+/** Agents that have working sub-agents right now: they conduct. Filled by the minibots layer. */
+export const conductors = new Set<string>();
+
+
+// ---- followers: agents that walk with the manager (shift+click, F, or the agent menu) ----------------------------------
+let followers: string[] = [];
+export const setFollowers = (ids: string[]) => { followers = ids; };
+export const followerList = () => followers;
+export const followerIndex = (id: string) => followers.indexOf(id);
+
+export interface Room { x: number; z: number; w: number; d: number }
+/** The conference room, when the layout has one; `count` = followers currently seated (drives the table size). */
+export const meeting: { room: Room | null; count: number } = { room: null, count: 0 };
+export const MAX_SEATS = 10;
+export const insideRoom = (r: Room, x: number, z: number) => Math.abs(x - r.x) < r.w / 2 - 0.2 && Math.abs(z - r.z) < r.d / 2 - 0.2;
+
+/** Seat i of n around the table: two rows facing each other, 1.5 apart. */
+export function seatPos(room: Room, i: number, n: number): { x: number; z: number; face: number } {
+  const perSide = Math.ceil(n / 2), side = i % 2, idx = Math.floor(i / 2);
+  return { x: room.x + (idx - (perSide - 1) / 2) * 1.5, z: room.z + (side === 0 ? -1.2 : 1.2), face: side === 0 ? Math.PI : 0 };
+}
+
+/**
+ * Where follower i of n should be right now: in a seat when the manager is in the conference room, in a circle around the
+ * manager (a huddle, e.g. at the water cooler) when the manager stands still, otherwise in a loose line behind.
+ */
+export function followTarget(i: number, n: number): { x: number; z: number; face: number; kind: "seat" | "huddle" | "trail" } {
+  const m = meeting.room;
+  if (m && i < MAX_SEATS && insideRoom(m, player.x, player.z)) return { ...seatPos(m, i, Math.min(n, MAX_SEATS)), kind: "seat" };
+  if (player.still > 1.2) {
+    const a = (i / Math.max(1, n)) * Math.PI * 2, x = player.x + Math.sin(a) * 1.6, z = player.z + Math.cos(a) * 1.6;
+    return { x, z, face: Math.atan2(-(player.x - x), -(player.z - z)), kind: "huddle" };
+  }
+  const len = Math.hypot(player.hx, player.hz) || 1, hx = player.hx / len, hz = player.hz / len;
+  const row = Math.floor(i / 3) + 1, lat = (i % 3) - 1;
+  return { x: player.x - hx * 1.3 * row + -hz * lat, z: player.z - hz * 1.3 * row + hx * lat, face: Math.atan2(-hx, -hz), kind: "trail" };
+}
+
+/** Wake every sleeping robot in `ids` for a while (visual only). */
+export function wakeAll(ids: string[], ms = 15_000): number {
+  let n = 0;
+  for (const id of ids) { const r = roams.get(id); if (r) { r.awakeUntil = performance.now() + ms; n++; } }
+  return n;
+}
+
+/** Send idle robots on a trip to a zone right now (the "lunch break"). Returns how many set off. */
+export function lunchAll(ids: string[]): number {
+  let n = 0;
+  for (const id of ids) {
+    const r = roams.get(id);
+    if (!r || r.visit || r.mode !== "wander") continue;
+    const v = pickVisit(id);
+    if (!v) break; // everything is full
+    r.visit = { poi: v.poi, slot: v.slot, arrived: false, until: 0 };
+    n++;
+  }
+  return n;
 }

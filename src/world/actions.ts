@@ -1,37 +1,44 @@
-import { roams } from "./roam";
+import type { Worker } from "../../server/adapters/types";
 
-/** Things the manager can do to the nearest robot in walk mode. Add an entry here to add a key binding (and its help text). */
+/**
+ * Things you can do to an agent from the 3D office (key, popup menu, keymap). One file per action in `actions/`,
+ * picked up automatically. Two kinds:
+ *  - "fx":   cosmetic only, runs at once (see fxAction.ts to make one in a few lines)
+ *  - "real": sends something to a session or changes app data; always runs behind a confirmation and may refuse (`can`)
+ */
 export interface BotAction {
-  key: string;
+  key: string;                                  // single lowercase key
   label: string;
   hint: string;
-  run: (workerId: string) => void;
+  kind: "fx" | "real";
+  run: (workerId: string, worker?: Worker) => void | Promise<unknown>;
+  confirm?: (w: Worker) => string;              // real actions: the exact text shown before running
+  can?: (w: Worker) => string | null;           // real actions: null = allowed, else the reason it is not
 }
 
-export const ZAP_MS = 1100;
-const zapAt = new Map<string, number>(); // worker id -> performance.now() of the zap
-const AWAKE_MS = 15_000;
+/** Keys already used by movement and the viewer. */
+export const RESERVED_KEYS = ["w", "a", "s", "d", "e", "v", "m", "l", "t", "x", "q", "r", "u", "i", "o", "0"];
 
-/** 0 (not zapped) .. 1 (just zapped), fading out over ZAP_MS. */
-export function zapLevel(id: string, now = performance.now()): number {
-  const t = zapAt.get(id);
-  if (t === undefined) return 0;
-  const l = 1 - (now - t) / ZAP_MS;
-  if (l <= 0) { zapAt.delete(id); return 0; }
-  return l;
+const mods = import.meta.glob("./actions/*.ts", { eager: true }) as Record<string, { default: BotAction }>;
+
+/** Checks a list of actions; returns the valid ones and a message for each rejected one. Pure, so it is easy to test. */
+export function validateActions(list: BotAction[]): { ok: BotAction[]; errors: string[] } {
+  const ok: BotAction[] = [], errors: string[] = [], seen = new Set<string>();
+  for (const a of list) {
+    const why =
+      !a || !/^[a-z1-9]$/.test(a.key ?? "") ? "key must be one lowercase letter or digit 1-9"
+      : RESERVED_KEYS.includes(a.key) ? `key "${a.key}" is reserved`
+      : seen.has(a.key) ? `key "${a.key}" is used twice`
+      : !a.label || !a.hint ? "label and hint are required"
+      : a.kind !== "fx" && a.kind !== "real" ? "kind must be fx or real"
+      : a.kind === "real" && !a.confirm ? "real actions need a confirm text"
+      : "";
+    if (why) { errors.push(`${a?.label ?? "?"}: ${why}`); continue; }
+    seen.add(a.key); ok.push(a);
+  }
+  return { ok, errors };
 }
-export const activeZaps = (now = performance.now()) =>
-  [...zapAt.entries()].filter(([, t]) => now - t < ZAP_MS).sort((a, b) => a[1] - b[1]).map(([id]) => id);
 
-/** Visual only: shakes and hops the robot, flashes it, and wakes a sleeping one for a while. Touches no session. */
-export const ACTIONS: BotAction[] = [
-  {
-    key: "z", label: "Zap", hint: "zap the closest robot (wakes sleepers)",
-    run: (id) => {
-      const now = performance.now();
-      zapAt.set(id, now);
-      const r = roams.get(id);
-      if (r) r.awakeUntil = now + AWAKE_MS;
-    },
-  },
-];
+const checked = validateActions(Object.values(mods).map((m) => m.default));
+for (const e of checked.errors) console.warn(`[actions] ${e}`);
+export const ACTIONS: BotAction[] = checked.ok.sort((a, b) => a.label.localeCompare(b.label));

@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { api, type Config, type Teams } from "../api";
+import { api, type ArchivedItem, type Config, type Teams } from "../api";
+import { useLive } from "../state/live";
+import { useWidth } from "../dock/useLayout";
+import { runProblem } from "../world/runStatus";
 import { useStore } from "../state/store";
+import { KEYMAP } from "../world/keymap";
 
 type NumKey = "historyDays" | "idleThresholdSec" | "asleepAfterMin" | "doneWaveSec" | "errorSec";
 const NUMS: { key: NumKey; label: string; desc: string; words: string }[] = [
@@ -72,11 +76,69 @@ function toTeams(rows: Row[]): Teams {
   return t;
 }
 
+/** What the next run will use (host name only, never tokens) and a button that tries it. */
+function ClaudeSetup() {
+  const [setup, setSetup] = useState<Awaited<ReturnType<typeof api.claudeSetup>> | null>(null);
+  const [run, setRun] = useState<string>("");
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  useLive(async () => {
+    try { setSetup(await api.claudeSetup()); } catch { /* ignore */ }
+    if (!run) return;
+    try {
+      const r = (await api.runs()).find((x) => x.runId === run);
+      if (!r || r.status === "running") return;
+      const lines = await api.runLog(run);
+      const problem = runProblem(lines);
+      const reply = [...lines].reverse().find((l) => l.type === "result");
+      setResult(problem ? { ok: false, text: problem.text } : r.status === "done" ? { ok: true, text: String(reply?.result ?? "ok").slice(0, 200) } : { ok: false, text: `The run ended as "${r.status}"` });
+      setBusy(false); setRun("");
+    } catch { /* transient */ }
+  }, ["runs"]);
+  const start = async () => {
+    setBusy(true); setResult(null);
+    try { setRun((await api.testRun()).runId); } catch (e) { setResult({ ok: false, text: (e as Error).message }); setBusy(false); }
+  };
+  return (
+    <div>
+      {setup && (
+        <p className="small">
+          Next run: model <b>{setup.model}</b>{" · "}
+          {setup.inheritedGatewayHost ? <>gateway <b>{setup.inheritedGatewayHost}</b> (from the server's environment)</> : "no gateway variable inherited"}
+          {setup.inheritedToken ? " · an auth token variable is inherited" : ""}
+        </p>
+      )}
+      <button disabled={busy} onClick={() => void start()}>{busy ? "Running…" : "Test run"}</button>{" "}
+      {result && <span className={result.ok ? "s-working small" : "small"} style={result.ok ? undefined : { color: "#e5484d" }}>{result.ok ? "✓ " : "✖ "}{result.text}</span>}
+    </div>
+  );
+}
+
+function ArchiveList() {
+  const [items, setItems] = useState<ArchivedItem[]>([]);
+  useLive(async () => { try { setItems(await api.archived()); } catch { /* ignore */ } }, ["archive"]);
+  if (!items.length) return <p className="muted small">Nothing archived.</p>;
+  return (
+    <div>
+      {items.map((i) => (
+        <div key={i.id} className="kmap-row">
+          <span style={{ flex: 1 }}>{i.name || i.title} <span className="muted small">{i.team} · {new Date(i.at).toLocaleDateString()}</span></span>
+          <button className="small" onClick={() => void api.archive(i.id, false).then(() => api.archived().then(setItems)).catch(() => {})}>Restore</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function Settings() {
   const managerColor = useStore((s) => s.managerColor);
   const setManagerColor = useStore((s) => s.setManagerColor);
   const snapshot = useStore((s) => s.snapshot);
   const markAllSeen = useStore((s) => s.markAllSeen);
+  const showKeymap = useStore((s) => s.showKeymap);
+  const showCounts = useStore((s) => s.showStatusCounts);
+  const setShowCounts = useStore((s) => s.setShowStatusCounts);
+  const setShowKeymap = useStore((s) => s.setShowKeymap);
   const setFilters = useStore((s) => s.setFilters);
   const [cfg, setCfg] = useState<Config | null>(null);
   const [cfgMsg, setCfgMsg] = useState<Msg>(null);
@@ -85,6 +147,8 @@ export function Settings() {
   const [hooks, setHooks] = useState<{ installed: boolean; settingsPath: string } | null>(null);
   const [loadErr, setLoadErr] = useState("");
   const [query, setQuery] = useState("");
+  const [wrap, width] = useWidth<HTMLElement>();
+  const compact = width > 0 && width < 700; // narrow dock or phone: the section list becomes a dropdown on top
   const [section, setSection] = useState(() => ls.get("ao.settingsSection") ?? "All");
   const pick = (v: string) => { setSection(v); ls.set("ao.settingsSection", v); };
   const [, bump] = useState(0); // re-render after writing a browser-only setting
@@ -122,15 +186,6 @@ export function Settings() {
     { id: "zoom-lock", section: "3D office", label: "Lock zoom", words: "camera wheel scroll distance freeze",
       desc: "Start with the zoom locked: the mouse wheel and the zoom buttons stop changing the camera distance. Also in the header.",
       body: <label><input type="checkbox" checked={flag("ao.zoomLock")} onChange={(e) => setFlag("ao.zoomLock", e.target.checked)} /> Zoom locked</label> },
-    { id: "minimap", section: "3D office", label: "Minimap", words: "map overview radar corner",
-      desc: "Show the small top-down map in the 3D room. Also in the header.",
-      body: <label><input type="checkbox" checked={flag("ao.minimap")} onChange={(e) => setFlag("ao.minimap", e.target.checked)} /> Show minimap</label> },
-    { id: "chat-dock", section: "3D office", label: "Chat window position", words: "pin dock left right float side panel bubble",
-      desc: "Where the robot chat opens: floating over the scene, or pinned to the left or right so the scene stays visible.",
-      body: (
-        <select value={ls.get("ao.chatDock") ?? "float"} onChange={(e) => { ls.set("ao.chatDock", e.target.value); bump((n) => n + 1); }}>
-          <option value="float">Floating over the scene</option><option value="left">Pinned left</option><option value="right">Pinned right</option>
-        </select>) },
     { id: "show-all-map", section: "3D office", label: "Show finished / abandoned projects", words: "labels hidden map archive onMap",
       desc: "Projects labelled Finished or Abandoned are left off the map unless this is on.",
       body: <label><input type="checkbox" checked={flag("ao.map.showAll")} onChange={(e) => setFlag("ao.map.showAll", e.target.checked)} /> Show them</label> },
@@ -140,6 +195,27 @@ export function Settings() {
     { id: "reset-filters", section: "General", label: "Reset header filters", words: "search status labels sort open tasks clear",
       desc: "Clear the search, status, label and task filters shown in the header.",
       body: <button onClick={() => setFilters({ search: "", statuses: [], labels: [], openTasks: false, sort: "latest" })}>Reset filters</button> },
+    { id: "status-counts", section: "3D office", label: "Status counts in the corner", words: "legend waiting working error done idle asleep numbers stats top left",
+      desc: "The little Waiting / Working / Error / Done / Idle / Asleep counts in the top-left corner of the 3D view. Off by default: the filters in the header and the project titles already show this. Also in the View menu.",
+      body: <label><input type="checkbox" checked={showCounts} onChange={(e) => setShowCounts(e.target.checked)} /> Show counts</label> },
+    { id: "keymap-show", section: "Keymap", label: "Show the keymap in the 3D view", words: "legend keys shortcuts help instructions hotkeys bindings",
+      desc: "The clickable list of keys and mouse actions in the corner of the 3D office. Entries you can do right now are buttons; the others are greyed with the reason. Also in the View menu.",
+      body: <label><input type="checkbox" checked={showKeymap} onChange={(e) => setShowKeymap(e.target.checked)} /> Show keymap</label> },
+    { id: "keymap-list", section: "Keymap", wide: true, label: "All keys and mouse actions", words: "keys shortcuts hotkeys zap walk talk minimap zoom reset escape bindings",
+      desc: "To run one, open the 3D office and click it in the keymap there (it is greyed when it cannot be done at that moment).",
+      body: <div>{KEYMAP.map((k) => <div key={k.id} className="kmap-row"><span className="kmap-key">{k.keys}</span><span>{k.label}</span></div>)}</div> },
+    { id: "run-model", section: "Claude runs", label: "Model for runs", words: "claude model opus sonnet haiku default alias --model",
+      desc: "The model used when you message an agent from SparkBots. Leave empty to use Claude Code's default. You can also choose a model per message in the chat.",
+      body: cfg && <><input placeholder="(default)" value={cfg.runModel} maxLength={80} onChange={(e) => setCfg({ ...cfg, runModel: e.target.value.trim() })} onBlur={() => void saveCfg(cfg)} /> {cfgSaved}</> },
+    { id: "clean-env", section: "Claude runs", label: "Clean environment", words: "anthropic gateway token base url api key proxy opencode env variables 401",
+      desc: "Start runs without the ANTHROPIC_* variables (gateway URL, tokens) that the shell running SparkBots exported. Turn it on if runs fail with authentication errors because of a leftover variable.",
+      body: cfg && <label><input type="checkbox" checked={cfg.cleanEnv} onChange={(e) => void saveCfg({ ...cfg, cleanEnv: e.target.checked })} /> Drop ANTHROPIC_* variables {cfgSaved}</label> },
+    { id: "claude-test", section: "Claude runs", wide: true, label: "Test run", words: "try check hello works connection setup status",
+      desc: "Runs a tiny prompt in your most recent project and shows the answer or the problem, plus which gateway and model the next run uses.",
+      body: <ClaudeSetup /> },
+    { id: "archive", section: "Archive", wide: true, label: "Archived agents", words: "restore hidden deleted removed sessions file cabinet",
+      desc: "Agents you archived leave the office. Nothing is deleted: restore one and it comes back.",
+      body: <ArchiveList /> },
     { id: "streaming", section: "General", label: "Streaming mode", words: "hide preview messages screen share privacy bubbles text streamer",
       desc: "Hide message previews and speech bubbles, for screen sharing or recording.",
       body: cfg && <label><input type="checkbox" checked={cfg.streamingMode} onChange={(e) => void saveCfg({ ...cfg, streamingMode: e.target.checked })} /> Hide message text {cfgSaved}</label> },
@@ -190,11 +266,16 @@ export function Settings() {
   const sections = [...new Set(shown.map((o) => o.section))];
 
   return (
-    <section className="settings">
+    <section className={`settings ${compact ? "compact" : ""}`} ref={wrap}>
       <aside className="settings-nav">
         <h1>Settings</h1>
-        <input type="search" autoFocus placeholder="Search settings" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <nav role="tablist" aria-label="Setting sections">
+        <input type="search" placeholder="Search settings" value={query} onChange={(e) => setQuery(e.target.value)} />
+        {compact && (
+          <select aria-label="Section" value={active} onChange={(e) => pick(e.target.value)}>
+            {["All", ...all].map((sec) => <option key={sec} value={sec}>{sec} ({sec === "All" ? found.length : count(sec)})</option>)}
+          </select>
+        )}
+        <nav role="tablist" aria-label="Setting sections" style={compact ? { display: "none" } : undefined}>
           {["All", ...all].map((sec) => (
             <button key={sec} role="tab" aria-selected={active === sec} className={active === sec ? "active" : ""} onClick={() => pick(sec)}>
               <span>{sec}</span><span className="muted small">{sec === "All" ? found.length : count(sec)}</span>

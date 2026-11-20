@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { useStore } from "../state/store";
 import { StateBadge } from "../panels/Badge";
 import { BotIcon } from "../panels/BotIcon";
-import { api, poll, type ChatMessage, type RunRecord } from "../api";
+import { api, type ChatMessage, type RunRecord } from "../api";
+import { useLive } from "../state/live";
+import { runProblem, type RunProblem } from "./runStatus";
 
 const stopProp = (e: React.SyntheticEvent) => e.stopPropagation();
 
@@ -31,18 +33,25 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
   const [copied, setCopied] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [wantFork, setWantFork] = useState(false);
+  // model for the next message; remembered per agent in this browser ("" = Claude Code's default)
+  const [model, setModelState] = useState(() => { try { return localStorage.getItem(`ao.model.${workerId}`) ?? ""; } catch { return ""; } });
+  const setModel = (m: string) => { setModelState(m); try { localStorage.setItem(`ao.model.${workerId}`, m); } catch { /* private mode */ } };
+  useEffect(() => { try { setModelState(localStorage.getItem(`ao.model.${workerId}`) ?? ""); } catch { setModelState(""); } }, [workerId]);
+  const [problem, setProblem] = useState<RunProblem | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMessages([]); setRun(undefined); setNote(""); setErr("");
-    return poll(async () => {
-      try {
-        const [m, runs] = await Promise.all([api.sessionMessages(workerId), api.runs()]);
-        setMessages(m.messages);
-        setRun(runs.filter((r) => r.session === workerId).sort((a, b) => b.startedAt - a.startedAt)[0]);
-      } catch { /* transient */ }
-    }, 1500);
   }, [workerId]);
+  useLive(async () => {
+    try {
+      const [m, runs] = await Promise.all([api.sessionMessages(workerId), api.runs()]);
+      setMessages(m.messages);
+      const mine = runs.filter((r) => r.session === workerId).sort((a, b) => b.startedAt - a.startedAt)[0];
+      setRun(mine);
+      setProblem(mine ? runProblem(await api.runLog(mine.runId).catch(() => [])) : null);
+    } catch { /* transient */ }
+  }, ["messages", "runs"], workerId);
 
   const busy = w?.state === "working" || w?.state === "waiting";
   useEffect(() => {
@@ -72,11 +81,11 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
   };
   const guard = async (fn: () => Promise<void>) => { setErr(""); try { await fn(); } catch (e) { setErr((e as Error).message); } };
   const send = (fork: boolean, text: string) => guard(async () => {
-    const r = await api.send(w.id, text, fork);
+    const r = await api.send(w.id, text, fork, model || undefined);
     setNote(r.queued ? `Queued (position ${r.position})` : fork ? "Forked to new worker" : "Sent");
     if (!fork) setPrompt("");
   });
-  const spawn = () => guard(async () => { await api.spawn(w.cwd, fresh); setFresh(""); setShowFresh(false); setNote("New worker started"); });
+  const spawn = () => guard(async () => { await api.spawn(w.cwd, fresh, model || undefined); setFresh(""); setShowFresh(false); setNote("New worker started"); });
   const onEnter = (e: React.KeyboardEvent<HTMLTextAreaElement>, submit: () => void, ok: boolean) => {
     e.stopPropagation();
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (ok) submit(); }
@@ -132,6 +141,11 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
           <input type="checkbox" checked={forking} disabled={w.liveInTerminal} onChange={(e) => setWantFork(e.target.checked)} />
           {" "}Send as a fork (new worker){w.liveInTerminal ? " — required: a terminal holds this session" : ""}
         </label>
+        <label className="wc-forkopt" title="Model used for the next message. Switching models mid-conversation is fine: the session keeps its history.">
+          Model:{" "}
+          <input list="wc-models" className="wc-model" value={model} placeholder="default" maxLength={80} onChange={(e) => setModel(e.target.value.trim())} onKeyDown={(e) => e.stopPropagation()} onKeyUp={stopProp} />
+          <datalist id="wc-models"><option value="opus" /><option value="sonnet" /><option value="haiku" /></datalist>
+        </label>
         <div className="wc-input">
           <textarea
             value={prompt}
@@ -147,6 +161,9 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
             {run?.status === "running" && <button onClick={() => guard(() => api.stop(run.runId).then(() => undefined))}>Stop</button>}
           </div>
         </div>
+        {problem && (run?.status === "running" || problem.level === "error") && (
+          <p className="wc-note wc-err" role="status">{problem.level === "retry" ? "⚠ " : "✖ "}{problem.text}{problem.level === "retry" ? " — use Stop to cancel" : ""}</p>
+        )}
         {note && <p className="wc-note">{note}</p>}
         {err && <p className="wc-note wc-err" role="alert">{err}</p>}
         <div className="wc-new">

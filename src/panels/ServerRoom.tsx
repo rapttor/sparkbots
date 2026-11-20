@@ -1,36 +1,40 @@
-import { useEffect, useState } from "react";
-import { api, poll, fmtAge, type Processes } from "../api";
+import { useState } from "react";
+import { api, fmtAge, type Processes } from "../api";
+import { useLive } from "../state/live";
 
+/** Stacked cards instead of wide tables, so it reads well in the narrow dock. */
 export function ServerRoom() {
   const [data, setData] = useState<Processes>({ live: [], runs: [] });
   const [err, setErr] = useState("");
-  useEffect(() => poll(async () => { try { setData(await api.processes()); setErr(""); } catch (e) { setErr((e as Error).message); } }, 3000), []);
+  useLive(async () => { try { setData(await api.processes()); setErr(""); } catch (e) { setErr((e as Error).message); } }, ["processes", "runs"]);
   return (
     <section className="panel">
       <h1>Server Room</h1>
       {err && <p role="alert" style={{ color: "#c33" }}>{err}</p>}
+
       <h2>Live claude processes</h2>
-      <table>
-        <thead><tr><th>PID</th><th>Kind</th><th>Directory</th><th>Title</th><th>Uptime</th></tr></thead>
-        <tbody>
-          {data.live.length === 0 && <tr><td colSpan={5} className="muted">None</td></tr>}
-          {data.live.map((p) => (
-            <tr key={p.session}><td>{p.pid}</td><td>{p.kind}</td><td className="mono">{p.cwd}</td><td>{p.title}</td><td>{fmtAge(p.startedAt)}</td></tr>
-          ))}
-        </tbody>
-      </table>
-      <h2>Office-spawned runs</h2>
-      <table>
-        <thead><tr><th>Status</th><th>PID</th><th>Directory</th><th>Prompt</th><th>Age</th></tr></thead>
-        <tbody>
-          {data.runs.length === 0 && <tr><td colSpan={5} className="muted">None</td></tr>}
-          {[...data.runs].reverse().map((r) => (
-            <tr key={r.runId} style={r.status === "orphaned" ? { background: "#f5a62333", fontWeight: 600 } : undefined}>
-              <td>{r.status}</td><td>{r.pid}</td><td className="mono">{r.cwd}</td><td>{r.prompt.slice(0, 60)}</td><td>{fmtAge(r.startedAt)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {data.live.length === 0 && <p className="muted">None</p>}
+      <div className="cards">
+        {data.live.map((p) => (
+          <div className="card" key={p.session}>
+            <div className="card-top"><strong title={p.title}>{p.title || "(untitled)"}</strong><span className="muted small">{fmtAge(p.startedAt)}</span></div>
+            <div className="card-meta"><span className="tag">{p.kind}</span><span className="muted small">pid {p.pid}</span></div>
+            <div className="mono small card-path" title={p.cwd}>{p.cwd}</div>
+          </div>
+        ))}
+      </div>
+
+      <h2>Runs started from SparkBots</h2>
+      {data.runs.length === 0 && <p className="muted">None</p>}
+      <div className="cards">
+        {[...data.runs].reverse().map((r) => (
+          <div className={`card ${r.status === "orphaned" ? "card-warn" : ""}`} key={r.runId}>
+            <div className="card-top"><span className={`tag s-${r.status}`}>{r.status}</span><span className="muted small">{fmtAge(r.startedAt)} · pid {r.pid}</span></div>
+            <div className="card-text">{r.prompt.slice(0, 120)}</div>
+            <div className="mono small card-path" title={r.cwd}>{r.cwd}</div>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

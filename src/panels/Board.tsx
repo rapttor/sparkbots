@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../state/store";
-import { api, poll, type Card, type Column } from "../api";
+import { api, type Card, type Column } from "../api";
+import { useLive } from "../state/live";
 import type { Worker } from "../../server/adapters/types";
 import { displayName } from "../util";
+import { useWidth } from "../dock/useLayout";
 
 const COLS: { id: Column; label: string }[] = [
   { id: "backlog", label: "Backlog" },
@@ -21,12 +23,19 @@ export function Board() {
   const [body, setBody] = useState("");
   const [team, setTeam] = useState("");
   const [err, setErr] = useState("");
+  const [note, setNote] = useState("");
   const [menu, setMenu] = useState<string | undefined>();
+  // In a narrow place (the dock, a phone) show one column at a time with a selector on top; wide (the big window): all five.
+  const [ref, width] = useWidth<HTMLElement>();
+  const narrow = width > 0 && width < 760;
+  const [colView, setColView] = useState<Column>("backlog");
   const refresh = async () => { try { setCards(await api.board()); } catch (e) { setErr((e as Error).message); } };
-  useEffect(() => poll(refresh, 3000), []);
+  useLive(refresh, ["board"]);
   const guard = async (fn: () => Promise<unknown>) => { setErr(""); try { await fn(); await refresh(); } catch (e) { setErr((e as Error).message); } };
 
-  const shown = cards.filter((c) => !filter || c.team === filter);
+  const [showArchived, setShowArchived] = useState(false);
+  const archivedCount = cards.filter((c) => c.archived).length;
+  const shown = cards.filter((c) => (!filter || c.team === filter) && !!c.archived === showArchived);
   const add = () => guard(async () => { await api.addCard(title, body, team || filter || teams[0]?.name || ""); setTitle(""); setBody(""); });
   const drop = (e: React.DragEvent, column: Column) => {
     e.preventDefault();
@@ -59,7 +68,7 @@ export function Board() {
   };
 
   return (
-    <section className="panel">
+    <section className="panel" ref={ref}>
       <h1>Board</h1>
       <p className="muted small">Cards move to Review when a run ends. Done is always manual.</p>
       <div>
@@ -70,14 +79,26 @@ export function Board() {
           {teams.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
         </select>
         <button disabled={!title.trim()} onClick={add}>Add card</button>
+        <button disabled={!(team || filter)} title="Read the project's task list file (docs/TASKS.md ...) and add its tasks as cards: unchecked to Backlog, checked to Done. Already imported tasks are skipped." onClick={() => void guard(async () => { const r = await api.importTasks(team || filter); setNote(`Imported ${r.added} new task${r.added === 1 ? "" : "s"} from ${r.file} (${r.skipped} already on the board).`); })}>⬇ Import tasks</button>
         <select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filter by team">
           <option value="">All teams</option>
           {teams.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
         </select>
       </div>
       {err && <p role="alert" style={{ color: "#c33" }}>{err}</p>}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(160px, 1fr))", gap: 8, marginTop: 8 }}>
-        {COLS.map((col) => (
+      {note && <p className="muted small">{note}</p>}
+      <label className="small"><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> Show archived cards ({archivedCount})</label>
+      {narrow && (
+        <div className="tb-row" role="tablist" aria-label="Board columns" style={{ marginTop: 8 }}>
+          {COLS.map((c) => (
+            <button key={c.id} role="tab" aria-selected={colView === c.id} className={`chip ${colView === c.id ? "on" : ""}`} onClick={() => setColView(c.id)}>
+              {c.label} {shown.filter((x) => x.column === c.id).length}
+            </button>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: narrow ? "1fr" : "repeat(5, minmax(160px, 1fr))", gap: 8, marginTop: 8 }}>
+        {(narrow ? COLS.filter((c) => c.id === colView) : COLS).map((col) => (
           <div key={col.id} onDragOver={(e) => e.preventDefault()} onDrop={(e) => drop(e, col.id)} style={{ minHeight: 200, border: "1px solid #8884", borderRadius: 6, padding: 6 }}>
             <h3>{col.label}</h3>
             {shown.filter((c) => c.column === col.id).map((c) => (
@@ -85,8 +106,18 @@ export function Board() {
                 <strong>{c.title}</strong>
                 {c.body && <p className="small">{c.body}</p>}
                 <p className="muted small">{c.team}{c.runId ? " · run linked" : ""}</p>
+                {narrow && (
+                  <select aria-label="Move to column" value={c.column} onChange={(e) => void guard(() => api.patchCard(c.id, { column: e.target.value as Column }))}>
+                    {COLS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+                  </select>
+                )}
                 <button onClick={() => setMenu(menu === c.id ? undefined : c.id)}>Send ▾</button>
-                <button onClick={() => void guard(() => api.deleteCard(c.id))} aria-label="Delete card">×</button>
+                {c.archived
+                  ? <>
+                      <button onClick={() => void guard(() => api.patchCard(c.id, { archived: false }))}>Restore</button>
+                      <button onClick={() => { if (window.confirm(`Permanently delete the card "${c.title}"? This only removes it from SparkBots; it cannot be undone.`)) void guard(() => api.deleteCard(c.id)); }} aria-label="Delete card for good">Delete…</button>
+                    </>
+                  : <button title="Hide this card (restore it from Show archived)" onClick={() => void guard(() => api.patchCard(c.id, { archived: true }))} aria-label="Archive card">🗄</button>}
                 {menu === c.id && assignMenu(c)}
               </div>
             ))}

@@ -21,9 +21,19 @@ export function buildArgs(prompt: string, session: string | undefined, opts: Sen
   const a = ["-p", safePrompt, "--output-format", "stream-json", "--verbose"];
   if (session) a.push("--resume", session);
   if (session && opts.fork) a.push("--fork-session");
+  if (opts.model !== undefined && opts.model !== "") {
+    // alias (opus, sonnet, haiku) or a model id; never anything that could be read as a flag
+    if (!/^[A-Za-z0-9][A-Za-z0-9._:\-\[\]]{0,79}$/.test(opts.model)) throw new CommandError(400, "invalid model name");
+    a.push("--model", opts.model);
+  }
   if (opts.permissionMode) a.push("--permission-mode", opts.permissionMode);
   if (opts.allowedTools?.length) a.push(`--allowedTools=${opts.allowedTools.join(",")}`);
   return a;
+}
+
+/** A copy of `env` without the ANTHROPIC_* variables (gateway URL, tokens, model overrides) a shell may have exported. */
+export function cleanEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(Object.entries(env).filter(([k]) => !k.startsWith("ANTHROPIC_")));
 }
 
 export class RunManager {
@@ -31,6 +41,10 @@ export class RunManager {
   private queues = new Map<string, { prompt: string; cwd: string; opts: SendOpts }[]>();
   private busy = new Set<string>();
   listeners = new Set<(e: RunEvent) => void>();
+  /** Called whenever the run registry changes (start, finish, session id learned). */
+  onChange?: () => void;
+  /** Environment for spawned `claude` processes (default: ours). */
+  envProvider: () => NodeJS.ProcessEnv = () => process.env;
   runs: RunRecord[];
 
   /** `isLiveInTerminal(sessionId)` comes from liveness; `bin` is injectable for tests. */
@@ -39,7 +53,7 @@ export class RunManager {
     for (const r of this.runs) if (r.status === "running") r.status = this.pidAlive(r.pid) ? "orphaned" : "error"; // started by a previous server
     this.persist();
   }
-  private persist() { saveJson("runs.json", { schemaVersion: 1, runs: this.runs.slice(-200) }); }
+  private persist() { saveJson("runs.json", { schemaVersion: 1, runs: this.runs.slice(-200) }); this.onChange?.(); }
 
   queueLength(session: string) { return this.queues.get(session)?.length ?? 0; }
 
@@ -53,7 +67,7 @@ export class RunManager {
 
   private start(session: string | undefined, cwd: string, prompt: string, opts: SendOpts): RunRecord {
     const args = buildArgs(prompt, session, opts);
-    const child = spawn(this.bin, args, { cwd, shell: false, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(this.bin, args, { cwd, shell: false, stdio: ["ignore", "pipe", "pipe"], env: this.envProvider() });
     const rec: RunRecord = { runId: randomUUID(), session: opts.fork ? undefined : session, cwd, prompt, pid: child.pid ?? -1, status: "running", startedAt: Date.now() };
     this.runs.push(rec); this.children.set(rec.runId, child); if (session && !opts.fork) this.busy.add(session); this.persist();
     let buf = "";

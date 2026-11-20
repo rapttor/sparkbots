@@ -21,3 +21,15 @@ describe("task lists", () => {
     expect(runPrompt("all")).toContain("Finish all phases.");
   });
 });
+
+import { listTasks } from "../server/tasks";
+describe("listTasks", () => {
+  it("lists checkbox items with their heading and done flag", () => {
+    const items = listTasks("# Plan\n## Phase 1\n- [x] first thing\n- [ ] second   thing\nnot a task\n* [X] third\n");
+    expect(items).toEqual([
+      { text: "first thing", done: true, phase: "Phase 1" },
+      { text: "second thing", done: false, phase: "Phase 1" },
+      { text: "third", done: true, phase: "Phase 1" },
+    ]);
+  });
+});
