@@ -1,0 +1,1 @@
+{"lastChecked":"2026-11-20","currency":"USD","note":"placeholder estimates","perMTok":{"default":{"input":3,"output":15,"cacheRead":0.3,"cacheWrite":3.75},"opus":{"input":15,"output":75,"cacheRead":1.5,"cacheWrite":18.75},"sonnet":{"input":3,"output":15,"cacheRead":0.3,"cacheWrite":3.75},"haiku":{"input":1,"output":5,"cacheRead":0.1,"cacheWrite":1.25}}}

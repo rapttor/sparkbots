@@ -1,0 +1,68 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+export function aoHome(): string {
+  return process.env.AO_HOME ?? path.join(os.homedir(), ".agent-office");
+}
+
+/** Load a versioned JSON file from aoHome(). Missing/corrupt -> defaults. Never throws. */
+export function loadJson<T extends object>(name: string, defaults: T): T {
+  try {
+    const raw = fs.readFileSync(path.join(aoHome(), name), "utf8");
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return { ...defaults };
+    return { ...defaults, ...(parsed as object), schemaVersion: 1 } as T;
+  } catch {
+    return { ...defaults };
+  }
+}
+
+/** Atomically write a JSON file (tmp + rename) into aoHome(), stamping schemaVersion 1. */
+export function saveJson(name: string, data: object): void {
+  const dir = aoHome();
+  const file = path.join(dir, name);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify({ ...data, schemaVersion: 1 }, null, name.startsWith("cache/") ? 0 : 2));
+  fs.renameSync(tmp, file);
+}
+
+export interface Config {
+  schemaVersion: 1;
+  port: number;
+  idleThresholdSec: number;
+  asleepAfterMin: number;
+  historyDays: number;
+  streamingMode: boolean;
+  doneWaveSec: number;
+  errorSec: number;
+}
+
+export const defaultConfig: Config = {
+  schemaVersion: 1,
+  port: 4317,
+  idleThresholdSec: 15,
+  asleepAfterMin: 10,
+  historyDays: 14,
+  streamingMode: false,
+  doneWaveSec: 5,
+  errorSec: 120,
+};
+
+export function loadConfig(): Config {
+  return loadJson<Config>("config.json", defaultConfig);
+}
+
+export interface Teams {
+  schemaVersion: 1;
+  merges: Record<string, string[]>;
+  colors: Record<string, string>;
+  overrides: Record<string, { allowedTools?: string[]; permissionMode?: string }>;
+}
+
+export const defaultTeams: Teams = { schemaVersion: 1, merges: {}, colors: {}, overrides: {} };
+
+export function loadTeams(): Teams {
+  return loadJson<Teams>("teams.json", defaultTeams);
+}
