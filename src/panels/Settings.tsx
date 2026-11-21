@@ -5,6 +5,7 @@ import { useWidth } from "../dock/useLayout";
 import { runProblem } from "../world/runStatus";
 import { useStore } from "../state/store";
 import { KEYMAP } from "../world/keymap";
+import { DEFAULT_FILTERS } from "./teamFilters";
 
 type NumKey = "historyDays" | "idleThresholdSec" | "asleepAfterMin" | "doneWaveSec" | "errorSec";
 const NUMS: { key: NumKey; label: string; desc: string; words: string }[] = [
@@ -194,7 +195,7 @@ export function Settings() {
       body: <button onClick={() => { const m: Record<string, number> = {}; for (const t of snapshot?.teams ?? []) for (const w of t.workers) if (w.said) m[w.id] = w.said.at; markAllSeen(m); }}>Mark all as read</button> },
     { id: "reset-filters", section: "General", label: "Reset header filters", words: "search status labels sort open tasks clear",
       desc: "Clear the search, status, label and task filters shown in the header.",
-      body: <button onClick={() => setFilters({ search: "", statuses: [], labels: [], openTasks: false, sort: "latest" })}>Reset filters</button> },
+      body: <button onClick={() => setFilters(DEFAULT_FILTERS)}>Reset filters</button> },
     { id: "status-counts", section: "3D office", label: "Status counts in the corner", words: "legend waiting working error done idle asleep numbers stats top left",
       desc: "The little Waiting / Working / Error / Done / Idle / Asleep counts in the top-left corner of the 3D view. Off by default: the filters in the header and the project titles already show this. Also in the View menu.",
       body: <label><input type="checkbox" checked={showCounts} onChange={(e) => setShowCounts(e.target.checked)} /> Show counts</label> },

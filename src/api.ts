@@ -10,7 +10,7 @@ import type { ChatMessage } from "../server/adapters/claude-code/transcript";
 export type { RunRecord, Card, Column, WorkSpan, ChatMessage };
 export interface LiveProc { session: string; pid: number; kind: string; startedAt: number; cwd?: string; title?: string }
 export interface Processes { live: LiveProc[]; runs: RunRecord[] }
-export type SendResult = { queued: true; position: number } | { queued: false; run: RunRecord };
+export type SendResult = { queued: true; position: number } | { queued: false; run: RunRecord } | { queued: false; codex: true };
 export type NerdInfo = ReturnType<typeof import("../server/nerd").nerdSnapshot>;
 export interface SearchHit { session: string; at: number; role: string; snippet: string; title: string; team: string; name?: string; archived: boolean }
 export interface SubagentInfo { id: string; type: string; description: string; model?: string; finished: boolean; mtimeMs: number }

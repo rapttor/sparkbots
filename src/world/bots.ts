@@ -42,7 +42,7 @@ function putWorld(mesh: InstancedMesh, i: number, x: number, y: number, z: numbe
   mesh.setMatrixAt(i, dummy.matrix);
 }
 
-export interface Meshes { desk: InstancedMesh; ring: InstancedMesh; body: InstancedMesh; legA: InstancedMesh; legB: InstancedMesh; visor: InstancedMesh; antenna: InstancedMesh; beacon: InstancedMesh }
+export interface Meshes { desk: InstancedMesh; ring: InstancedMesh; body: InstancedMesh; legA: InstancedMesh; legB: InstancedMesh; visor: InstancedMesh; antenna: InstancedMesh; beacon: InstancedMesh; codexHead: InstancedMesh; codexBody: InstancedMesh; codexVisor: InstancedMesh; codexEyes: InstancedMesh }
 
 /** Where a bot currently is. Bots leave their chair when idle (wander), lie down when asleep, and run back to the
  *  desk when they are working or when you open their chat. */
@@ -201,24 +201,29 @@ export function poseBot(m: Meshes, i: number, d: DeskSlot, t: number, animate: b
     jx = fp.jx; jz = fp.jz; hop += fp.hop; spin += fp.spin; sway += fp.sway; arm = fp.arm;
     if (fp.tint) {
       const c = col.set(d.worker.color).lerp(tintColor(fp.tint), fp.tintAmt);
-      m.body.setColorAt(i, c); m.antenna.setColorAt(i, c); m.legA.setColorAt(i, c); m.legB.setColorAt(i, c);
+      m.body.setColorAt(i, c); m.codexHead.setColorAt(i, c); m.codexBody.setColorAt(i, c); m.antenna.setColorAt(i, c); m.legA.setColorAt(i, c); m.legB.setColorAt(i, c);
       r.flash = true;
     }
   } else if (r.flash) {
     const c = col.set(d.worker.color);
-    m.body.setColorAt(i, c); m.antenna.setColorAt(i, c); m.legA.setColorAt(i, c); m.legB.setColorAt(i, c);
+    m.body.setColorAt(i, c); m.codexHead.setColorAt(i, c); m.codexBody.setColorAt(i, c); m.antenna.setColorAt(i, c); m.legA.setColorAt(i, c); m.legB.setColorAt(i, c);
     r.flash = false;
   }
-  if (r.flash || fp) for (const k of [m.body, m.antenna, m.legA, m.legB]) if (k.instanceColor) k.instanceColor.needsUpdate = true;
+  if (r.flash || fp) for (const k of [m.body, m.codexHead, m.codexBody, m.antenna, m.legA, m.legB]) if (k.instanceColor) k.instanceColor.needsUpdate = true;
   wave += arm;
   grp.position.set(r.x + jx, (r.lying ? 0.45 : 0.6 + bob) + hop, r.z + jz);
   grp.rotation.order = "YXZ";
   grp.rotation.set(r.lying ? 0 : lean, r.ry + spin, r.lying ? Math.PI / 2 : sway);
   grp.updateMatrix();
-  put(m.body, i, 0, 0, 0);
+  const codex = d.worker.source === "codex";
+  put(m.body, i, 0, 0, 0, 0, codex ? 0 : 1);
+  put(m.codexHead, i, 0, 0.14, 0, 0, codex ? 1 : 0);
+  put(m.codexBody, i, 0, -0.22, 0, 0, codex ? 1 : 0);
   put(m.legA, i, 0, -0.29, 0, 0, 1, swing);
   put(m.legB, i, 0, -0.29, 0, 0, 1, -swing);
-  put(m.visor, i, 0, 0.07, -0.255);
+  put(m.visor, i, 0, 0.07, -0.255, 0, codex ? 0 : 1);
+  put(m.codexVisor, i, 0, 0.14, -0.306, 0, codex ? 1 : 0);
+  put(m.codexEyes, i, 0, 0.14, -0.332, 0, codex ? 1 : 0);
   put(m.antenna, i, 0, -0.07, 0, wave);
   putWorld(m.beacon, i, c.x, 1.9, c.z, beacon);
 }
@@ -235,9 +240,12 @@ export function writeStatic(m: Meshes, layout: Layout, fetchedId: string | undef
     m.desk.setColorAt(i, WHITE);
     const body = col.set(d.worker.color); // bots use their color; the ring still shows the state
     m.body.setColorAt(i, body);
+    m.codexHead.setColorAt(i, body); m.codexBody.setColorAt(i, body);
     m.antenna.setColorAt(i, body);
     m.legA.setColorAt(i, body); m.legB.setColorAt(i, body);
     m.visor.setColorAt(i, visorColor(st));
+    m.codexVisor.setColorAt(i, new Color("#111a46"));
+    m.codexEyes.setColorAt(i, new Color("#55f6f2"));
     m.beacon.setColorAt(i, STATE_THREE.waiting);
     const mode = modeOf(d, fetchedId);
     const r = roamOf(d);

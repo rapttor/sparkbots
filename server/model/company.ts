@@ -1,5 +1,7 @@
 import { toolActivity, parseLine } from "../adapters/claude-code/parse";
 import { discoverSessions, teamFor, teamColor } from "../adapters/claude-code/discover";
+import { discoverSessions as discoverCodexSessions } from "../adapters/codex/discover";
+import { parseLine as parseCodexLine, toolActivity as codexToolActivity } from "../adapters/codex/parse";
 import { readLiveness } from "../adapters/claude-code/liveness";
 import { Tailer } from "../adapters/claude-code/tail";
 import { StatsAggregator } from "../stats/aggregate";
@@ -17,6 +19,11 @@ import { createInterface } from "node:readline";
 /** Context size at the last model call: everything sent as input (fresh + cache read + cache write). */
 const ctxOf = (rows: [number, string, number, number, number, number][]) => { const r = rows[rows.length - 1]; return r ? r[2] + r[4] + r[5] : 0; };
 const ACTIVE_GAP_MS = 5 * 60_000;
+const lighter = (hex: string, amount = 0.22) => {
+  const n = Number.parseInt(hex.slice(1), 16);
+  const channel = (shift: number) => Math.round(((n >> shift) & 255) + (255 - ((n >> shift) & 255)) * amount).toString(16).padStart(2, "0");
+  return `#${channel(16)}${channel(8)}${channel(0)}`;
+};
 
 export class Company {
   sessions = new Map<string, SessionRef>();
@@ -47,7 +54,8 @@ export class Company {
 
   async refreshSessions() {
     const now = Date.now();
-    for (const s of await discoverSessions()) { this.sessions.set(s.id, s); this.rt(s.id, now, s.mtimeMs); }
+    const [claude, codex] = await Promise.all([discoverSessions(), discoverCodexSessions()]);
+    for (const s of [...claude.map((x) => ({ ...x, source: "claude" as const })), ...codex]) { this.sessions.set(s.id, s); this.rt(s.id, now, s.mtimeMs); }
   }
   async refreshLiveness() { this.live = await readLiveness(); }
 
@@ -57,7 +65,7 @@ export class Company {
     let n = 0;
     try {
       for (const line of await this.tailer.read(s.file)) {
-        const p = parseLine(line);
+        const p = this.parse(s, line);
         if (!p.ok) { this.skipped++; continue; }
         for (const e of p.events) { n++; this.dispatch(e, s, initial); }
       }
@@ -66,12 +74,15 @@ export class Company {
   }
 
   private dispatch(e: AgentEvent, s: SessionRef, initial: boolean) {
+    e = { ...e, session: s.id };
     const r = this.rt(s.id, Date.now());
     if (initial && e.kind !== "tool" && e.kind !== "message") { /* history: only track last-seen */ }
-    applyEvent(r, e, (t, target) => toolActivity(t, { command: target }));
+    applyEvent(r, e, (t, target) => s.source === "codex" ? codexToolActivity(t) : toolActivity(t, { command: target }));
     if (!initial) this.history.record(e);
     if (initial) { r.state = "asleep"; r.since = Date.now(); r.helpers.clear(); } // history never implies "working"
   }
+
+  private parse(s: SessionRef, line: string) { return s.source === "codex" ? parseCodexLine(line) : parseLine(line); }
 
   /** Lazy full-history stats pass (background). Per-file results cached in ~/.agent-office/cache/stats.json by size+mtime. */
   async buildStats() {
@@ -86,7 +97,7 @@ export class Company {
         let prev = 0;
         try {
           const rl = createInterface({ input: createReadStream(s.file), crlfDelay: Infinity });
-          for await (const line of rl) for (const ev of parseLine(line).events) {
+          for await (const line of rl) for (const ev of this.parse(s, line).events) {
             if (!e.start) e.start = ev.at;
             if (ev.kind === "turn_start") e.turns!++;
             if (ev.kind === "tool") e.tools!++;
@@ -131,8 +142,10 @@ export class Company {
       if (!liveInfo && s.mtimeMs < cutoff) continue; // older & not live: not shown
       if (this.archive.has(s.id)) continue;           // archived by the user
       const team = teamFor(s.cwd, this.teams.merges);
-      const bot = this.botColors.resolve(s.id, team);
-      const w: Worker = { id: s.id, team, cwd: s.cwd, title: s.title, name: this.botColors.names[s.id], state: r.state, activity: r.activity,
+      const chosen = this.botColors.colors[s.id];
+      // Every uncustomized agent inherits a softer version of its project's color; a user-picked agent color is exact.
+      const bot = chosen ?? lighter(this.botColors.forTeam(team));
+      const w: Worker = { id: s.id, source: s.source ?? "claude", team, cwd: s.cwd, title: s.title, name: this.botColors.names[s.id], state: r.state, activity: r.activity,
         lastEventAt: Math.max(r.lastEventAt, s.mtimeMs), liveInTerminal: liveInfo?.kind === "interactive",
         helpers: r.helpers.size, preview: this.cfg.streamingMode ? undefined : r.preview, said: this.cfg.streamingMode ? undefined : r.said, stats: this.sessionStats.get(s.id), color: bot };
       let t = byTeam.get(team);

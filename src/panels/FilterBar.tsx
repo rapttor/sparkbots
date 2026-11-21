@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import type { WorkerState } from "../../server/adapters/types";
+import type { AgentSource, WorkerState } from "../../server/adapters/types";
 import { useStore } from "../state/store";
 import {
-  DEFAULT_FILTERS, SORTS, STATUSES, UNLABELED, applyFilters, isDefault, statusCounts, type SortId,
+  DEFAULT_FILTERS, SORTS, SOURCES, STATUSES, UNLABELED, applyFilters, isDefault, statusCounts, type SortId,
 } from "./teamFilters";
 
 const AWAKE: WorkerState[] = ["waiting", "working", "error", "done", "idle"];
@@ -27,7 +27,7 @@ export function FilterBar() {
   const counts = statusCounts(snapshot.teams);
   const shown = applyFilters(snapshot.teams, f, tasks).length;
   const active = !isDefault(f);
-  const nExtra = f.statuses.length + f.labels.length + (f.openTasks ? 1 : 0);
+  const nExtra = f.statuses.length + f.labels.length + (f.openTasks ? 1 : 0) + (f.sources.length === SOURCES.length ? 0 : 1);
 
   return (
     <div className="filterbar" ref={wrap}>
@@ -38,6 +38,13 @@ export function FilterBar() {
       <span className="muted small">{shown} of {snapshot.teams.length}</span>
       {open && (
         <div className="fb-drop">
+          <div className="tb-row">
+            <span className="muted small">Source:</span>
+            {SOURCES.map((source) => (
+              <button key={source} className={`chip ${f.sources.includes(source) ? "on" : ""}`}
+                onClick={() => setFilters({ ...f, sources: flip<AgentSource>(f.sources, source) })}>{source}</button>
+            ))}
+          </div>
           <div className="tb-row">
             <span className="muted small">Status:</span>
             <button className={`chip ${!f.statuses.length ? "on" : ""}`} onClick={() => setFilters({ ...f, statuses: [] })}>all</button>

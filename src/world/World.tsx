@@ -81,6 +81,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     desk: useRef<InstancedMesh>(null), ring: useRef<InstancedMesh>(null), body: useRef<InstancedMesh>(null),
     legA: useRef<InstancedMesh>(null), legB: useRef<InstancedMesh>(null),
     visor: useRef<InstancedMesh>(null), antenna: useRef<InstancedMesh>(null), beacon: useRef<InstancedMesh>(null),
+    codexHead: useRef<InstancedMesh>(null), codexBody: useRef<InstancedMesh>(null), codexVisor: useRef<InstancedMesh>(null), codexEyes: useRef<InstancedMesh>(null),
   };
   const { camera, gl } = useThree();
   const pick = (id: string, ev: MouseEvent) => { // popup position relative to the 3D view; shift+click = follow me / stop following
@@ -118,6 +119,17 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     const legsB = mergeGeometries([leg(-0.18), leg(0.32)])!;
     const arms = box(1.15, 0.15, 0.2, 0, 0);
     const eyes = mergeGeometries([box(0.07, 0.14, 0.04, -0.255, 0), box(0.07, 0.14, 0.04, 0.255, 0)])!;
+    // Codex pet: stepped cloud helmet, small body, dark terminal visor and cyan code-chevron eyes.
+    const codexHead = mergeGeometries([
+      box(0.82, 0.52, 0.52, 0, 0), box(0.58, 0.12, 0.52, 0, 0.31),
+      box(0.96, 0.3, 0.52, 0, 0), box(0.16, 0.14, 0.52, -0.48, -0.04), box(0.16, 0.14, 0.52, 0.48, -0.04),
+    ])!;
+    const codexBody = box(0.48, 0.28, 0.38, 0, 0);
+    const codexVisor = box(0.66, 0.28, 0.04, 0, 0);
+    const chevron = (side: number) => mergeGeometries([
+      box(0.055, 0.07, 0.025, side * 0.18, 0.07), box(0.055, 0.07, 0.025, side * 0.13, 0), box(0.055, 0.07, 0.025, side * 0.18, -0.07),
+    ])!;
+    const codexEyes = mergeGeometries([chevron(-1), chevron(1)])!;
     const mats = {
       solid: { color: "#e8ecf4", roughness: 0.55, metalness: 0.1 },
     };
@@ -128,6 +140,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       visorG: eyes,
       antennaG: arms,
       beaconG: new SphereGeometry(0.18, 12, 10),
+      codexHeadG: codexHead, codexBodyG: codexBody, codexVisorG: codexVisor, codexEyesG: codexEyes,
       mats,
     };
   }, []);
@@ -155,10 +168,11 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   useLayoutEffect(() => {
     layoutRef.current = layout;
     const r = refs;
-    if (!r.desk.current || !r.ring.current || !r.body.current || !r.visor.current || !r.antenna.current || !r.legA.current || !r.legB.current || !r.beacon.current) return;
+    if (!r.desk.current || !r.ring.current || !r.body.current || !r.visor.current || !r.antenna.current || !r.legA.current || !r.legB.current || !r.beacon.current || !r.codexHead.current || !r.codexBody.current || !r.codexVisor.current || !r.codexEyes.current) return;
     meshesRef.current = {
       desk: r.desk.current, ring: r.ring.current, body: r.body.current, legA: r.legA.current, legB: r.legB.current,
       visor: r.visor.current, antenna: r.antenna.current, beacon: r.beacon.current,
+      codexHead: r.codexHead.current, codexBody: r.codexBody.current, codexVisor: r.codexVisor.current, codexEyes: r.codexEyes.current,
     };
     // Clicks on instanced meshes are first tested against one cached bounding sphere. Robots wander, lie down and move away from
     // where they were when it was computed, so make it cover the whole campus: otherwise idle or sleeping robots cannot be clicked.
@@ -403,6 +417,10 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
         poseBot(m, anim[k], d, t, true, stepRoam(d, Math.min(dt, 0.1), modeOf(d, fetchedRef.current)));
       }
       m.body.instanceMatrix.needsUpdate = true;
+      m.codexHead.instanceMatrix.needsUpdate = true;
+      m.codexBody.instanceMatrix.needsUpdate = true;
+      m.codexVisor.instanceMatrix.needsUpdate = true;
+      m.codexEyes.instanceMatrix.needsUpdate = true;
       m.visor.instanceMatrix.needsUpdate = true;
       m.antenna.instanceMatrix.needsUpdate = true;
       m.legA.instanceMatrix.needsUpdate = true;
@@ -539,6 +557,19 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       <instancedMesh ref={refs.visor} args={[assets.visorG, undefined, MAX_DESKS]} frustumCulled={false}>
         <meshBasicMaterial toneMapped={false} />
       </instancedMesh>
+      <instancedMesh ref={refs.codexHead} args={[assets.codexHeadG, undefined, MAX_DESKS]} frustumCulled={false}
+        onClick={(e) => { e.stopPropagation(); const d = e.instanceId !== undefined ? layoutRef.current.desks[e.instanceId] : undefined; if (d) pick(d.worker.id, e.nativeEvent); }}>
+        <meshStandardMaterial {...assets.mats.solid} />
+      </instancedMesh>
+      <instancedMesh ref={refs.codexBody} args={[assets.codexBodyG, undefined, MAX_DESKS]} frustumCulled={false}>
+        <meshStandardMaterial {...assets.mats.solid} />
+      </instancedMesh>
+      <instancedMesh ref={refs.codexVisor} args={[assets.codexVisorG, undefined, MAX_DESKS]} frustumCulled={false}>
+        <meshStandardMaterial roughness={0.3} metalness={0.15} />
+      </instancedMesh>
+      <instancedMesh ref={refs.codexEyes} args={[assets.codexEyesG, undefined, MAX_DESKS]} frustumCulled={false}>
+        <meshBasicMaterial toneMapped={false} />
+      </instancedMesh>
       <instancedMesh ref={refs.beacon} args={[assets.beaconG, undefined, MAX_DESKS]} frustumCulled={false}>
         <meshBasicMaterial toneMapped={false} />
       </instancedMesh>
@@ -575,10 +606,7 @@ export default function World({ active = true }: { active?: boolean }) {
   const snapshot = useStore((st) => st.snapshot);
   const chatId = useStore((st) => st.chatId);
   const openChat = useStore((st) => st.openChat);
-  const markSeen = useStore((st) => st.markSeen);
   const markAllSeen = useStore((st) => st.markAllSeen);
-  const said = snapshot?.teams.flatMap((t) => t.workers).find((w) => w.id === chatId)?.said;
-  useEffect(() => { if (chatId && said) markSeen(chatId, said.at); }, [chatId, said?.at, markSeen]); // reading the chat clears its bubble
   const clearBubbles = () => {
     const m: Record<string, number> = {};
     for (const t of snapshot?.teams ?? []) for (const w of t.workers) if (w.said) m[w.id] = w.said.at;

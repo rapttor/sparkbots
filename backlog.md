@@ -1,31 +1,70 @@
-ok, this is a huge request, lets plan all this and make tasks for it.. 
-then breake tasks so we can utilize haiku more.. 
+## codex (example)
 
-analyze everything , along with what we already have and check for possible problems... 
+[DONE](docs/TASKS.md#phase-12--codex-sessions-as-agents-second-adapter) codex seems already implemented by.. codex :D
+
+# general instructions for this file.
+
+this ideas.md will be mine to write (mostly) but you read, analyze and make tasks. 
+first readout everything in section, summarize, think trough, define big tasks, breakddown to smaller, so we utilize haiku models as much as possible, and relate big tasks from tasks.md to our ideas/requests here.. 
+
+when request (marked with list: -) are planned do add in front of it link to main tasks, as I did above for codex, and [description] should be current status: one of: planned/version, in progress, done .... if clerification needed, do add [question as title] before task/idea/request
+
+when new ideas/sections added do analyze everything related, 
+along with what we already have and check for possible problems, and do ask what to do.. can also leave short remark here, in [description of task link]
 
 most of the things here is cosmetic, and should not interfere agents work , this is mostly for visual effects and boredom 
 
-getting near agent, 
-utilizing E you can also "call him" and invoke action menu...
+# general instructions 
+
+getting near agent, even not at the desk, utilizing click on him, or action: E you can also "call him" and invoke action menu...
+
+# zooming 
+- zoom out should move camera slowly in top/view mode overview, 
+- can zoom out until everything shown on screen: thats for now max zoom out...
 
 # "our" look 
 
-- we should be able to change our look - chose an character
+ - we should be able to change our look - chose an character
 - everything stays in same manner, pixelated, our own generic look/feel
 - we should start in walk mode, near center/amenities.. 
 - camera shuld be a bit further away, not too much, but as we wanna play the game and have overview of everything around...
 - new action - allow to jump on space - seeing overview of map and selecting where to go
 - initial;y lets set us as pixel raptor dinosaurus - in raptor #ce0 color.. 
 
+# other agents
 
-# other coding agents
 
-not to be just cosmetic this is also functional one.. 
+# dataservers
 
-## chatgpt/codex:
+dataroom should have servers, blinking red dots on racks, streaming tapes, ai datacenters as hydras cabels around, surrounded by forcefield, and bunch of small robots running around, checking, inspecting,  
 
-- most important one: where we stand with this, can we include projects from it also.. 
-- codex agents should have it own look - design. like codex pets, one of them (there is codexpets.jpeg in work/) 
+## reflecting data 
+
+- dataroom more complex, reflecting rack per project, with labels in project color
+- blinking red when project have active chat/s, # leds - active # chats, vu meter style
+
+## visual improvement, just for fun: 
+
+- small robots/drone robots wondering around "serving" the servers...
+- datacenter in forcefield all around, so we can see black racks nicely.. 
+- visual blinking on racks all the time - online, scanning, analyzing (perks, visual) 
+- on room walls, do add big data racks, old datacenter with rotating types, 
+- various antminers stacked, like 10 famous coins, mining money to support the datacenter/agents, matching their "spending"
+- workers visually moving mined coins into piggybank for servers, 
+
+
+# kanban
+
+canbaan board, dialog, a bit better designed, Im not asking trello but this is ugly
+
+- redesign kanban board to appear more like 3d model
+
+## backlog.md (like this one)
+
+- the special backlog.md track on kanban related to backlog.md file, like this
+- backlog.md button/track shown only when one project selected
+- backlog.md track can be toggled if someone doesn't like it
+- we create/use backlog.md to show big tasks in backlog tracksbacklog per project should use/offer to create backlog.md file like this, with similar instructions at top
 
 # cublicles..
 

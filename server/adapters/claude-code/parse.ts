@@ -72,7 +72,7 @@ export function parseLine(line: string): ParsedLine {
       for (const b of msg.content) {
         if (!b || typeof b !== "object") continue;
         if (b.type === "text" && typeof b.text === "string") {
-          events.push({ kind: "message", session, role: "assistant", preview: b.text.slice(0, 120), at });
+          events.push({ kind: "message", session, role: "assistant", preview: b.text.slice(0, 1500), at });
         } else if (b.type === "tool_use" && typeof b.name === "string") {
           events.push({ kind: "tool", session, tool: b.name, target: toolTarget(b.input), at });
           if ((b.name === "Agent" || b.name === "Task") && typeof b.id === "string") {

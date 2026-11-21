@@ -13,6 +13,8 @@ import { registerUploads, resolveAttachments, withAttachments } from "./uploads"
 import { registerServices } from "./services/routes";
 import { listSubagents } from "./adapters/claude-code/subagents";
 import { recentMessages } from "./adapters/claude-code/transcript";
+import { recentMessages as recentCodexMessages } from "./adapters/codex/transcript";
+import { CodexCommandError, queueMessage as queueCodexMessage } from "./adapters/codex/command";
 import { runPrompt, taskInfo, type TaskInfo } from "./tasks";
 import { saveJson, type Config, type Teams } from "./config";
 import { hookToEvents, isInstalled, readSettings, settingsPath } from "./adapters/claude-code/hooks";
@@ -38,6 +40,14 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     const session = str(req.body?.session), prompt = str(req.body?.prompt);
     const s = session ? c.sessions.get(session) : undefined;
     if (!s || !prompt) throw Object.assign(new Error("session and prompt required"), { statusCode: 400 });
+    if (s.source === "codex") {
+      if (req.body?.fork) throw Object.assign(new Error("Forking Codex chats is not supported yet"), { statusCode: 409 });
+      if (Array.isArray(req.body?.attachments) && req.body.attachments.length) throw Object.assign(new Error("Attachments to Codex chats are not supported yet"), { statusCode: 409 });
+      try { await queueCodexMessage(s.id, prompt, s.cwd); }
+      catch (e) { if (e instanceof CodexCommandError) throw Object.assign(new Error(e.message), { statusCode: e.status }); throw e; }
+      ping("messages", s.id);
+      return { queued: false as const, codex: true as const };
+    }
     const att = resolveAttachments(req.body.attachments);
     return wrap(() => runs.send(s.id, s.cwd, withAttachments(prompt, att.files), { ...overrides(s.cwd), fork: !!req.body.fork, ...(str(req.body.model) ? { model: str(req.body.model) } : {}), ...(att.dirs.length ? { addDirs: att.dirs } : {}) }));
   });
@@ -82,7 +92,8 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
   app.get<{ Params: { id: string } }>("/api/sessions/:id/messages", async (r) => {
     const s = c.sessions.get(r.params.id);
     if (!s) throw Object.assign(new Error("unknown session"), { statusCode: 404 });
-    return { messages: await recentMessages(s.file).catch(() => []) };
+    const read = s.source === "codex" ? recentCodexMessages : recentMessages;
+    return { messages: await read(s.file).catch(() => []) };
   });
   app.get("/api/history", async () => ({ spans: c.history.list() }));
   app.put<{ Params: { team: string }; Body: { color?: unknown } }>("/api/bots/teams/:team/color", async (r) => {
@@ -110,6 +121,7 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     const since = Date.now() - 24 * 3_600_000;
     const out: Record<string, ReturnType<typeof listSubagents>> = {};
     for (const s of c.sessions.values()) {
+      if (s.source === "codex") continue;
       if (s.mtimeMs < since) continue;
       const l = listSubagents(s.file).filter((x) => !x.finished || Date.now() - x.mtimeMs < 10 * 60_000).slice(0, 12);
       if (l.length) out[s.id] = l;

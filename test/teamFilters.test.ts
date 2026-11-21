@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_FILTERS, UNLABELED, filterAndSort, statusCounts, isDefault } from "../src/panels/teamFilters";
+import { DEFAULT_FILTERS, UNLABELED, applyFilters, filterAndSort, statusCounts, isDefault } from "../src/panels/teamFilters";
 import type { Team, WorkerState } from "../server/adapters/types";
 
 const team = (name: string, states: WorkerState[], last: number, labels: string[] = [], titles: string[] = []): Team =>
@@ -21,6 +21,13 @@ describe("teamFilters", () => {
   });
   it("status filter matches any worker", () => {
     expect(names({ statuses: ["error", "idle"] })).toEqual(["gamma", "alpha"]);
+  });
+  it("filters workers by source with both enabled by default", () => {
+    const mixed = team("mixed", ["idle", "working"], 4);
+    mixed.workers[0].source = "claude"; mixed.workers[1].source = "codex";
+    expect(applyFilters([mixed], DEFAULT_FILTERS, {}).at(0)?.workers).toHaveLength(2);
+    expect(applyFilters([mixed], { ...DEFAULT_FILTERS, sources: ["codex"] }, {}).at(0)?.workers.map((w) => w.source)).toEqual(["codex"]);
+    expect(applyFilters([mixed], { ...DEFAULT_FILTERS, sources: [] }, {})).toEqual([]);
   });
   it("label filter incl. unlabeled", () => {
     expect(names({ labels: ["current"] })).toEqual(["alpha"]);

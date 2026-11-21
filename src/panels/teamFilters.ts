@@ -1,6 +1,7 @@
-import type { Team, WorkerState } from "../../server/adapters/types";
+import type { AgentSource, Team, WorkerState } from "../../server/adapters/types";
 
 export const STATUSES: WorkerState[] = ["waiting", "working", "error", "done", "idle", "asleep"];
+export const SOURCES: AgentSource[] = ["claude", "codex"];
 export const UNLABELED = "__unlabeled__";
 export const SORTS = [
   { id: "latest", label: "Latest activity" },
@@ -14,22 +15,24 @@ export type SortId = (typeof SORTS)[number]["id"];
 export interface TeamFilters {
   search: string;
   statuses: WorkerState[];
+  sources: AgentSource[];
   labels: string[]; // label ids, or UNLABELED
   openTasks: boolean;
   sort: SortId;
 }
 export type OpenTasks = Record<string, { open: number } | null | undefined>;
 
-export const DEFAULT_FILTERS: TeamFilters = { search: "", statuses: [], labels: [], openTasks: false, sort: "latest" };
+export const DEFAULT_FILTERS: TeamFilters = { search: "", statuses: [], sources: [...SOURCES], labels: [], openTasks: false, sort: "latest" };
 
 export const isDefault = (f: TeamFilters) =>
-  !f.search.trim() && !f.statuses.length && !f.labels.length && !f.openTasks;
+  !f.search.trim() && !f.statuses.length && f.sources.length === SOURCES.length && !f.labels.length && !f.openTasks;
 
 const rank = (s: WorkerState) => { const i = STATUSES.indexOf(s); return i < 0 ? STATUSES.length : i; };
 const bestRank = (t: Team) => t.workers.reduce((m, w) => Math.min(m, rank(w.state)), STATUSES.length);
 const openOf = (tasks: OpenTasks, t: Team) => tasks[t.name]?.open ?? 0;
 
 export function matchesTeam(t: Team, f: TeamFilters, tasks: OpenTasks): boolean {
+  if (!t.workers.some((w) => f.sources.includes(w.source ?? "claude"))) return false;
   const q = f.search.trim().toLowerCase();
   if (q && !t.name.toLowerCase().includes(q) && !t.workers.some((w) => `${w.name ?? ""} ${w.title ?? ""}`.toLowerCase().includes(q))) return false;
   if (f.statuses.length && !t.workers.some((w) => f.statuses.includes(w.state))) return false;
@@ -62,7 +65,8 @@ export function filterAndSort(teams: Team[], f: TeamFilters, tasks: OpenTasks): 
 
 /** Teams that pass the filters, with workers narrowed to the chosen statuses. Shared by every screen. */
 export function applyFilters(teams: Team[], f: TeamFilters, tasks: OpenTasks): Team[] {
-  return filterAndSort(teams, f, tasks).map((t) =>
+  const sourced = teams.map((t) => ({ ...t, workers: t.workers.filter((w) => f.sources.includes(w.source ?? "claude")) }));
+  return filterAndSort(sourced, f, tasks).map((t) =>
     f.statuses.length ? { ...t, workers: t.workers.filter((w) => f.statuses.includes(w.state)) } : t);
 }
 
@@ -74,6 +78,7 @@ export function loadFilters(): TeamFilters {
     return {
       search: typeof raw.search === "string" ? raw.search : "",
       statuses: Array.isArray(raw.statuses) ? raw.statuses.filter((s) => STATUSES.includes(s)) : [],
+      sources: Array.isArray(raw.sources) ? raw.sources.filter((s) => SOURCES.includes(s)) : [...SOURCES],
       labels: Array.isArray(raw.labels) ? raw.labels.filter((l) => typeof l === "string") : [],
       openTasks: raw.openTasks === true,
       sort: SORTS.some((s) => s.id === raw.sort) ? (raw.sort as SortId) : "latest",

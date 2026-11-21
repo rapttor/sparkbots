@@ -95,8 +95,12 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
 
   const busy = w?.state === "working" || w?.state === "waiting";
   useEffect(() => {
-    const el = bodyRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    // Wait until React has painted the newly appended bubble/typing row, then pin the conversation to its end.
+    const frame = requestAnimationFrame(() => {
+      const el = bodyRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+    return () => cancelAnimationFrame(frame);
   }, [messages, busy]);
 
   useEffect(() => {
@@ -106,7 +110,9 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
   }, [onClose]);
 
   if (!w) return null;
-  const cmd = `cd ${w.cwd} && claude --resume ${w.id}`;
+  const isCodex = w.source === "codex";
+  const codexThread = isCodex ? w.id.replace(/^codex:/, "") : "";
+  const cmd = isCodex ? `cd ${w.cwd} && codex resume ${codexThread}` : `cd ${w.cwd} && claude --resume ${w.id}`;
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(cmd);
@@ -148,7 +154,7 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
   // you press it, and "Send as fork" starts a new agent that continues from this conversation.
   const hasContent = prompt.trim().length > 0 || files.length > 0;
   const terminalNote = "Live in terminal: sending into it directly could corrupt its transcript (two writers), so use “Send as fork”.";
-  const onSend = () => { if (w.liveInTerminal) { setNote(terminalNote); return; } if (hasContent) void send(false, prompt); };
+  const onSend = () => { if (!isCodex && w.liveInTerminal) { setNote(terminalNote); return; } if (hasContent) void send(false, prompt); };
   const onFork = () => { if (hasContent) void send(true, prompt); };
 
   return (
@@ -200,17 +206,17 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
             onKeyDown={(e) => onEnter(e, onSend, true)}
             onKeyUp={stopProp}
             onPaste={(e) => { if (e.clipboardData.files.length) { e.preventDefault(); void attach(e.clipboardData.files); } }}
-            placeholder="Message this agent (Enter to send, Shift+Enter for a new line). Drop or paste files to attach."
+            placeholder={isCodex ? "Message this Codex agent (Enter to send)" : "Message this agent (Enter to send, Shift+Enter for a new line). Drop or paste files to attach."}
             aria-label="Message"
           />
           <div className="wc-btns">
-            <button className={`wc-send ${hasContent && !w.liveInTerminal ? "" : "off"}`} aria-disabled={!hasContent || w.liveInTerminal} onClick={onSend} title={w.liveInTerminal ? "Open in a terminal: use Send as fork" : "Send"}>Send</button>
-            <div className="wc-forkrow">
+            <button className={`wc-send ${hasContent && (isCodex || !w.liveInTerminal) ? "" : "off"}`} aria-disabled={!hasContent || (!isCodex && w.liveInTerminal)} onClick={onSend} title={!isCodex && w.liveInTerminal ? "Open in a terminal: use Send as fork" : "Send"}>Send</button>
+            {!isCodex && <div className="wc-forkrow">
               <button className={`small ${hasContent ? "" : "off"}`} aria-disabled={!hasContent} onClick={onFork} title="A new agent that continues from this conversation">
                 Send as fork{w.liveInTerminal ? " · required" : ""}
               </button>
               <button className="icon-btn wc-info" aria-label="About forking" aria-expanded={infoOpen} onClick={() => setInfoOpen(!infoOpen)}>ⓘ</button>
-            </div>
+            </div>}
             {run?.status === "running" && <button className="small" onClick={() => guard(() => api.stop(run.runId).then(() => undefined))}>Stop</button>}
           </div>
         </div>
@@ -225,13 +231,13 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
           </div>
         )}
         <div className="wc-tools">
-          <button className="small" onClick={() => fileInput.current?.click()} title="Attach files or images (max 15 MB each)">📎 Attach</button>
-          <input ref={fileInput} type="file" multiple hidden onChange={(e) => { if (e.target.files) void attach(e.target.files); e.target.value = ""; }} />
-          <label className="wc-forkopt" title="Model used for the next message. Switching models mid-conversation is fine: the session keeps its history.">
+          {!isCodex && <><button className="small" onClick={() => fileInput.current?.click()} title="Attach files or images (max 15 MB each)">📎 Attach</button>
+          <input ref={fileInput} type="file" multiple hidden onChange={(e) => { if (e.target.files) void attach(e.target.files); e.target.value = ""; }} /></>}
+          {!isCodex && <label className="wc-forkopt" title="Model used for the next message. Switching models mid-conversation is fine: the session keeps its history.">
             Model:{" "}
             <input list="wc-models" className="wc-model" value={model} placeholder="default" maxLength={80} onChange={(e) => setModel(e.target.value.trim())} onKeyDown={(e) => e.stopPropagation()} onKeyUp={stopProp} />
             <datalist id="wc-models"><option value="opus" /><option value="sonnet" /><option value="haiku" />{svcModels.map((m) => <option key={m} value={m} />)}</datalist>
-          </label>
+          </label>}
         </div>
         {problem?.kind === "model" && <ModelHelp onTry={(m) => { setModel(m); }} />}
         {problem && (run?.status === "running" || problem.level === "error") && (
@@ -239,7 +245,7 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
         )}
         {note && <p className="wc-note">{note}</p>}
         {err && <p className="wc-note wc-err" role="alert">{err}</p>}
-        <div className="wc-new">
+        {!isCodex && <div className="wc-new">
           {!showFresh
             ? <button className="wc-link" onClick={() => setShowFresh(true)}>＋ New worker here</button>
             : (
@@ -260,7 +266,7 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
                 </div>
               </div>
             )}
-        </div>
+        </div>}
       </footer>
     </div>
   );

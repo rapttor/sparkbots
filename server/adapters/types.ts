@@ -1,8 +1,10 @@
 export type SessionId = string;
 export type Ts = number; // epoch ms
+export type AgentSource = "claude" | "codex";
 
 export interface SessionRef {
   id: SessionId;
+  source?: AgentSource;
   file: string;        // absolute path to <id>.jsonl
   cwd: string;         // project working dir (from records, fallback decoded folder)
   title: string;       // <= 60 chars
@@ -42,6 +44,7 @@ export type WorkerState = "asleep" | "idle" | "working" | "waiting" | "done" | "
 
 export interface Worker {
   id: SessionId;
+  source?: AgentSource;
   team: string;
   cwd: string;
   title: string;

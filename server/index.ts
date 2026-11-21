@@ -9,6 +9,7 @@ import { checkRequest, makeToken, stableToken } from "./security";
 import { execFile } from "node:child_process";
 import { Company } from "./model/company";
 import { claudeDir } from "./adapters/claude-code/discover";
+import { codexDir } from "./adapters/codex/discover";
 import { registerRoutes, tasks as taskSig } from "./routes";
 import { Hub } from "./sync";
 import { nerdSnapshot, startLagSampler } from "./nerd";
@@ -79,6 +80,19 @@ chokidar.watch(join(claudeDir(), "projects"), { depth: 1, ignoreInitial: true, i
     const id = f.split("/").pop()!.replace(".jsonl", ""); await company.ingest(id);
     company.tickAll(); push(); ping("messages", id);
   });
+chokidar.watch(join(codexDir(), "sessions"), { depth: 4, ignoreInitial: true })
+  .on("add", async (f) => {
+    if (!f.endsWith(".jsonl")) return;
+    await company.refreshSessions();
+    const s = [...company.sessions.values()].find((x) => x.file === f); if (!s) return;
+    await company.ingest(s.id); company.tickAll(); push(); ping("messages", s.id);
+  })
+  .on("change", async (f) => {
+    if (!f.endsWith(".jsonl")) return;
+    await company.refreshSessions();
+    const s = [...company.sessions.values()].find((x) => x.file === f); if (!s) return;
+    await company.ingest(s.id); company.tickAll(); push(); ping("messages", s.id);
+  });
 // Slices browsers fetch themselves: ping when a cheap signature changes.
 const sigs = { history: -1, live: "", tasks: "", stats: "", subs: "" };
 setInterval(async () => {
@@ -90,7 +104,7 @@ setInterval(async () => {
 setInterval(() => {
   const t = taskSig.fn(); if (t !== sigs.tasks) { sigs.tasks = t; ping("tasks"); }
   const st = JSON.stringify(company.stats.snapshot()); if (st !== sigs.stats) { sigs.stats = st; ping("stats"); }
-  const subs = JSON.stringify([...company.sessions.values()].filter((s) => s.mtimeMs > Date.now() - 24 * 3_600_000).map((s) => [s.id, listSubagents(s.file).map((x) => [x.id, x.finished, Math.floor(x.mtimeMs / 15_000)])]));
+  const subs = JSON.stringify([...company.sessions.values()].filter((s) => s.source !== "codex" && s.mtimeMs > Date.now() - 24 * 3_600_000).map((s) => [s.id, listSubagents(s.file).map((x) => [x.id, x.finished, Math.floor(x.mtimeMs / 15_000)])]));
   if (subs !== sigs.subs) { sigs.subs = subs; ping("subagents"); }
 }, 10_000);
 
