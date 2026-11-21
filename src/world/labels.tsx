@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Vector3, type Camera } from "three";
 import type { TeamArea } from "./layout";
 
-/** A floating title: a project or a room/leisure area. Click = go there. */
+/** A floating title: a project or a room/amenity. Click = go there. */
 export interface LabelItem { id: string; name: string; x: number; z: number; y: number; color: string; kind: "project" | "room"; area: TeamArea; poiId?: string }
 export interface LabelsApi { update: (camera: Camera, width: number, height: number, zoom?: number) => void }
 

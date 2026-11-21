@@ -25,7 +25,8 @@ import { MAX_DESKS, computeLayout, visibleTeams, type Layout, type TeamArea } fr
 import { nav, Flow, buildNav } from "./nav";
 import { ZonesLayer } from "./zonelayer";
 import { lunchAll, followerList, insideRoom, meeting, MAX_SEATS, setFollowers, startErrand, setPois, rebuildRoamGrid } from "./roam";
-import { roams, setLook, clearLook, player as playerState, pushPlayerOut } from "./roam";
+import { roams, setLook, clearLook, player as playerState, pushPlayerOut, holdAgent, releaseAgent } from "./roam";
+import { tarsParts } from "./tars";
 import { ACTIONS } from "./actions";
 import { Minibots } from "./minibots";
 import { MANAGER_ID, requestCoffee, ServiceBots } from "./servicebots";
@@ -97,6 +98,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     legA: useRef<InstancedMesh>(null), legB: useRef<InstancedMesh>(null),
     visor: useRef<InstancedMesh>(null), antenna: useRef<InstancedMesh>(null), beacon: useRef<InstancedMesh>(null),
     codexHead: useRef<InstancedMesh>(null), codexBody: useRef<InstancedMesh>(null), codexVisor: useRef<InstancedMesh>(null), codexEyes: useRef<InstancedMesh>(null),
+    tarsFrame: useRef<InstancedMesh>(null), tarsSide: useRef<InstancedMesh>(null), tarsFace: useRef<InstancedMesh>(null),
   };
   const { camera, gl } = useThree();
   const pick = (id: string, ev: MouseEvent) => { // popup position relative to the 3D view; shift+click = follow me / stop following
@@ -204,6 +206,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       box(0.055, 0.07, 0.025, side * 0.18, 0.07), box(0.055, 0.07, 0.025, side * 0.13, 0), box(0.055, 0.07, 0.025, side * 0.18, -0.07),
     ])!;
     const codexEyes = mergeGeometries([chevron(-1), chevron(1)])!;
+    const tars = tarsParts();
     const mats = {
       solid: { color: "#e8ecf4", roughness: 0.55, metalness: 0.1 },
     };
@@ -215,6 +218,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       antennaG: arms,
       beaconG: new SphereGeometry(0.18, 12, 10),
       codexHeadG: codexHead, codexBodyG: codexBody, codexVisorG: codexVisor, codexEyesG: codexEyes,
+      tarsFrameG: tars.frame, tarsSideG: tars.side, tarsFaceG: tars.face,
       mats,
     };
   }, []);
@@ -253,11 +257,12 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   useLayoutEffect(() => {
     layoutRef.current = layout;
     const r = refs;
-    if (!r.desk.current || !r.ring.current || !r.body.current || !r.visor.current || !r.antenna.current || !r.legA.current || !r.legB.current || !r.beacon.current || !r.codexHead.current || !r.codexBody.current || !r.codexVisor.current || !r.codexEyes.current) return;
+    if (!r.desk.current || !r.ring.current || !r.body.current || !r.visor.current || !r.antenna.current || !r.legA.current || !r.legB.current || !r.beacon.current || !r.codexHead.current || !r.codexBody.current || !r.codexVisor.current || !r.codexEyes.current || !r.tarsFrame.current || !r.tarsSide.current || !r.tarsFace.current) return;
     meshesRef.current = {
       desk: r.desk.current, ring: r.ring.current, body: r.body.current, legA: r.legA.current, legB: r.legB.current,
       visor: r.visor.current, antenna: r.antenna.current, beacon: r.beacon.current,
       codexHead: r.codexHead.current, codexBody: r.codexBody.current, codexVisor: r.codexVisor.current, codexEyes: r.codexEyes.current,
+      tarsFrame: r.tarsFrame.current, tarsSide: r.tarsSide.current, tarsFace: r.tarsFace.current,
     };
     // Clicks on instanced meshes are first tested against one cached bounding sphere. Robots wander, lie down and move away from
     // where they were when it was computed, so make it cover the whole campus: otherwise idle or sleeping robots cannot be clicked.
@@ -491,7 +496,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       if (e.repeat) return; // holding a key must not fire an action (or a confirmation) over and over
       if (modeRef.current !== "walk") return;
       if (k === "e") ctl.api.current?.talk();
-      else if (ACTIONS.some((a) => a.key === k)) ctl.api.current?.act(k);
+      else if (ACTIONS.some((a) => a.key === k && (a.kind === "real" || a.key === "f"))) ctl.api.current?.act(k); // cosmetic actions are menu-only
     };
     const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
     const clear = () => keys.current.clear();
@@ -576,6 +581,9 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
         m.codexBody.instanceMatrix.needsUpdate = true;
         m.codexVisor.instanceMatrix.needsUpdate = true;
         m.codexEyes.instanceMatrix.needsUpdate = true;
+        m.tarsFrame.instanceMatrix.needsUpdate = true;
+        m.tarsSide.instanceMatrix.needsUpdate = true;
+        m.tarsFace.instanceMatrix.needsUpdate = true;
         m.visor.instanceMatrix.needsUpdate = true;
         m.antenna.instanceMatrix.needsUpdate = true;
         m.legA.instanceMatrix.needsUpdate = true;
@@ -698,7 +706,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       <color attach="background" args={["#0d1019"]} />
       <ambientLight intensity={0.8} />
       <directionalLight position={[20, 40, 10]} intensity={1.1} />
-      {/* In the top-view band only the HTML project titles stay: the world is hidden so the room slabs cannot z-fight. */}
+      {/* In the top-view band the 3D world is hidden so the room slabs cannot z-fight; project and room titles remain. */}
       <group visible={!labelsOnly}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} onClick={(e) => { e.stopPropagation(); goTo(e.point); }}>
         <planeGeometry args={[floor, floor]} />
@@ -727,13 +735,13 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       <ConferenceLayer layout={layout} />
       <DeskScreens layout={layout} openId={chatId} onScreen={ctl.onScreen} />
       <FxLayer />
-      <Icons />
+      {!labelsOnly && <Icons />}
       <Minibots layout={layout} subs={ctl.subs} />
       <CoffeeFactory layout={layout} />
       <ServiceBots layout={layout} />
       <ManagerWalls layout={layout} onOpenBoard={() => useStore.getState().setPanel("board")} onOpenNotes={() => useStore.getState().setPanel("notes")} />
-      {ctl.tags && <NameTags layout={layout} getCenter={() => (modeRef.current === "walk" ? pos.current : controls.current?.target ?? pos.current)} />}
-      <SpeechBubbles layout={layout} getPos={(id) => roams.get(id)} />
+      {!labelsOnly && ctl.tags && <NameTags layout={layout} getCenter={() => (modeRef.current === "walk" ? pos.current : controls.current?.target ?? pos.current)} />}
+      {!labelsOnly && <SpeechBubbles layout={layout} getPos={(id) => roams.get(id)} />}
       <instancedMesh ref={refs.ring} args={[assets.ringG, undefined, MAX_DESKS]} frustumCulled={false}>
         <meshBasicMaterial toneMapped={false} />
       </instancedMesh>
@@ -765,6 +773,19 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
         <meshStandardMaterial roughness={0.3} metalness={0.15} />
       </instancedMesh>
       <instancedMesh ref={refs.codexEyes} args={[assets.codexEyesG, undefined, MAX_DESKS]} frustumCulled={false}>
+        <meshBasicMaterial toneMapped={false} />
+      </instancedMesh>
+      {/* OpenCode TARS: white top/bottom frame, dark centre, two swinging side legs/arms that close the rectangle */}
+      <instancedMesh ref={refs.tarsFrame} args={[assets.tarsFrameG, undefined, MAX_DESKS]} frustumCulled={false}
+        onClick={(e) => { e.stopPropagation(); const d = e.instanceId !== undefined ? layoutRef.current.desks[e.instanceId] : undefined; if (d) pick(d.worker.id, e.nativeEvent); }}>
+        <meshStandardMaterial roughness={0.45} metalness={0.08} />
+      </instancedMesh>
+      <instancedMesh ref={refs.tarsSide} args={[assets.tarsSideG, undefined, MAX_DESKS]} frustumCulled={false}
+        onClick={(e) => { e.stopPropagation(); const d = e.instanceId !== undefined ? layoutRef.current.desks[e.instanceId] : undefined; if (d) pick(d.worker.id, e.nativeEvent); }}>
+        <meshStandardMaterial roughness={0.45} metalness={0.08} />
+      </instancedMesh>
+      <instancedMesh ref={refs.tarsFace} args={[assets.tarsFaceG, undefined, MAX_DESKS]} frustumCulled={false}
+        onClick={(e) => { e.stopPropagation(); const d = e.instanceId !== undefined ? layoutRef.current.desks[e.instanceId] : undefined; if (d) pick(d.worker.id, e.nativeEvent); }}>
         <meshBasicMaterial toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={refs.beacon} args={[assets.beaconG, undefined, MAX_DESKS]} frustumCulled={false}>
@@ -898,7 +919,7 @@ export default function World({ active = true }: { active?: boolean }) {
   const [zoom, setZoom] = useState<ZoomReq | null>(null);
   // The Scene reports when the zoom reaches the top-view band; from there on only project titles are shown.
   const [labelsOnly, setLabelsOnly] = useState(() => { try { return Number(localStorage.getItem("ao.camZoom")) >= OVERVIEW_ZOOM; } catch { return false; } });
-  const shownLabels = useMemo(() => (labelsOnly ? labelItems.filter((it) => it.kind === "project") : labelItems), [labelsOnly, labelItems]);
+  const shownLabels = useMemo(() => (labelsOnly ? labelItems.filter((it) => it.kind === "project" || it.kind === "room") : labelItems), [labelsOnly, labelItems]);
   const [reset, setReset] = useState(0);
   const [saveN, setSaveN] = useState(0);
   // Click a laptop screen: the camera flies right in front of it so you can read it; "Back" (or Esc) returns.
@@ -923,6 +944,12 @@ export default function World({ active = true }: { active?: boolean }) {
   const setShowKeymap = useStore((st) => st.setShowKeymap);
   const frame = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  useEffect(() => {
+    const id = menu?.id;
+    if (!id) return;
+    holdAgent(id);
+    return () => releaseAgent(id);
+  }, [menu?.id]);
   const [roomMenu, setRoomMenu] = useState<{ item: LabelItem; x: number; y: number } | null>(null);
   const allWorkers = useMemo(() => snapshot?.teams.flatMap((t) => t.workers) ?? [], [snapshot]);
   const onPick = useCallback((id: string, x: number, y: number) => setMenu({ id, x, y }), []);

@@ -1,7 +1,7 @@
 import type { AgentSource, Team, WorkerState } from "../../server/adapters/types";
 
 export const STATUSES: WorkerState[] = ["waiting", "working", "error", "done", "idle", "asleep"];
-export const SOURCES: AgentSource[] = ["claude", "codex"];
+export const SOURCES: AgentSource[] = ["claude", "codex", "opencode"];
 export const UNLABELED = "__unlabeled__";
 export const SORTS = [
   { id: "latest", label: "Latest activity" },

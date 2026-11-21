@@ -70,6 +70,7 @@ export function registerBoard(app: FastifyInstance, c: Company, runs: RunManager
     let runId: string, session: string | undefined;
     if (req.body?.session) {
       const s = c.sessions.get(req.body.session); if (!s) throw bad("unknown session");
+      if (s.source === "opencode") throw bad("OpenCode card assignment is not wired yet; message the agent from its chat instead");
       const fork = !!req.body.fork; // fork = continue from that conversation as a NEW worker; also the only way into a live-in-terminal session
       let r;
       try { r = runs.send(s.id, s.cwd, prompt, { ...overrides(s.cwd), fork }); } catch (e) { throw Object.assign(new Error((e as Error).message), { statusCode: (e as { status?: number }).status ?? 400 }); }

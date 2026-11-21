@@ -5,6 +5,7 @@ import { BotIcon } from "../panels/BotIcon";
 import { api, call, type ChatMessage, type RunRecord } from "../api";
 import { useLive } from "../state/live";
 import { runProblem, type RunProblem } from "./runStatus";
+import { displayName } from "../util";
 
 const stopProp = (e: React.SyntheticEvent) => e.stopPropagation();
 
@@ -111,8 +112,10 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
 
   if (!w) return null;
   const isCodex = w.source === "codex";
+  const isOpenCode = w.source === "opencode";
   const codexThread = isCodex ? w.id.replace(/^codex:/, "") : "";
-  const cmd = isCodex ? `cd ${w.cwd} && codex resume ${codexThread}` : `cd ${w.cwd} && claude --resume ${w.id}`;
+  const openCodeThread = isOpenCode ? w.id.replace(/^opencode:/, "") : "";
+  const cmd = isCodex ? `cd ${w.cwd} && codex resume ${codexThread}` : isOpenCode ? `cd ${w.cwd} && opencode --session ${openCodeThread}` : `cd ${w.cwd} && claude --resume ${w.id}`;
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(cmd);
@@ -126,9 +129,15 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
     if (next !== (w.name ?? "")) void api.setBotName(w.id, next || null).catch((e) => setErr((e as Error).message));
   };
   const guard = async (fn: () => Promise<void>) => { setErr(""); try { await fn(); } catch (e) { setErr((e as Error).message); } };
+  const archive = () => {
+    if (w.liveInTerminal) return;
+    const source = w.source === "codex" ? "Codex" : w.source === "opencode" ? "OpenCode" : "Claude Code";
+    if (!window.confirm(`⚠ ARCHIVE "${displayName(w)}"?\n\nIt leaves the office. Nothing is deleted: the conversation stays in ${source}, and you can restore it in Settings > Archive.`)) return;
+    void guard(async () => { await api.archive(w.id, true); onClose(); });
+  };
   const send = (fork: boolean, text: string) => guard(async () => {
     const r = await api.send(w.id, text || "Please look at the attached file(s).", fork, model || undefined, files.map((f) => f.id));
-    setNote(r.queued ? `Queued (position ${r.position})` : fork ? "Forked to a new agent" : "Sent");
+    setNote(r.queued ? `Queued (position ${r.position})` : fork ? "Forked to a new agent" : "opencode" in r ? "Sent to OpenCode" : "Sent");
     setPrompt(""); setFiles([]);
   });
   // Files are read in the browser, saved by the server in SparkBots' own folder, and listed in the message (Claude reads them).
@@ -168,7 +177,7 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
                 onKeyUp={stopProp} onBlur={(e) => saveName(e.currentTarget.value)} />
             : <strong title="Click to rename" style={{ cursor: "text" }} onClick={() => setRenaming(true)}>{w.name || w.title || "(untitled)"} ✎</strong>}
           {w.name && <span className="wc-sub muted" title={w.title}>Session: {w.title}</span>}
-          <span className="wc-sub"><StateBadge state={w.state} /> <span>{w.activity}</span></span>
+          <span className="wc-sub"><StateBadge state={w.state} /> <span>{w.activity}</span>{w.source === "opencode" && <span className="muted"> · opencode</span>}{w.source === "codex" && <span className="muted"> · codex</span>}</span>
         </div>
         {onDock && (
           <span className="wc-dockbtns">
@@ -206,7 +215,7 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
             onKeyDown={(e) => onEnter(e, onSend, true)}
             onKeyUp={stopProp}
             onPaste={(e) => { if (e.clipboardData.files.length) { e.preventDefault(); void attach(e.clipboardData.files); } }}
-            placeholder={isCodex ? "Message this Codex agent (Enter to send)" : "Message this agent (Enter to send, Shift+Enter for a new line). Drop or paste files to attach."}
+            placeholder={isCodex ? "Message this Codex agent (Enter to send)" : isOpenCode ? "Message this OpenCode agent (Enter to send)" : "Message this agent (Enter to send, Shift+Enter for a new line). Drop or paste files to attach."}
             aria-label="Message"
           />
           <div className="wc-btns">
@@ -227,13 +236,15 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
                 ? <><b>A terminal is holding this session.</b> Writing into it from here could corrupt its conversation (two writers at once), so your message goes to a <b>fork</b>: a new agent that continues from this chat and leaves this session untouched.</>
                 : <>A <b>fork</b> is a new agent that continues from this conversation and leaves this session untouched. Plain Send continues the session itself.</>}
             </p>
+            {isOpenCode && <p className="small">OpenCode chats live in its local database. If an OpenCode terminal is open in this project, plain Send is refused — use <b>Send as fork</b>.</p>}
             {w.liveInTerminal && <button className="small" onClick={copy}>{copied ? "Copied" : "Copy resume command (continue it in the terminal)"}</button>}
           </div>
         )}
         <div className="wc-tools">
+          <button className="small" onClick={archive} disabled={w.liveInTerminal} title={w.liveInTerminal ? "Live in a terminal: close it first" : "Archive this agent (nothing is deleted)"}>🗄 Archive</button>
           {!isCodex && <><button className="small" onClick={() => fileInput.current?.click()} title="Attach files or images (max 15 MB each)">📎 Attach</button>
           <input ref={fileInput} type="file" multiple hidden onChange={(e) => { if (e.target.files) void attach(e.target.files); e.target.value = ""; }} /></>}
-          {!isCodex && <label className="wc-forkopt" title="Model used for the next message. Switching models mid-conversation is fine: the session keeps its history.">
+          {!isCodex && !isOpenCode && <label className="wc-forkopt" title="Model used for the next message. Switching models mid-conversation is fine: the session keeps its history.">
             Model:{" "}
             <input list="wc-models" className="wc-model" value={model} placeholder="default" maxLength={80} onChange={(e) => setModel(e.target.value.trim())} onKeyDown={(e) => e.stopPropagation()} onKeyUp={stopProp} />
             <datalist id="wc-models"><option value="opus" /><option value="sonnet" /><option value="haiku" />{svcModels.map((m) => <option key={m} value={m} />)}</datalist>

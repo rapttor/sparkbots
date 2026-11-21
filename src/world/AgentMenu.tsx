@@ -52,7 +52,7 @@ export function AgentMenu({ worker: w, x, y, scene, onClose }: { worker: Worker;
   const openChat = useStore((s) => s.openChat);
   const followers = useStore((s) => s.followers);
   const toggleFollower = useStore((s) => s.toggleFollower);
-  const [open, setOpen] = useState<"" | "actions" | "look" | "idle" | "go" | "cards">("");
+  const [open, setOpen] = useState<"" | "perform" | "look" | "idle" | "go" | "cards">("");
   const [cards, setCards] = useState<Card[]>([]);
   useEffect(() => { if (open === "cards") api.board().then((c) => setCards(c.filter((x) => x.team === w.team && (x.column === "backlog" || x.column === "ready")))).catch(() => {}); }, [open, w.team]);
   const [detail, setDetail] = useState(false);
@@ -80,14 +80,6 @@ export function AgentMenu({ worker: w, x, y, scene, onClose }: { worker: Worker;
     if (!running || !window.confirm(`Stop the run started from SparkBots for "${displayName(w)}"?`)) return;
     void wrap(() => api.stop(running.runId), "Stopped");
   };
-  const doArchive = () => {
-    if (w.liveInTerminal) return;
-    const ok = window.confirm(
-      `⚠ ARCHIVE "${displayName(w)}"?\n\nIt leaves the office and walks to the data room first.\nNothing is deleted: the conversation stays in Claude Code, and you can restore it in Settings > Archive.`);
-    if (!ok) return;
-    scene.archive(w.id, () => { void api.archive(w.id, true).catch((e: Error) => window.alert(e.message)); });
-    onClose();
-  };
   const item = (label: string, onClick: () => void, key?: string, disabled?: string) => (
     <button className="am-item" disabled={!!disabled} title={disabled} onClick={onClick}>{label}{key && <kbd>{key}</kbd>}</button>
   );
@@ -103,8 +95,12 @@ export function AgentMenu({ worker: w, x, y, scene, onClose }: { worker: Worker;
       {item("💬 Talk", () => { openChat(w.id); onClose(); }, "E")}
       {item("☕ Bring a coffee", () => { requestCoffee(w.id); onClose(); })}
       {item(followers.includes(w.id) ? "👥 Stop following" : "👥 Follow me", () => { toggleFollower(w.id); onClose(); }, "F")}
-      {item(`⚡ Actions ${open === "actions" ? "▾" : "▸"}`, () => setOpen(open === "actions" ? "" : "actions"))}
-      {open === "actions" && <div className="am-sub">{ACTIONS.map((a) => item(`${a.label}${a.kind === "real" ? " …" : ""}`, () => { scene.act(a.key, w.id); onClose(); }, a.key.toUpperCase(), a.can?.(w) ?? undefined))}</div>}
+      {ACTIONS.filter((a) => a.kind === "real").map((a) => item(`${a.label} …`, () => { scene.act(a.key, w.id); onClose(); }, a.key.toUpperCase(), a.can?.(w) ?? undefined))}
+      {item(`🎬 Perform ${open === "perform" ? "▾" : "▸"}`, () => setOpen(open === "perform" ? "" : "perform"))}
+      {open === "perform" && <div className="am-sub">
+        <p className="muted small">Cosmetic animations only; the real status does not change.</p>
+        {ACTIONS.filter((a) => a.kind === "fx" && a.key !== "f").map((a) => item(a.label, () => { scene.act(a.key, w.id); onClose(); }))}
+      </div>}
       {item(`🎭 Show as… ${open === "look" || open === "idle" ? "▾" : "▸"}`, () => setOpen(open === "look" || open === "idle" ? "" : "look"))}
       {(open === "look" || open === "idle") && (
         <div className="am-sub">
@@ -120,7 +116,7 @@ export function AgentMenu({ worker: w, x, y, scene, onClose }: { worker: Worker;
       )}
       {item(`📍 Send to… ${open === "go" ? "▾" : "▸"}`, () => setOpen(open === "go" ? "" : "go"))}
       {open === "go" && <div className="am-sub am-scroll">{poiChoices().map((c) => item(c.label, () => { scene.sendTo(w.id, c.id); onClose(); }))}{poiChoices().length === 0 && <p className="muted small">No rooms yet.</p>}</div>}
-      {item(`📋 Give a card… ${open === "cards" ? "▾" : "▸"}`, () => setOpen(open === "cards" ? "" : "cards"))}
+      {item(`📋 Give a card… ${open === "cards" ? "▾" : "▸"}`, () => setOpen(open === "cards" ? "" : "cards"), undefined, w.source === "opencode" ? "OpenCode card assignment is not wired yet; message the agent instead" : undefined)}
       {open === "cards" && <div className="am-sub am-scroll">
         {cards.length === 0 && <p className="muted small">No Backlog or Ready cards for this project.</p>}
         {cards.slice(0, 12).map((c) => item(c.title.slice(0, 40), () => {
@@ -129,7 +125,6 @@ export function AgentMenu({ worker: w, x, y, scene, onClose }: { worker: Worker;
           void wrap(() => api.assign(c.id, { session: w.id, fork }), "Card sent");
         }))}
       </div>}
-      {item("🗄 Archive…", doArchive, undefined, w.liveInTerminal ? "Live in a terminal: close it first" : undefined)}
       <div className="am-quick">
         <button disabled={!!whyContinue} title={whyContinue || `Send “${CONTINUE}”`} onClick={doContinue}>▶ Continue</button>
         <button disabled={!running} title={running ? "Stop the run started from SparkBots" : "No run started from SparkBots"} onClick={doPause}>⏸ Pause</button>

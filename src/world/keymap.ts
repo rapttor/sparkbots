@@ -12,7 +12,7 @@ export interface KeyDef {
 export const KEYMAP: KeyDef[] = [
   { id: "camera", keys: "C", label: "Camera behind you at the default zoom (zoom in = first-person, zoom out = overview)", actionable: true },
   { id: "talk", keys: "E", label: "Talk to the nearby agent", actionable: true },
-  ...ACTIONS.map((a): KeyDef => ({ id: `action:${a.key}`, keys: a.key.toUpperCase(), label: `${a.label}: ${a.hint}`, actionable: true })),
+  ...ACTIONS.filter((a) => a.kind === "real" || a.key === "f").map((a): KeyDef => ({ id: `action:${a.key}`, keys: a.key.toUpperCase(), label: `${a.label}: ${a.hint}`, actionable: true })),
   { id: "minimap", keys: "M", label: "Open the Map tab (the minimap)", actionable: true },
   { id: "lock", keys: "L", label: "Lock / unlock zoom", actionable: true },
   { id: "coffee", keys: "O", label: "Order a coffee (the barista sends a robot to you)", actionable: true },

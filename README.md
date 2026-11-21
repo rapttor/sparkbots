@@ -1,6 +1,6 @@
 # SparkBots
 
-A local, browser-based "office" for your Claude Code history: every session is a worker, every project is a team. See who is working, who is waiting on you, token usage, and (carefully) send prompts to a session.
+A local, browser-based "office" for your Claude Code, Codex and OpenCode history: every session is a worker, every project is a team. See who is working, who is waiting on you, token usage, and (carefully) send prompts to a session.
 
 ## Run
 
@@ -21,12 +21,12 @@ The 3D view: double-click a project area to walk into it; the legends (status co
 
 ## Privacy
 
-Nothing leaves your machine. The server binds to `127.0.0.1` only, requires a random token on every request, rejects foreign `Host`/`Origin` headers, makes no external requests and sends no telemetry. It only **reads** `~/.claude/`; its own files live in `~/.agent-office/`. Message previews can be hidden with `streamingMode` in `config.json`.
+Nothing leaves your machine. The server binds to `127.0.0.1` only, requires a random token on every request, rejects foreign `Host`/`Origin` headers, makes no external requests and sends no telemetry. It only **reads** `~/.claude/`, `~/.codex/` and the local OpenCode SQLite database (`~/.local/share/opencode/opencode.db`, read-only); its own files live in `~/.agent-office/`. Message previews can be hidden with `streamingMode` in `config.json`.
 
 ## Safety
 
-- Prompts are passed to `claude -p --resume <id>` as a single argv entry (no shell).
-- A session open in an interactive terminal cannot be written to (fork instead).
+- Prompts are passed to `claude -p --resume <id>`, the Codex queue, or `opencode run --session <id>` as argv entries (no shell).
+- A session open in an interactive terminal cannot be written to (fork instead; OpenCode plain sends are refused while an OpenCode TUI is running in that project).
 - One run per session at a time; extra messages are queued.
 - `bypassPermissions` / `--dangerously-skip-permissions` are never used.
 - Stop only signals processes the office itself spawned.
@@ -37,7 +37,7 @@ Nothing leaves your machine. The server binds to `127.0.0.1` only, requires a ra
 
 ## Notes
 
-Claude Code's on-disk formats are not a public API; parsers skip unknown/corrupt lines and count them. Cost figures are estimates from `server/stats/prices.json`. 
+Claude Code, Codex and OpenCode on-disk formats are not a public API; parsers skip unknown/corrupt lines and count them. Cost figures are estimates from `server/stats/prices.json`. 
 ## Optional hooks (more precise state)
 
 ```bash

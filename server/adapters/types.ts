@@ -1,6 +1,6 @@
 export type SessionId = string;
 export type Ts = number; // epoch ms
-export type AgentSource = "claude" | "codex";
+export type AgentSource = "claude" | "codex" | "opencode";
 
 export interface SessionRef {
   id: SessionId;

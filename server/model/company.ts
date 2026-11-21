@@ -2,12 +2,15 @@ import { toolActivity, parseLine } from "../adapters/claude-code/parse";
 import { discoverSessions, teamFor, teamColor } from "../adapters/claude-code/discover";
 import { discoverSessions as discoverCodexSessions } from "../adapters/codex/discover";
 import { parseLine as parseCodexLine, toolActivity as codexToolActivity } from "../adapters/codex/parse";
+import { discoverSessions as discoverOpenCodeSessions } from "../adapters/opencode/discover";
+import { parseLine as parseOpenCodeLine, toolActivity as opencodeToolActivity } from "../adapters/opencode/parse";
 import { readLiveness } from "../adapters/claude-code/liveness";
 import { Tailer } from "../adapters/claude-code/tail";
 import { StatsAggregator } from "../stats/aggregate";
 import { applyEvent, initialRuntime, tick, thresholdsFrom, type Runtime } from "./state";
 import type { AgentEvent, LiveInfo, SessionRef, Snapshot, Team, Worker, WorkStats } from "../adapters/types";
 import { loadJson, saveJson, type Config, type Teams } from "../config";
+import { OPENCODE_DEFAULT_COLOR } from "../../src/shared/opencode";
 import { LabelStore } from "../labels";
 import { BotColors } from "../botColors";
 import { History } from "../history";
@@ -54,8 +57,22 @@ export class Company {
 
   async refreshSessions() {
     const now = Date.now();
-    const [claude, codex] = await Promise.all([discoverSessions(), discoverCodexSessions()]);
-    for (const s of [...claude.map((x) => ({ ...x, source: "claude" as const })), ...codex]) { this.sessions.set(s.id, s); this.rt(s.id, now, s.mtimeMs); }
+    const [claude, codex, opencode] = await Promise.all([discoverSessions(), discoverCodexSessions(), discoverOpenCodeSessions()]);
+    for (const s of [...claude.map((x) => ({ ...x, source: "claude" as const })), ...codex, ...opencode]) { this.sessions.set(s.id, s); this.rt(s.id, now, s.mtimeMs); }
+  }
+  /** OpenCode is a live database: poll it cheaply, mirror changed chats, and return the ids that need ingesting. */
+  async refreshOpenCodeSessions(): Promise<string[]> {
+    const list = await discoverOpenCodeSessions();
+    const seen = new Set(list.map((s) => s.id));
+    const changed: string[] = [];
+    for (const s of list) {
+      const old = this.sessions.get(s.id);
+      this.sessions.set(s.id, s);
+      this.rt(s.id, Date.now(), s.mtimeMs);
+      if (!old || old.mtimeMs !== s.mtimeMs || old.sizeBytes !== s.sizeBytes) { this.tailer.forget(s.file); changed.push(s.id); }
+    }
+    for (const [id, s] of this.sessions) if (s.source === "opencode" && !seen.has(id)) { this.sessions.delete(id); this.runtimes.delete(id); this.live.delete(id); }
+    return changed;
   }
   async refreshLiveness() { this.live = await readLiveness(); }
 
@@ -77,12 +94,12 @@ export class Company {
     e = { ...e, session: s.id };
     const r = this.rt(s.id, Date.now());
     if (initial && e.kind !== "tool" && e.kind !== "message") { /* history: only track last-seen */ }
-    applyEvent(r, e, (t, target) => s.source === "codex" ? codexToolActivity(t) : toolActivity(t, { command: target }));
+    applyEvent(r, e, (t, target) => s.source === "codex" ? codexToolActivity(t) : s.source === "opencode" ? opencodeToolActivity(t, target) : toolActivity(t, { command: target }));
     if (!initial) this.history.record(e);
     if (initial) { r.state = "asleep"; r.since = Date.now(); r.helpers.clear(); } // history never implies "working"
   }
 
-  private parse(s: SessionRef, line: string) { return s.source === "codex" ? parseCodexLine(line) : parseLine(line); }
+  private parse(s: SessionRef, line: string) { return s.source === "codex" ? parseCodexLine(line) : s.source === "opencode" ? parseOpenCodeLine(line) : parseLine(line); }
 
   /** Lazy full-history stats pass (background). Per-file results cached in ~/.agent-office/cache/stats.json by size+mtime. */
   async buildStats() {
@@ -144,7 +161,7 @@ export class Company {
       const team = teamFor(s.cwd, this.teams.merges);
       const chosen = this.botColors.colors[s.id];
       // Every uncustomized agent inherits a softer version of its project's color; a user-picked agent color is exact.
-      const bot = chosen ?? lighter(this.botColors.forTeam(team));
+      const bot = chosen ?? (s.source === "opencode" ? OPENCODE_DEFAULT_COLOR : lighter(this.botColors.forTeam(team)));
       const w: Worker = { id: s.id, source: s.source ?? "claude", team, cwd: s.cwd, title: s.title, name: this.botColors.names[s.id], state: r.state, activity: r.activity,
         lastEventAt: Math.max(r.lastEventAt, s.mtimeMs), liveInTerminal: liveInfo?.kind === "interactive",
         helpers: r.helpers.size, preview: this.cfg.streamingMode ? undefined : r.preview, said: this.cfg.streamingMode ? undefined : r.said, stats: this.sessionStats.get(s.id), color: bot };

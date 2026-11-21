@@ -5,6 +5,9 @@ export class Tailer {
   private offsets = new Map<string, number>();
   private partial = new Map<string, string>();
 
+  /** Forget a file so the next read starts from the most recent tail again (used after a cache rebuild). */
+  forget(file: string): void { this.offsets.delete(file); this.partial.delete(file); }
+
   /** First read of a file starts at max(0, size - initialBytes) and drops the (probably cut) first line. */
   async read(file: string, initialBytes = 128 * 1024): Promise<string[]> {
     const size = (await stat(file)).size;

@@ -3,12 +3,13 @@ import type { WorkerState } from "../../server/adapters/types";
 import type { DeskSlot, Layout } from "./layout";
 import { STATE_COLORS } from "./colors";
 import { nav } from "./nav";
-import { followerIndex, followerList, followTarget, poiExists, pickVisit, releaseVisit, slotPos, conductors } from "./roam";
+import { followerIndex, followerList, followTarget, poiExists, pickVisit, releaseVisit, slotPos, conductors, isHeld } from "./roam";
 import { roams, looks, effectiveState, occupiedAt, steerAround, separate, type BotMode, type Roam } from "./roam";
 import { fxPose } from "./fx";
 import { IDLE_CLIPS, STATE_ICON, clipById, statusClip, type Clip } from "./clips";
 
 export const WHITE = new Color("#ffffff");
+const TARS_FACE = new Color("#0b0f17");
 export const STATE_THREE = Object.fromEntries(
   (Object.keys(STATE_COLORS) as WorkerState[]).map((k) => [k, new Color(STATE_COLORS[k])]),
 ) as Record<WorkerState, Color>;
@@ -42,7 +43,7 @@ function putWorld(mesh: InstancedMesh, i: number, x: number, y: number, z: numbe
   mesh.setMatrixAt(i, dummy.matrix);
 }
 
-export interface Meshes { desk: InstancedMesh; ring: InstancedMesh; body: InstancedMesh; legA: InstancedMesh; legB: InstancedMesh; visor: InstancedMesh; antenna: InstancedMesh; beacon: InstancedMesh; codexHead: InstancedMesh; codexBody: InstancedMesh; codexVisor: InstancedMesh; codexEyes: InstancedMesh }
+export interface Meshes { desk: InstancedMesh; ring: InstancedMesh; body: InstancedMesh; legA: InstancedMesh; legB: InstancedMesh; visor: InstancedMesh; antenna: InstancedMesh; beacon: InstancedMesh; codexHead: InstancedMesh; codexBody: InstancedMesh; codexVisor: InstancedMesh; codexEyes: InstancedMesh; tarsFrame: InstancedMesh; tarsSide: InstancedMesh; tarsFace: InstancedMesh }
 
 /** Where a bot currently is. Bots leave their chair when idle (wander), lie down when asleep, and run back to the
  *  desk when they are working or when you open their chat. */
@@ -80,6 +81,7 @@ export function stepRoam(d: DeskSlot, dt: number, mode: BotMode): Roam {
   r.mode = mode;
   const id = d.worker.id, nowMs = performance.now();
   if (r.visit && (mode !== "wander" || !poiExists(r.visit.poi.id))) { releaseVisit(id, r.visit.poi, r.visit.slot); r.visit = null; r.clip = null; } // work calls, or the layout changed
+  if (isHeld(id)) { r.moving = false; r.tx = r.x; r.tz = r.z; return r; } // an action menu owns this agent: stand still
   if (mode === "wander") {
     if (r.visit) { // on a trip to a zone: walk there, stay a while (playing the spot's clip), then head back
       const v = r.visit, sp = slotPos(v.poi, v.slot);
@@ -201,33 +203,44 @@ export function poseBot(m: Meshes, i: number, d: DeskSlot, t: number, animate: b
     jx = fp.jx; jz = fp.jz; hop += fp.hop; spin += fp.spin; sway += fp.sway; arm = fp.arm;
     if (fp.tint) {
       const c = col.set(d.worker.color).lerp(tintColor(fp.tint), fp.tintAmt);
-      m.body.setColorAt(i, c); m.codexHead.setColorAt(i, c); m.codexBody.setColorAt(i, c); m.antenna.setColorAt(i, c); m.legA.setColorAt(i, c); m.legB.setColorAt(i, c);
+      m.body.setColorAt(i, c); m.codexHead.setColorAt(i, c); m.codexBody.setColorAt(i, c); m.antenna.setColorAt(i, c); m.legA.setColorAt(i, c); m.legB.setColorAt(i, c); m.tarsFrame.setColorAt(i, c); m.tarsSide.setColorAt(i, c);
       r.flash = true;
     }
   } else if (r.flash) {
     const c = col.set(d.worker.color);
-    m.body.setColorAt(i, c); m.codexHead.setColorAt(i, c); m.codexBody.setColorAt(i, c); m.antenna.setColorAt(i, c); m.legA.setColorAt(i, c); m.legB.setColorAt(i, c);
+    m.body.setColorAt(i, c); m.codexHead.setColorAt(i, c); m.codexBody.setColorAt(i, c); m.antenna.setColorAt(i, c); m.legA.setColorAt(i, c); m.legB.setColorAt(i, c); m.tarsFrame.setColorAt(i, c); m.tarsSide.setColorAt(i, c);
     r.flash = false;
   }
-  if (r.flash || fp) for (const k of [m.body, m.codexHead, m.codexBody, m.antenna, m.legA, m.legB]) if (k.instanceColor) k.instanceColor.needsUpdate = true;
+  if (r.flash || fp) for (const k of [m.body, m.codexHead, m.codexBody, m.antenna, m.legA, m.legB, m.tarsFrame, m.tarsSide]) if (k.instanceColor) k.instanceColor.needsUpdate = true;
   wave += arm;
-  grp.position.set(r.x + jx, (r.lying ? 0.45 : 0.6 + bob) + hop, r.z + jz);
+  const lying = r.lying && d.worker.source !== "opencode"; // TARS sleeps upright; a 1.2-unit slab across the floor would swamp the desk
+  grp.position.set(r.x + jx, (lying ? 0.45 : 0.6 + bob) + hop, r.z + jz);
   grp.rotation.order = "YXZ";
-  grp.rotation.set(r.lying ? 0 : lean, r.ry + spin, r.lying ? Math.PI / 2 : sway);
+  grp.rotation.set(lying ? 0 : lean, r.ry + spin, lying ? Math.PI / 2 : sway);
   grp.updateMatrix();
   const codex = d.worker.source === "codex";
-  if (codex) {
+  const opencode = d.worker.source === "opencode";
+  if (opencode) {
+    // TARS: the two side slabs swing together like legs; the body and its dark face stay upright.
+    const legSwing = r.moving ? Math.sin(t * (r.mode === "rush" ? 16 : 10) + ph) * 0.3 : 0;
+    put(m.tarsFrame, i, 0, 0, 0, 0, 1);
+    put(m.tarsFace, i, 0, 0.02, 0, 0, 1);
+    put(m.tarsSide, i, 0, 0, 0, 0, 1, legSwing);
+  } else if (codex) {
     put(m.codexHead, i, 0, 0.14, 0, 0, 1);
     put(m.codexBody, i, 0, -0.22, 0, 0, 1);
     put(m.codexVisor, i, 0, 0.14, -0.306, 0, 1);
     put(m.codexEyes, i, 0, 0.14, -0.332, 0, 1);
+    put(m.legA, i, 0, -0.29, 0, 0, 1, swing);
+    put(m.legB, i, 0, -0.29, 0, 0, 1, -swing);
+    put(m.antenna, i, 0, -0.07, 0, wave);
   } else {
     put(m.body, i, 0, 0, 0, 0, 1);
     put(m.visor, i, 0, 0.07, -0.255, 0, 1);
+    put(m.legA, i, 0, -0.29, 0, 0, 1, swing);
+    put(m.legB, i, 0, -0.29, 0, 0, 1, -swing);
+    put(m.antenna, i, 0, -0.07, 0, wave);
   }
-  put(m.legA, i, 0, -0.29, 0, 0, 1, swing);
-  put(m.legB, i, 0, -0.29, 0, 0, 1, -swing);
-  put(m.antenna, i, 0, -0.07, 0, wave);
   putWorld(m.beacon, i, c.x, 1.9, c.z, beacon);
 }
 
@@ -241,7 +254,7 @@ export function writeStatic(m: Meshes, layout: Layout, fetchedId: string | undef
     const st = d.worker.state;
     m.ring.setColorAt(i, STATE_THREE[st]);
     m.desk.setColorAt(i, WHITE);
-    const body = col.set(d.worker.color); // bots use their color; the ring still shows the state
+    const body = tintColor(d.worker.color); // own cached Color: visorColor() mutates the shared `col` temp
     m.body.setColorAt(i, body);
     m.codexHead.setColorAt(i, body); m.codexBody.setColorAt(i, body);
     m.antenna.setColorAt(i, body);
@@ -250,6 +263,11 @@ export function writeStatic(m: Meshes, layout: Layout, fetchedId: string | undef
     m.codexVisor.setColorAt(i, new Color("#111a46"));
     m.codexEyes.setColorAt(i, new Color("#55f6f2"));
     m.beacon.setColorAt(i, STATE_THREE.waiting);
+    // Reset every variant at this index; poseBot then writes only the active one (spark / Codex / OpenCode TARS).
+    for (const mesh of [m.body, m.legA, m.legB, m.visor, m.antenna, m.codexHead, m.codexBody, m.codexVisor, m.codexEyes, m.tarsFrame, m.tarsSide, m.tarsFace]) put(mesh, i, 0, 0, 0, 0, 0);
+    m.tarsFrame.setColorAt(i, body);
+    m.tarsSide.setColorAt(i, body);
+    m.tarsFace.setColorAt(i, TARS_FACE);
     const mode = modeOf(d, fetchedId);
     const r = roamOf(d);
     poseBot(m, i, d, 0, false, r);

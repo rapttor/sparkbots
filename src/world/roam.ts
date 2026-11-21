@@ -17,6 +17,12 @@ export interface Roam {
 }
 export const roams = new Map<string, Roam>();
 
+/** Agents with an open action menu: they stand still until it closes, so the thing you clicked does not wander away. */
+const held = new Set<string>();
+export const holdAgent = (id: string): void => { held.add(id); };
+export const releaseAgent = (id: string): void => { held.delete(id); };
+export const isHeld = (id: string): boolean => held.has(id);
+
 /** A purely visual override ("show as ..."): the robot acts out a status for a while. The real status never changes. */
 export interface Look { state: "asleep" | "idle" | "working" | "waiting" | "done" | "error"; sit?: boolean; until: number }
 export const looks = new Map<string, Look>();

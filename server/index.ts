@@ -93,6 +93,16 @@ chokidar.watch(join(codexDir(), "sessions"), { depth: 4, ignoreInitial: true })
     const s = [...company.sessions.values()].find((x) => x.file === f); if (!s) return;
     await company.ingest(s.id); company.tickAll(); push(); ping("messages", s.id);
   });
+// OpenCode is a live local database rather than files: poll it a few times a minute and ingest only what changed.
+setInterval(async () => {
+  try {
+    const changed = await company.refreshOpenCodeSessions();
+    if (!changed.length) return;
+    for (const id of changed) await company.ingest(id);
+    company.tickAll(); push(); for (const id of changed) ping("messages", id);
+  } catch { /* database busy or half-written: try again next tick */ }
+}, 3000);
+
 // Slices browsers fetch themselves: ping when a cheap signature changes.
 const sigs = { history: -1, live: "", tasks: "", stats: "", subs: "" };
 setInterval(async () => {
@@ -104,7 +114,7 @@ setInterval(async () => {
 setInterval(() => {
   const t = taskSig.fn(); if (t !== sigs.tasks) { sigs.tasks = t; ping("tasks"); }
   const st = JSON.stringify(company.stats.snapshot()); if (st !== sigs.stats) { sigs.stats = st; ping("stats"); }
-  const subs = JSON.stringify([...company.sessions.values()].filter((s) => s.source !== "codex" && s.mtimeMs > Date.now() - 24 * 3_600_000).map((s) => [s.id, listSubagents(s.file).map((x) => [x.id, x.finished, Math.floor(x.mtimeMs / 15_000)])]));
+  const subs = JSON.stringify([...company.sessions.values()].filter((s) => s.source === "claude" && s.mtimeMs > Date.now() - 24 * 3_600_000).map((s) => [s.id, listSubagents(s.file).map((x) => [x.id, x.finished, Math.floor(x.mtimeMs / 15_000)])]));
   if (subs !== sigs.subs) { sigs.subs = subs; ping("subagents"); }
 }, 10_000);
 

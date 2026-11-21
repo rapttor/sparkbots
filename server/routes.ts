@@ -14,7 +14,9 @@ import { registerServices } from "./services/routes";
 import { listSubagents } from "./adapters/claude-code/subagents";
 import { recentMessages } from "./adapters/claude-code/transcript";
 import { recentMessages as recentCodexMessages } from "./adapters/codex/transcript";
+import { recentMessages as recentOpenCodeMessages } from "./adapters/opencode/transcript";
 import { CodexCommandError, queueMessage as queueCodexMessage } from "./adapters/codex/command";
+import { OpenCodeCommandError, queueMessage as queueOpenCodeMessage } from "./adapters/opencode/command";
 import { runPrompt, taskInfo, type TaskInfo } from "./tasks";
 import { saveJson, type Config, type Teams } from "./config";
 import { hookToEvents, isInstalled, readSettings, settingsPath } from "./adapters/claude-code/hooks";
@@ -47,6 +49,13 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
       catch (e) { if (e instanceof CodexCommandError) throw Object.assign(new Error(e.message), { statusCode: e.status }); throw e; }
       ping("messages", s.id);
       return { queued: false as const, codex: true as const };
+    }
+    if (s.source === "opencode") {
+      const att = resolveAttachments(req.body?.attachments);
+      try { await queueOpenCodeMessage(s.id, withAttachments(prompt, att.files), s.cwd, { fork: !!req.body?.fork, files: att.files.map((f) => f.path), model: str(req.body?.model) }); }
+      catch (e) { if (e instanceof OpenCodeCommandError) throw Object.assign(new Error(e.message), { statusCode: e.status }); throw e; }
+      ping("messages", s.id);
+      return { queued: false as const, opencode: true as const };
     }
     const att = resolveAttachments(req.body.attachments);
     return wrap(() => runs.send(s.id, s.cwd, withAttachments(prompt, att.files), { ...overrides(s.cwd), fork: !!req.body.fork, ...(str(req.body.model) ? { model: str(req.body.model) } : {}), ...(att.dirs.length ? { addDirs: att.dirs } : {}) }));
@@ -92,7 +101,7 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
   app.get<{ Params: { id: string } }>("/api/sessions/:id/messages", async (r) => {
     const s = c.sessions.get(r.params.id);
     if (!s) throw Object.assign(new Error("unknown session"), { statusCode: 404 });
-    const read = s.source === "codex" ? recentCodexMessages : recentMessages;
+    const read = s.source === "codex" ? recentCodexMessages : s.source === "opencode" ? recentOpenCodeMessages : recentMessages;
     return { messages: await read(s.file).catch(() => []) };
   });
   app.get("/api/history", async () => ({ spans: c.history.list() }));
@@ -121,7 +130,7 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     const since = Date.now() - 24 * 3_600_000;
     const out: Record<string, ReturnType<typeof listSubagents>> = {};
     for (const s of c.sessions.values()) {
-      if (s.source === "codex") continue;
+      if (s.source !== "claude") continue;
       if (s.mtimeMs < since) continue;
       const l = listSubagents(s.file).filter((x) => !x.finished || Date.now() - x.mtimeMs < 10 * 60_000).slice(0, 12);
       if (l.length) out[s.id] = l;

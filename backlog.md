@@ -22,7 +22,7 @@ most of the things here is cosmetic, and should not interfere agents work , this
 
 # zooming 
 - [13.1 done](docs/TASKS.md#131-player-camera-interaction) zoom out should move camera slowly in top/view mode overview — the camera starts rising immediately on zoom-out and reaches the top view (13.1.16, 13.1.17, 13.1.19).
-- [13.1 done](docs/TASKS.md#131-player-camera-interaction) can zoom out until everything shown on screen: thats for now max zoom out — top-view band auto-centers on all areas + rooms and shows only the project titles (13.1.17, 13.1.18).
+- [13.1 done](docs/TASKS.md#131-player-camera-interaction) can zoom out until everything shown on screen: thats for now max zoom out — top-view band auto-centers on all areas + rooms and shows project + amenity titles; agent icons/bubbles are hidden (13.1.17, 13.1.18, 13.1.27).
 
 # camera movement
 
@@ -37,6 +37,14 @@ most of the things here is cosmetic, and should not interfere agents work , this
 - [13.1 done](docs/TASKS.md#131-player-camera-interaction) camera shuld be a bit further away, not too much, but as we wanna play the game and have overview of everything around... — one continuous zoom with a default story angle and an overview at the far end (13.1.16).
 - [13.1 planned](docs/TASKS.md#131-player-camera-interaction) new action - allow to jump on space - seeing overview of map and selecting where to go — still open; the Map tab/zoom-out overview covers the same idea for now (13.1.5).
 - [13.1 in progress](docs/TASKS.md#131-player-camera-interaction) initial;y lets set us as pixel raptor dinosaurus - in raptor #ce0 color.. (decision: low-poly raptor default, spark bot still selectable) — raptor is built and selectable, but the current default is developer; changing the default is still open (13.1.1, 13.1.2).
+
+# opencode sessions
+
+[14.1 done](docs/TASKS.md#phase-14--opencode-sessions-as-agents-planned-2026-11-21) several OpenCode CLI terminals should show up as workers/agents, be clickable in 3D, and accept board tasks — **done:** OpenCode sessions are discovered read-only from its SQLite DB, mirrored to JSONL, shown in Teams/3D/Stats/search, and can be messaged from chat; board-card assignment is still open.
+
+- [14.1 done](docs/TASKS.md#phase-14--opencode-sessions-as-agents-planned-2026-11-21) read-only discovery from `~/.local/share/opencode/opencode.db` (SQLite; `[VERIFY]` schema), never auth/credential tables
+- [14.2 done](docs/TASKS.md#phase-14--opencode-sessions-as-agents-planned-2026-11-21) source chip + bot look + Teams/Control Room/Stats/search — OpenCode uses the TARS monolith (white top/bottom frame + swinging side legs/arms, dark centre, 1.5x height and 0.6x height wide; the frame and legs take the bot colour)
+- [14.3 in progress](docs/TASKS.md#phase-14--opencode-sessions-as-agents-planned-2026-11-21) opt-in command path via documented OpenCode CLI `[VERIFY]`; same safety rules as Claude/Codex (argv, live-in-terminal guard) — sends work; stop, run registry and board-card assignment still open
 
 # other agents
 

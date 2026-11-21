@@ -54,7 +54,7 @@ export function Board() {
         {displayName(w)} <span className="muted small">{w.state}{w.liveInTerminal ? " · live in terminal" : ""}</span>
       </button>
     );
-    const sendable = mine.filter((w) => !w.liveInTerminal).slice(0, 15);
+    const sendable = mine.filter((w) => !w.liveInTerminal && w.source !== "opencode").slice(0, 15);
     return (
       <div className="card-menu">
         <div className="muted small">New robot</div>
