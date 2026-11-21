@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { NerdStats } from "./NerdStats";
 import { call } from "../api";
 import { useLive } from "../state/live";
 import { useStore } from "../state/store";
 import type { Tokens } from "../../server/stats/aggregate";
+import type { WorkerState } from "../../server/adapters/types";
+import { STATE_COLORS, STATE_LABELS, STATE_ORDER } from "../world/colors";
 import { fmtNum } from "../util";
 
 const total = (t: Tokens) => t.input + t.output + t.cacheRead + t.cacheWrite;
@@ -61,9 +63,33 @@ function ServiceStats() {
   );
 }
 
+/** How every agent is doing right now: the Waiting / Working / Error ... counts that used to float in the 3D view. */
+function AgentStates() {
+  const snapshot = useStore((s) => s.snapshot);
+  const counts = useMemo(() => {
+    const c: Record<WorkerState, number> = { asleep: 0, idle: 0, working: 0, waiting: 0, done: 0, error: 0 };
+    for (const t of snapshot?.teams ?? []) for (const w of t.workers) c[w.state]++;
+    return c;
+  }, [snapshot]);
+  return (
+    <>
+      <h2>Agents right now</h2>
+      <div className="state-counts">
+        {STATE_ORDER.map((s) => (
+          <div key={s} className="legend-row">
+            <span className="legend-dot" style={{ background: STATE_COLORS[s] }} />
+            <span>{STATE_LABELS[s]}</span>
+            <b className="legend-n">{counts[s]}</b>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function Stats() {
   const stats = useStore((s) => s.stats);
-  if (!stats) return <section className="panel"><p className="muted">Loading…</p></section>;
+  if (!stats) return <section className="panel"><h1>Stats</h1><AgentStates /><p className="muted">Loading…</p></section>;
   const days = last30(stats.byDay);
   const max = Math.max(1, ...days.map((d) => d.tokens));
   const hmax = Math.max(1, ...stats.hourHeatmap);
@@ -71,6 +97,7 @@ export function Stats() {
   return (
     <section className="panel">
       <h1>Stats</h1>
+      <AgentStates />
       <h2>Tokens per day (last 30 days)</h2>
       <svg viewBox={`0 0 ${W} ${H + 18}`} className="chart" role="img" aria-label="Tokens per day">
         {days.map((d, i) => {

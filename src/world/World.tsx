@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import {
-  BoxGeometry, Color, CylinderGeometry, DoubleSide, InstancedMesh, SphereGeometry, Sphere, Vector3,
+  BoxGeometry, Color, CylinderGeometry, DoubleSide, InstancedMesh, Plane, Raycaster, SphereGeometry, Sphere, Vector2, Vector3,
   type Group, type Mesh,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -11,7 +11,7 @@ import { useStore } from "../state/store";
 import { api, type SubagentInfo } from "../api";
 import { useLive } from "../state/live";
 import { DESK_D, DESK_W, PLAYER_RADIUS, deskBoxes, resolveMove } from "./collide";
-import { advance, flyDurationFor, REDUCED_MAX, smooth } from "./camera";
+import { advance, flyDurationFor, REDUCED_MAX, smooth, worldPerPixel } from "./camera";
 import { getAvatar, sparkParts, type PartRefs, type PoseClip } from "./avatar";
 import { avatarTextures } from "./avatarTextures";
 import { DeskScreens } from "./screens";
@@ -43,7 +43,6 @@ import { FollowBar } from "./FollowBar";
 import { MeetingChat } from "./MeetingChat";
 import { NameTags } from "./nametags";
 import { dummy, modeOf, poseBot, stepRoam, writeStatic, type Meshes } from "./bots";
-import { StatusLegend } from "./legends";
 import { onView } from "./viewBus";
 import { nearestBot, nearestDesk, selectWorker, typing } from "./sceneUtils";
 
@@ -51,13 +50,19 @@ type Mode = "overview" | "walk";
 interface Nearby { id: string; title: string }
 
 const WALK_SPEED = 5, SPRINT_SPEED = 11, SPRINT_ACCEL = 1.8; // units per second; accel = how quickly the sprint builds up (higher = faster)
-const WALK_PITCH = Math.atan2(4.5, 6.5); // default camera elevation behind the manager
-const WALK_DIST = Math.hypot(4.5, 6.5);
+// One continuous camera: zoom in = first-person (behind the character/hand), zoom out = near top-down overview.
+const DIST_IN = 3.2, DIST_OUT = 200; // camera distance at max zoom in / max zoom out
+const PITCH_IN = 0.1, PITCH_OUT = 1.5; // tilt at max zoom in (nearly flat) / max zoom out (near top-down)
+const DEFAULT_ZOOM_T = 0.32; // the "story" angle: behind you, a bit low
+const HAND_DIST = 16; // kept for the hand's world-per-pixel speed; zoom uses the same DIST_IN..DIST_OUT curve
+// At the far end of the zoom the camera is near top-down and the room slabs z-fight at that distance. From here on,
+// hide the 3D world and leave only the project titles (stacked as usual) so picking a project is calm and reliable.
+const OVERVIEW_ZOOM = 0.8, OVERVIEW_EXIT = 0.76; // hysteresis so scrolling around the threshold does not strobe
 
 interface JumpReq { area: TeamArea; n: number }
 
 export interface AngleReq { dyaw: number; dpitch: number; n: number }
-interface SceneCtl { onScreen: (i: number) => void; closeup: { i: number; n: number } | null; closeupExit: number; onCloseup: (on: boolean) => void; onReady: () => void; saveView: number; clearView: number; labels: { current: LabelsApi | null }; active: boolean; subs: Record<string, SubagentInfo[]>; tags: boolean; api: { current: SceneApi | null }; onPick: (id: string, x: number, y: number) => void; pan: PanReq | null; angle: AngleReq | null; zoom: ZoomReq | null; reset: number; locked: boolean; warp: Warp | null; view: { current: ViewState }; skipFrame: { current: boolean }; closeupWalk: { current: boolean } }
+interface SceneCtl { onScreen: (i: number) => void; closeup: { i: number; n: number } | null; closeupExit: number; onCloseup: (on: boolean) => void; onReady: () => void; saveView: number; clearView: number; labels: { current: LabelsApi | null }; active: boolean; subs: Record<string, SubagentInfo[]>; tags: boolean; api: { current: SceneApi | null }; onPick: (id: string, x: number, y: number) => void; pan: PanReq | null; angle: AngleReq | null; zoom: ZoomReq | null; reset: number; locked: boolean; warp: Warp | null; view: { current: ViewState }; skipFrame: { current: boolean }; closeupWalk: { current: boolean }; handZoomCmd: { save: number; restore: number }; handMenuOpen: { current: boolean }; onOverview: (on: boolean) => void }
 
 function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; layout: Layout; jump: JumpReq | null; onNearby: (n: Nearby | null) => void; onEnter: (a: TeamArea) => void; ctl: SceneCtl }) {
   const activeRef = useRef(ctl.active);
@@ -100,11 +105,29 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   const fetchedRef = useRef(chatId);
   fetchedRef.current = chatId;
   const dest = useRef<Vector3 | null>(null); // click-to-move target (walk mode)
-  const goTo = (pt: Vector3) => { if (modeRef.current === "walk") dest.current = new Vector3(pt.x, 0, pt.z); };
-  const walkZoom = useRef(loadView()?.walk.zoom ?? 1); // 1 = default follow distance; scroll down zooms out, up zooms in
-  // Walk view angle: yaw (turn around the manager) and pitch (camera height). Slight by design: limited ranges.
-  const yaw = useRef(loadView()?.walk.yaw ?? 0), pitch = useRef(loadView()?.walk.pitch ?? WALK_PITCH);
+  const goTo = (pt: Vector3) => {
+    if (modeRef.current !== "walk") return;
+    if (controllerRef.current === "hand") { handPos.current.set(pt.x, 0, pt.z); clampHand(); return; }
+    dest.current = new Vector3(pt.x, 0, pt.z);
+  };
+  // One zoom value drives both distance and tilt: 0 = first-person, 1 = near top-down overview.
+  const zoomT = useRef((() => { try { const v = Number(localStorage.getItem("ao.camZoom")); return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_ZOOM_T; } catch { return DEFAULT_ZOOM_T; } })());
+  const [labelsOnly, setLabelsOnly] = useState(() => zoomT.current >= OVERVIEW_ZOOM);
+  useEffect(() => { ctl.onOverview(labelsOnly); }, [labelsOnly, ctl.onOverview]);
+  // Centre of everything drawn (areas + rooms), so the top view can line the whole office up on screen.
+  const overviewCenter = useMemo(() => {
+    let minX = layout.minX, maxX = layout.maxX, minZ = layout.minZ, maxZ = layout.maxZ;
+    for (const a of layout.areas) { minX = Math.min(minX, a.x - a.w / 2); maxX = Math.max(maxX, a.x + a.w / 2); minZ = Math.min(minZ, a.z - a.d / 2); maxZ = Math.max(maxZ, a.z + a.d / 2); }
+    for (const z of layout.zones) { minX = Math.min(minX, z.x - z.w / 2); maxX = Math.max(maxX, z.x + z.w / 2); minZ = Math.min(minZ, z.z - z.d / 2); maxZ = Math.max(maxZ, z.z + z.d / 2); }
+    return new Vector3((minX + maxX) / 2, 0, (minZ + maxZ) / 2);
+  }, [layout]);
+  const overviewCenterRef = useRef(overviewCenter);
+  overviewCenterRef.current = overviewCenter;
+  const wasLabelsOnly = useRef(labelsOnly);
+  const aligning = useRef(labelsOnly); // true while entering the top view: turn the map back to a straight-on angle
+  const yaw = useRef(loadView()?.walk.yaw ?? 0);
   const controls = useRef<{ target: Vector3; update: () => void; enabled?: boolean } | null>(null);
+  const frozen = useRef(false); // true during a laptop close-up: the follow camera is paused
   const framed = useRef(false);
   const player = useRef<Group>(null);
   const speedNow = useRef(5), stride = useRef(0);
@@ -114,9 +137,46 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   const avatar = useMemo(() => getAvatar(avatarId, devLook), [avatarId, devLook]);
   const geoms = useMemo(() => avatar.build(), [avatar]);
   const tex = useMemo(() => avatarTextures(avatar, managerColor, devLook.topColor), [avatar, managerColor, devLook.topColor]);
+  const handGeo = useMemo(() => { // a big blocky hand: palm, four fingers, a thumb
+    const b = (w: number, h: number, d: number, x = 0, y = 0, z = 0) => { const g = new BoxGeometry(w, h, d); g.translate(x, y, z); return g; };
+    const finger = (x: number) => b(0.12, 0.45, 0.12, x, -0.3, -0.04);
+    return mergeGeometries([b(0.7, 0.16, 0.6), finger(-0.22), finger(-0.07), finger(0.08), finger(0.23), b(0.14, 0.35, 0.14, -0.42, -0.15, 0.06)])!;
+  }, []);
   const partRefs = useRef<PartRefs>({}); // the owner's parts, posed per clip each frame
   const avatarRef = useRef(avatar);
   avatarRef.current = avatar;
+  // Hand controller: a floating hand at a ground point; the camera always centres on it.
+  const controller = useStore((s) => s.controller);
+  const controllerRef = useRef(controller);
+  controllerRef.current = controller;
+  const handPos = useRef(new Vector3(0, 0, 0));
+  const handInit = useRef(false);
+  const zoomSaved = useRef((() => { try { const v = Number(localStorage.getItem("ao.camZoomSaved")); return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_ZOOM_T; } catch { return DEFAULT_ZOOM_T; } })());
+  const handGroup = useRef<Group>(null);
+  const clampHand = () => {
+    const l = layoutRef.current;
+    handPos.current.x = Math.min(l.maxX + 20, Math.max(l.minX - 20, handPos.current.x));
+    handPos.current.z = Math.min(l.maxZ + 20, Math.max(l.minZ - 20, handPos.current.z));
+  };
+  const camFocus = useRef(new Vector3(0, 0, 0)); // what the hand-mode camera orbits; it dead-zone-follows the hand
+  const clampFocus = () => {
+    const l = layoutRef.current;
+    camFocus.current.x = Math.min(l.maxX + 20, Math.max(l.minX - 20, camFocus.current.x));
+    camFocus.current.z = Math.min(l.maxZ + 20, Math.max(l.minZ - 20, camFocus.current.z));
+  };
+  const raycaster = useMemo(() => new Raycaster(), []);
+  const groundPlane = useMemo(() => new Plane(new Vector3(0, 1, 0), 0), []);
+  const lastNdc = useRef<{ x: number; y: number } | null>(null); // cursor position (NDC) for edge-scrolling the camera
+  /** Put the hand at the point under the mouse on the floor, so it follows the pointer like a cursor. */
+  const handToGround = (clientX: number, clientY: number) => {
+    const el = gl.domElement, r = el.getBoundingClientRect();
+    const ndc = new Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+    lastNdc.current = { x: ndc.x, y: ndc.y };
+    raycaster.setFromCamera(ndc, camera);
+    const hit = new Vector3();
+    if (!raycaster.ray.intersectPlane(groundPlane, hit)) return;
+    handPos.current.set(hit.x, 0, hit.z); clampHand();
+  };
   const pos = useRef(new Vector3(0, 0, 12));
   const keys = useRef(new Set<string>());
   const nearbyId = useRef<string | null>(null);
@@ -155,14 +215,20 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     };
   }, []);
 
-  /** The camera pose behind the manager in walk mode (no controls there). Looks at the avatar's chest/eye level. */
-  const walkPose = useCallback((p: Vector3) => {
-    const D = WALK_DIST * walkZoom.current, ce = Math.cos(pitch.current);
+  /** Camera distance for the current zoom (0 = FPV, 1 = whole campus). */
+  const zoomDist = useCallback((t = zoomT.current) => Math.exp(Math.log(DIST_IN) + (Math.log(DIST_OUT) - Math.log(DIST_IN)) * Math.min(1, Math.max(0, t))), []);
+
+  /** The one camera pose for both controllers: centred on `focus`, tilted by the zoom (flat up close, top-down far out). */
+  const officePose = useCallback((focus: Vector3, focusY: number) => {
+    const t = Math.min(1, Math.max(0, zoomT.current));
+    const D = zoomDist(t);
+    const pitch = PITCH_IN + (PITCH_OUT - PITCH_IN) * Math.pow(t, 1.5); // starts rising as soon as you zoom out, eases into top-down
+    const ce = Math.cos(pitch), ty = focusY * (1 - t); // pivot height: eye level up close, ground far out
     return {
-      cam: new Vector3(p.x + Math.sin(yaw.current) * ce * D, Math.sin(pitch.current) * D, p.z + Math.cos(yaw.current) * ce * D),
-      target: new Vector3(p.x, avatarRef.current.focusY, p.z),
+      cam: new Vector3(focus.x + Math.sin(yaw.current) * ce * D, ty + Math.sin(pitch) * D, focus.z + Math.cos(yaw.current) * ce * D),
+      target: new Vector3(focus.x, ty, focus.z),
     };
-  }, []);
+  }, [zoomDist]);
 
   /** Fly to a camera pose. Fast is fine; a jump never is. Distance-based duration, smoothstep, controls locked while flying. */
   const flyTo = useCallback((toC: Vector3, toT: Vector3, opts: { duration?: number; done?: () => void } = {}) => {
@@ -180,30 +246,6 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     };
   }, [camera]);
 
-  const frame = useCallback((instant = false) => {
-    const l = layoutRef.current;
-    const saved = loadView(); // the view you saved as your default wins
-    let cam: Vector3, target: Vector3;
-    if (saved) {
-      cam = new Vector3(...saved.cam); target = new Vector3(...saved.target);
-    } else {
-      // otherwise: look at the rooms in the middle (and the projects right around them), not the whole campus
-      const zs = l.zones;
-      const box = zs.length
-        ? { minX: Math.min(...zs.map((z) => z.x - z.w / 2)), maxX: Math.max(...zs.map((z) => z.x + z.w / 2)), minZ: Math.min(...zs.map((z) => z.z - z.d / 2)), maxZ: Math.max(...zs.map((z) => z.z + z.d / 2)) }
-        : { minX: l.minX, maxX: l.maxX, minZ: l.minZ, maxZ: l.maxZ };
-      const span = Math.max(box.maxX - box.minX, box.maxZ - box.minZ) + (zs.length ? 26 : 10);
-      const cx = (box.minX + box.maxX) / 2, cz = (box.minZ + box.maxZ) / 2;
-      cam = new Vector3(cx, span * 0.85, cz + span * 0.3); target = new Vector3(cx, 0, cz);
-    }
-    if (instant) {
-      camera.position.copy(cam); look.current.copy(target);
-      if (controls.current) { controls.current.target.copy(target); controls.current.update(); } else camera.lookAt(target);
-      return;
-    }
-    flyTo(cam, target);
-  }, [camera, flyTo]);
-
   useLayoutEffect(() => {
     layoutRef.current = layout;
     const r = refs;
@@ -217,72 +259,66 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     // where they were when it was computed, so make it cover the whole campus: otherwise idle or sleeping robots cannot be clicked.
     for (const m of [r.desk.current, r.body.current, r.antenna.current]) m.boundingSphere = new Sphere(new Vector3(), 1e5);
     animatedRef.current = writeStatic(meshesRef.current, layout, chatId);
-    if (!framed.current && layout.desks.length > 0) { framed.current = true; frame(true); }
+    if (!framed.current && layout.desks.length > 0) {
+      framed.current = true;
+      const hand = controllerRef.current === "hand";
+      const focus = hand
+        ? (handInit.current ? handPos.current : new Vector3((layout.minX + layout.maxX) / 2, 0, (layout.minZ + layout.maxZ) / 2))
+        : pos.current;
+      const pose = officePose(focus, hand ? 0.5 : avatarRef.current.focusY);
+      camera.position.copy(pose.cam); look.current.copy(pose.target); camera.lookAt(pose.target);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout, frame, chatId]);
+  }, [layout, chatId]);
 
-  // Walk/overview: fly the camera, never snap. Spawn the manager once, on the first walk.
+  // Place the focus once: the avatar at the campus edge, or the hand at the centre. The camera follows it every frame.
   useEffect(() => {
-    if (mode === "overview") {
-      if (ctl.skipFrame.current) {
-        ctl.skipFrame.current = false;
-        if (controls.current) { controls.current.target.copy(look.current); controls.current.update(); }
-        return;
-      }
-      frame();
-      return;
-    }
     const l = layoutRef.current;
-    if (!playerInit.current) {
+    if (controllerRef.current === "hand") {
+      if (!handInit.current) { handInit.current = true; handPos.current.set((l.minX + l.maxX) / 2, 0, (l.minZ + l.maxZ) / 2); }
+      camFocus.current.copy(handPos.current);
+    } else if (!playerInit.current) {
       playerInit.current = true;
-      const spawn = new Vector3((l.minX + l.maxX) / 2, 0, l.maxZ + 3);
-      const pose = walkPose(spawn);
-      flyTo(pose.cam, pose.target, { done: () => pos.current.copy(spawn) }); // arrive with the camera, don't pop ahead of it
-      return;
+      pos.current.set((l.minX + l.maxX) / 2, 0, l.maxZ + 3);
     }
-    const pose = walkPose(pos.current);
-    flyTo(pose.cam, pose.target);
-  }, [mode, frame, flyTo, walkPose]);
+  }, [controller]);
 
   useEffect(() => {
     if (!jump) return;
     const { area } = jump;
+    if (zoomT.current >= OVERVIEW_ZOOM) zoomT.current = 0.6; // picking a project from the top view dives back into the office
     if (modeRef.current === "walk") {
       const next = new Vector3(area.x, 0, area.z + area.d / 2 + 1.5);
+      if (controllerRef.current === "hand") { handPos.current.copy(next); handPos.current.y = 0; clampHand(); const pose = officePose(next, 0.5); flyTo(pose.cam, pose.target); return; }
       dest.current = null;
-      const pose = walkPose(next);
+      const pose = officePose(next, avatarRef.current.focusY);
       flyTo(pose.cam, pose.target, { done: () => pos.current.copy(next) });
       return;
     }
     const tgt = new Vector3(area.x, 0, area.z);
     const h = Math.max(area.w, area.d) * 0.9 + 6;
     flyTo(new Vector3(tgt.x, h, tgt.z + h * 0.45), tgt);
-  }, [jump, flyTo, walkPose]);
+  }, [jump, flyTo, officePose]);
 
-  // Laptop close-up: fly to a spot right in front of the screen (the orbit limits are relaxed while we are there).
-  type Orbit = { target: Vector3; update: () => void; minDistance: number; maxPolarAngle: number };
+  // Laptop close-up: freeze the follow camera, fly in front of the screen, and fly back to where we were.
   const prevView = useRef<{ cam: Vector3; target: Vector3 } | null>(null);
   useEffect(() => {
-    const c = ctl.closeup, o = controls.current as unknown as Orbit | null;
-    if (!c || !o) { ctl.closeupWalk.current = false; return; }
+    const c = ctl.closeup;
+    if (!c) return;
     const d = layoutRef.current.desks[c.i];
-    if (!d) { ctl.closeupWalk.current = false; return; }
-    if (!prevView.current) {
-      if (ctl.closeupWalk.current) { ctl.closeupWalk.current = false; o.target.copy(look.current); } // coming from walk: keep its look direction
-      prevView.current = { cam: camera.position.clone(), target: o.target.clone() };
-    }
-    o.minDistance = 0.5; o.maxPolarAngle = Math.PI / 2.02;
+    if (!d) return;
+    if (!prevView.current) prevView.current = { cam: camera.position.clone(), target: look.current.clone() };
+    frozen.current = true;
     const screenAt = new Vector3(d.x, 1.36, d.z - 0.33);
     flyTo(new Vector3(screenAt.x, screenAt.y + 0.1, screenAt.z + 1.35), screenAt, { duration: 0.55 });
     ctl.onCloseup(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctl.closeup, flyTo]);
   useEffect(() => {
-    const o = controls.current as unknown as Orbit | null, p = prevView.current;
-    if (!ctl.closeupExit || !o || !p) return;
+    const p = prevView.current;
+    if (!ctl.closeupExit || !p) return;
     prevView.current = null;
-    flyTo(p.cam, p.target, { duration: 0.55 });
-    setTimeout(() => { o.minDistance = 4; o.maxPolarAngle = Math.PI / 2.3; }, 900);
+    flyTo(p.cam, p.target, { duration: 0.55, done: () => { frozen.current = false; } });
     ctl.onCloseup(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctl.closeupExit, flyTo]);
@@ -290,98 +326,92 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   // Header controls: zoom buttons, reset, minimap click.
   useEffect(() => {
     if (!ctl.zoom || lockedRef.current) return;
-    if (modeRef.current === "walk") walkZoom.current = Math.min(8, Math.max(0.35, walkZoom.current * ctl.zoom.factor));
-    else if (controls.current) {
-      const t = controls.current.target;
-      const toC = t.clone().add(camera.position.clone().sub(t).multiplyScalar(ctl.zoom.factor));
-      flyTo(toC, t, { duration: 0.22 });
-    }
-  }, [ctl.zoom, camera, flyTo]);
-  const turn = useCallback((dyaw: number, dpitch: number) => {
-    yaw.current = Math.max(-1.3, Math.min(1.3, yaw.current + dyaw));
-    pitch.current = Math.max(0.3, Math.min(1.2, pitch.current + dpitch));
-  }, []);
-  useEffect(() => {
-    const a = ctl.angle;
-    if (!a) return;
-    if (modeRef.current === "walk") { turn(a.dyaw, a.dpitch); return; }
-    const c = controls.current; // overview: orbit the camera around what it looks at (turn) and raise/lower it (tilt)
-    if (!c) return;
-    const off = camera.position.clone().sub(c.target);
-    const len = off.length(), r = Math.hypot(off.x, off.z);
-    const ang = Math.atan2(off.x, off.z) + a.dyaw;
-    const el = Math.max(0.25, Math.min(1.35, Math.atan2(off.y, r) + a.dpitch));
-    const toC = new Vector3(c.target.x + Math.sin(ang) * Math.cos(el) * len, c.target.y + Math.sin(el) * len, c.target.z + Math.cos(ang) * Math.cos(el) * len);
-    flyTo(toC, c.target, { duration: 0.22 });
-  }, [ctl.angle, turn, camera, flyTo]);
-  useEffect(() => { // overview pan: slide the camera and its target over the floor, relative to the view direction
-    const pn = ctl.pan, c = controls.current;
-    if (!pn || !c || modeRef.current !== "overview") return;
-    const off = camera.position.clone().sub(c.target);
-    const dist = off.length();
-    const fx = -off.x, fz = -off.z, fl = Math.hypot(fx, fz) || 1; // forward on the ground
-    const gx = fx / fl, gz = fz / fl;                 // ground forward; ground right is (-gz, gx)
-    const dx = gx * pn.forward - gz * pn.right, dz = gz * pn.forward + gx * pn.right;
-    const k = dist * 0.8;
-    const target = c.target.clone();
-    target.x += dx * k; target.z += dz * k;
-    const toC = camera.position.clone();
-    toC.x += dx * k; toC.z += dz * k;
-    flyTo(toC, target, { duration: 0.22 });
-  }, [ctl.pan, camera, flyTo]);
-  useEffect(() => { // right mouse button drag changes the angle
+    zoomT.current = Math.min(1, Math.max(0, zoomT.current + (ctl.zoom.factor - 1) * 0.5)); // factor < 1 = zoom in
+  }, [ctl.zoom]);
+  const turn = useCallback((dyaw: number) => { yaw.current += dyaw; }, []); // tilt now comes from the zoom
+  useEffect(() => { if (ctl.angle) turn(ctl.angle.dyaw); }, [ctl.angle, turn]);
+  useEffect(() => { // right mouse button drag turns the view
     const el = gl.domElement;
     let drag: { x: number; y: number } | null = null;
-    const down = (e: PointerEvent) => { if (e.button === 2 && modeRef.current === "walk") { drag = { x: e.clientX, y: e.clientY }; el.setPointerCapture(e.pointerId); } };
-    const move = (e: PointerEvent) => { if (!drag) return; turn(-(e.clientX - drag.x) * 0.006, (e.clientY - drag.y) * 0.004); drag = { x: e.clientX, y: e.clientY }; };
+    const down = (e: PointerEvent) => { if (e.button === 2) { drag = { x: e.clientX, y: e.clientY }; el.setPointerCapture(e.pointerId); } };
+    const move = (e: PointerEvent) => { if (!drag) return; yaw.current -= (e.clientX - drag.x) * 0.006; drag = { x: e.clientX, y: e.clientY }; };
     const up = () => { drag = null; };
-    const menu = (e: Event) => { if (modeRef.current === "walk") e.preventDefault(); };
+    const menu = (e: Event) => e.preventDefault();
     el.addEventListener("pointerdown", down); el.addEventListener("pointermove", move);
     el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up); el.addEventListener("contextmenu", menu);
     return () => { el.removeEventListener("pointerdown", down); el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up); el.removeEventListener("contextmenu", menu); };
-  }, [gl, turn]);
+  }, [gl]);
+  // Hand mode: the hand sits where the mouse points on the floor (it replaces the cursor); two fingers turn.
   useEffect(() => {
-    if (ctl.reset > 0) {
-      const w = loadView()?.walk;
-      walkZoom.current = w?.zoom ?? 1; yaw.current = w?.yaw ?? 0; pitch.current = w?.pitch ?? WALK_PITCH;
-      if (modeRef.current === "overview") frame();
-    }
-  }, [ctl.reset, frame]);
-  useEffect(() => { // "Save as default view": remember the overview camera (when in overview) and the walk zoom / angle
+    const el = gl.domElement;
+    const pts = new Map<number, { x: number; y: number }>();
+    const down = (e: PointerEvent) => { if (e.pointerType !== "mouse") pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); };
+    const up = (e: PointerEvent) => { pts.delete(e.pointerId); if (e.pointerType !== "mouse") lastNdc.current = null; };
+    const leave = () => { lastNdc.current = null; }; // stop edge-scrolling when the cursor leaves the scene
+    const move = (e: PointerEvent) => {
+      if (modeRef.current !== "walk" || controllerRef.current !== "hand") return;
+      if (e.pointerType === "mouse") {
+        if (e.buttons & 2) return; // right-drag turns the view
+        handToGround(e.clientX, e.clientY);
+        return;
+      }
+      const prev = pts.get(e.pointerId);
+      if (!prev) return;
+      const dx = e.clientX - prev.x;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size >= 2) { yaw.current -= dx * 0.01; return; } // two fingers: turn
+      handToGround(e.clientX, e.clientY);
+    };
+    el.addEventListener("pointerdown", down);
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", up);
+    el.addEventListener("pointerleave", leave);
+    return () => { el.removeEventListener("pointerdown", down); el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up); el.removeEventListener("pointerleave", leave); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gl, camera]);
+  useEffect(() => {
+    if (ctl.reset > 0) { zoomT.current = DEFAULT_ZOOM_T; yaw.current = 0; } // "behind you" at the default zoom
+  }, [ctl.reset]);
+
+  // Save / restore the current zoom (kept in this browser).
+  useEffect(() => {
+    if (!ctl.handZoomCmd.save) return;
+    zoomSaved.current = zoomT.current;
+    try { localStorage.setItem("ao.camZoomSaved", String(zoomT.current)); } catch { /* private mode */ }
+  }, [ctl.handZoomCmd.save]);
+  useEffect(() => {
+    if (!ctl.handZoomCmd.restore) return;
+    zoomT.current = zoomSaved.current;
+  }, [ctl.handZoomCmd.restore]);
+  useEffect(() => { // "Save as default view": remember the current camera and zoom as the default
     if (!ctl.saveView) return;
-    const prev = loadView();
-    const inOverview = modeRef.current === "overview" && controls.current;
     saveView({
-      cam: inOverview ? [camera.position.x, camera.position.y, camera.position.z] : prev?.cam ?? [camera.position.x, camera.position.y, camera.position.z],
-      target: inOverview ? [controls.current!.target.x, controls.current!.target.y, controls.current!.target.z] : prev?.target ?? [0, 0, 0],
-      walk: { zoom: walkZoom.current, yaw: yaw.current, pitch: pitch.current },
+      cam: [camera.position.x, camera.position.y, camera.position.z],
+      target: [look.current.x, look.current.y, look.current.z],
+      walk: { zoom: zoomT.current, yaw: yaw.current, pitch: 0 },
     });
   }, [ctl.saveView, camera]);
-  useEffect(() => { if (ctl.clearView) { clearView(); walkZoom.current = 1; yaw.current = 0; pitch.current = WALK_PITCH; if (modeRef.current === "overview") frame(); } }, [ctl.clearView, frame]);
+  useEffect(() => { if (ctl.clearView) { clearView(); zoomT.current = DEFAULT_ZOOM_T; yaw.current = 0; } }, [ctl.clearView]);
   useEffect(() => {
     const w = ctl.warp;
     if (!w) return;
-    if (modeRef.current === "walk") {
-      const next = new Vector3(w.x, 0, w.z);
-      dest.current = null;
-      const pose = walkPose(next);
-      flyTo(pose.cam, pose.target, { done: () => pos.current.copy(next) });
-      return;
-    }
-    const tgt = new Vector3(w.x, 0, w.z);
-    const cur = controls.current ? controls.current.target.clone() : look.current.clone();
-    flyTo(camera.position.clone().add(tgt).sub(cur), tgt);
-  }, [ctl.warp, camera, flyTo, walkPose]);
+    const next = new Vector3(w.x, 0, w.z);
+    if (controllerRef.current === "hand") { handPos.current.copy(next); clampHand(); const pose = officePose(next, 0.5); flyTo(pose.cam, pose.target); return; }
+    dest.current = null;
+    const pose = officePose(next, avatarRef.current.focusY);
+    flyTo(pose.cam, pose.target, { done: () => pos.current.copy(next) });
+  }, [ctl.warp, camera, flyTo, officePose]);
 
-  // Walk-mode mouse wheel zoom (like street-view): scroll down = zoom out, scroll up = zoom in.
+  // Mouse wheel / pinch zoom: scroll down = zoom out (toward top-down), up = zoom in (toward first-person).
   useEffect(() => {
     const el = gl.domElement;
     const onWheel = (e: WheelEvent) => {
-      if (modeRef.current !== "walk") return;
       e.preventDefault();
       if (lockedRef.current) return;
       const step = Math.max(-100, Math.min(100, e.deltaY)); // normalize trackpad/mouse
-      walkZoom.current = Math.min(8, Math.max(0.35, walkZoom.current * Math.exp(step * 0.0015)));
+      zoomT.current = Math.min(1, Math.max(0, zoomT.current + step * 0.0015));
+      try { localStorage.setItem("ao.camZoom", String(zoomT.current)); } catch { /* private mode */ }
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
@@ -450,6 +480,16 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
 
   // Single frame loop: only non-asleep (and non-error) workers touch their matrices.
   useFrame((state, dt) => {
+    const overviewNow = zoomT.current >= (labelsOnly ? OVERVIEW_EXIT : OVERVIEW_ZOOM);
+    if (overviewNow !== labelsOnly) setLabelsOnly(overviewNow);
+    if (labelsOnly !== wasLabelsOnly.current) {
+      wasLabelsOnly.current = labelsOnly;
+      aligning.current = labelsOnly;
+    }
+    if (labelsOnly && aligning.current) { // entering the top view: turn the map back to a straight-on angle
+      yaw.current *= Math.exp(-5 * dt);
+      if (Math.abs(yaw.current) < 0.002) { yaw.current = 0; aligning.current = false; }
+    }
     ctl.labels.current?.update(camera, gl.domElement.clientWidth, gl.domElement.clientHeight); // floating titles follow the camera
     if (!readyOnce.current) { readyOnce.current = true; ctl.onReady(); }
     sampleFrame(dt, state.clock.elapsedTime, gl.info);
@@ -500,64 +540,93 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       if (nearbyId.current) { nearbyId.current = null; onNearby(null); }
       return;
     }
-    const ks = keys.current;
-    let dx = (ks.has("d") || ks.has("arrowright") ? 1 : 0) - (ks.has("a") || ks.has("arrowleft") ? 1 : 0);
-    let dz = (ks.has("s") || ks.has("arrowdown") ? 1 : 0) - (ks.has("w") || ks.has("arrowup") ? 1 : 0);
-    if (dx !== 0 || dz !== 0) { // keys move relative to the camera: W is always "away from the camera"
-      const c = Math.cos(yaw.current), sn = Math.sin(yaw.current);
-      [dx, dz] = [dx * c + dz * sn, -dx * sn + dz * c];
-    }
     const p = pos.current;
-    const g = player.current;
-    if (dx !== 0 || dz !== 0) dest.current = null; // keyboard cancels click-to-move
-    else if (dest.current) {
-      const tx = dest.current.x - p.x, tz = dest.current.z - p.z, dist = Math.hypot(tx, tz);
-      if (dist < 0.2) dest.current = null; else { dx = tx / dist; dz = tz / dist; }
+    if (frozen.current) return; // a laptop close-up owns the camera and the focus
+    if (controllerRef.current === "hand") {
+      // Hand: WASD pans the camera, the hand sits where the mouse points, and the camera follows the hand only when it nears the edge.
+      const ks = keys.current;
+      const fwd = (ks.has("w") || ks.has("arrowup") ? 1 : 0) - (ks.has("s") || ks.has("arrowdown") ? 1 : 0);
+      const str = (ks.has("d") || ks.has("arrowright") ? 1 : 0) - (ks.has("a") || ks.has("arrowleft") ? 1 : 0);
+      if (fwd || str) {
+        const c = Math.cos(yaw.current), sn = Math.sin(yaw.current), sp = zoomDist() * 0.9 * dt;
+        camFocus.current.x += (-sn * fwd + c * str) * sp;
+        camFocus.current.z += (-c * fwd - sn * str) * sp;
+        clampFocus();
+      }
+      // Edge scroll: when the cursor nears the screen edge, pan the camera that way (the hand still sits under the cursor).
+      const n = ctl.handMenuOpen.current ? null : lastNdc.current;
+      if (n) {
+        const edge = 0.72;
+        const sx = Math.abs(n.x) > edge ? (n.x - Math.sign(n.x) * edge) / (1 - edge) : 0;
+        const sy = Math.abs(n.y) > edge ? (n.y - Math.sign(n.y) * edge) / (1 - edge) : 0;
+        if (sx || sy) {
+          const c = Math.cos(yaw.current), sn = Math.sin(yaw.current), sp = zoomDist() * 1.1 * dt;
+          camFocus.current.x += (c * sx - sn * sy) * sp; // right = (cos, -sin), forward = (-sin, -cos)
+          camFocus.current.z += (-sn * sx - c * sy) * sp;
+          clampFocus();
+        }
+      }
+      p.copy(handPos.current); p.y = 0;
+      handGroup.current?.position.set(p.x, 0, p.z);
+    } else {
+      const ks = keys.current;
+      let dx = (ks.has("d") || ks.has("arrowright") ? 1 : 0) - (ks.has("a") || ks.has("arrowleft") ? 1 : 0);
+      let dz = (ks.has("s") || ks.has("arrowdown") ? 1 : 0) - (ks.has("w") || ks.has("arrowup") ? 1 : 0);
+      if (dx !== 0 || dz !== 0) { // keys move relative to the camera: W is always "away from the camera"
+        const c = Math.cos(yaw.current), sn = Math.sin(yaw.current);
+        [dx, dz] = [dx * c + dz * sn, -dx * sn + dz * c];
+      }
+      const g = player.current;
+      if (dx !== 0 || dz !== 0) dest.current = null; // keyboard cancels click-to-move
+      else if (dest.current) {
+        const tx = dest.current.x - p.x, tz = dest.current.z - p.z, dist = Math.hypot(tx, tz);
+        if (dist < 0.2) dest.current = null; else { dx = tx / dist; dz = tz / dist; }
+      }
+      // Holding Shift sprints: the speed builds up smoothly from walking pace towards a top speed, and drops back when you stop.
+      const moving = dx !== 0 || dz !== 0;
+      const want = moving && ks.has("shift") ? SPRINT_SPEED : WALK_SPEED;
+      if (!moving) speedNow.current = WALK_SPEED;
+      else speedNow.current += (want - speedNow.current) * (1 - Math.exp(-(want > speedNow.current ? SPRINT_ACCEL : 9) * dt));
+      const spd = speedNow.current;
+      if (moving) {
+        const len = Math.hypot(dx, dz);
+        dx /= len; dz /= len;
+        const l = layoutRef.current;
+        const r = resolveMove(
+          p,
+          { x: Math.min(l.maxX + 6, Math.max(l.minX - 6, p.x + dx * spd * dt)), z: Math.min(l.maxZ + 8, Math.max(l.minZ - 6, p.z + dz * spd * dt)) },
+          boxes, PLAYER_RADIUS,
+        );
+        const moved = Math.hypot(r.x - p.x, r.z - p.z);
+        p.x = r.x; p.z = r.z;
+        pushPlayerOut(p);
+        if (dest.current && moved < spd * dt * 0.25) dest.current = null; // blocked by a desk: stop
+        if (g) g.rotation.y = Math.atan2(-dx, -dz);
+      }
+      // the owner's own walk cycle: the chosen avatar poses its parts per clip and eases back to rest when standing
+      const walking = dx !== 0 || dz !== 0;
+      stride.current += dt * 11 * (spd / WALK_SPEED); // faster legs when sprinting
+      const clip: PoseClip = !walking ? "idle" : spd > WALK_SPEED * 1.15 ? "sprint" : "walk";
+      const targets = avatarRef.current.pose({ clip, t: stride.current, speed: spd });
+      const ease = 1 - Math.exp(-14 * dt);
+      for (const name of Object.keys(targets)) {
+        const o = partRefs.current[name], tg = targets[name]!;
+        if (!o) continue;
+        o.rotation.x += ((tg.rx ?? 0) - o.rotation.x) * ease;
+        o.rotation.y += ((tg.ry ?? 0) - o.rotation.y) * ease;
+        o.rotation.z += ((tg.rz ?? 0) - o.rotation.z) * ease;
+        const baseY = avatarRef.current.layout[name]?.[1] ?? 0;
+        o.position.y += (baseY + (tg.dy ?? 0) - o.position.y) * ease;
+      }
+      if (g) g.position.copy(p);
     }
-    // Holding Shift sprints: the speed builds up smoothly from walking pace towards a top speed, and drops back when you stop.
-    const moving = dx !== 0 || dz !== 0;
-    const want = moving && ks.has("shift") ? SPRINT_SPEED : WALK_SPEED;
-    if (!moving) speedNow.current = WALK_SPEED;
-    else speedNow.current += (want - speedNow.current) * (1 - Math.exp(-(want > speedNow.current ? SPRINT_ACCEL : 9) * dt));
-    const spd = speedNow.current;
-    if (moving) {
-      const len = Math.hypot(dx, dz);
-      dx /= len; dz /= len;
-      const l = layoutRef.current;
-      const r = resolveMove(
-        p,
-        { x: Math.min(l.maxX + 6, Math.max(l.minX - 6, p.x + dx * spd * dt)), z: Math.min(l.maxZ + 8, Math.max(l.minZ - 6, p.z + dz * spd * dt)) },
-        boxes, PLAYER_RADIUS,
-      );
-      const moved = Math.hypot(r.x - p.x, r.z - p.z);
-      p.x = r.x; p.z = r.z;
-      pushPlayerOut(p);
-      if (dest.current && moved < spd * dt * 0.25) dest.current = null; // blocked by a desk: stop
-      if (g) g.rotation.y = Math.atan2(-dx, -dz);
-    }
-    // the owner's own walk cycle: the chosen avatar poses its parts per clip and eases back to rest when standing
-    const walking = dx !== 0 || dz !== 0;
-    stride.current += dt * 11 * (spd / WALK_SPEED); // faster legs when sprinting
-    const clip: PoseClip = !walking ? "idle" : spd > WALK_SPEED * 1.15 ? "sprint" : "walk";
-    const targets = avatarRef.current.pose({ clip, t: stride.current, speed: spd });
-    const ease = 1 - Math.exp(-14 * dt);
-    for (const name of Object.keys(targets)) {
-      const o = partRefs.current[name], tg = targets[name]!;
-      if (!o) continue;
-      o.rotation.x += ((tg.rx ?? 0) - o.rotation.x) * ease;
-      o.rotation.y += ((tg.ry ?? 0) - o.rotation.y) * ease;
-      o.rotation.z += ((tg.rz ?? 0) - o.rotation.z) * ease;
-      const baseY = avatarRef.current.layout[name]?.[1] ?? 0;
-      o.position.y += (baseY + (tg.dy ?? 0) - o.position.y) * ease;
-    }
-    if (g) g.position.copy(p);
-    if (!flight.current) { // a flight owns the camera; resume following the moment it lands
-      const z = walkZoom.current;
-      const D = WALK_DIST * z * (1 + ((spd - WALK_SPEED) / (SPRINT_SPEED - WALK_SPEED)) * 0.15), ce = Math.cos(pitch.current); // the camera drops back a little when sprinting
-      camera.position.lerp(dummy.position.set(p.x + Math.sin(yaw.current) * ce * D, Math.sin(pitch.current) * D, p.z + Math.cos(yaw.current) * ce * D), 1 - Math.exp(-6 * dt));
-      const fy = avatarRef.current.focusY;
-      camera.lookAt(p.x, fy, p.z);
-      look.current.set(p.x, fy, p.z);
+    if (!flight.current) { // one follow camera for both controllers; a flight owns it until it lands
+      const focus = labelsOnly ? overviewCenterRef.current : controllerRef.current === "hand" ? camFocus.current : p;
+      const pose = officePose(focus, labelsOnly ? 0 : controllerRef.current === "hand" ? 0.5 : avatarRef.current.focusY);
+      const k = 1 - Math.exp(-9 * dt);
+      camera.position.lerp(pose.cam, k);
+      look.current.lerp(pose.target, k);
+      camera.lookAt(look.current);
     }
 
     const near = nearestDesk(layoutRef.current, p);
@@ -579,6 +648,8 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       <color attach="background" args={["#0d1019"]} />
       <ambientLight intensity={0.8} />
       <directionalLight position={[20, 40, 10]} intensity={1.1} />
+      {/* In the top-view band only the HTML project titles stay: the world is hidden so the room slabs cannot z-fight. */}
+      <group visible={!labelsOnly}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} onClick={(e) => { e.stopPropagation(); goTo(e.point); }}>
         <planeGeometry args={[floor, floor]} />
         <meshStandardMaterial color="#10141f" />
@@ -650,8 +721,8 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
         <meshBasicMaterial toneMapped={false} />
       </instancedMesh>
 
-      {/* Owner (walk mode only): the chosen avatar, tinted with your colour (13.1.1) */}
-      <group ref={player} visible={mode === "walk"}>
+      {/* Owner (walk mode, avatar): the chosen character, tinted with your colour (13.1.1) */}
+      <group ref={player} visible={mode === "walk" && controller === "avatar"}>
         {avatar.parts.map((name) => {
           const isGlow = avatar.glow.includes(name);
           const isDecal = !!avatar.decals?.some((d) => d.part === name) && tex.emoji;
@@ -665,6 +736,19 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
             </mesh>
           );
         })}
+      </group>
+
+      {/* Hand controller (walk mode, hand): a big floating hand over the ground point it holds */}
+      <group ref={handGroup} visible={mode === "walk" && controller === "hand"}>
+        <mesh geometry={handGeo} position={[0, 1.25, 0]} raycast={() => null}>
+          <meshStandardMaterial color="#f2f2f2" roughness={0.45} metalness={0.05} emissive="#111111" emissiveIntensity={0.15} />
+        </mesh>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]} raycast={() => null}>
+          <ringGeometry args={[0.5, 0.62, 32]} />
+          <meshBasicMaterial color="#7dffb0" transparent opacity={0.75} toneMapped={false} />
+        </mesh>
+      </group>
+
       </group>
 
       {mode === "overview" && (
@@ -681,12 +765,40 @@ const box: React.CSSProperties = {
   font: "12px/1.5 system-ui, sans-serif", borderRadius: 6, pointerEvents: "none",
 };
 
+/** Opened in hand mode when you act on empty space: shows the global actions and brings the mouse back for the UI. */
+function HandMenu({ x, y, onClose, items }: { x: number; y: number; onClose: () => void; items: { label: string; key?: string; run: () => void; disabled?: boolean }[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const away = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) onClose(); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [onClose]);
+  return (
+    <div className="agent-menu" ref={ref} style={{ left: x, top: y, zIndex: 30 }}>
+      <header className="am-head"><strong>Hand</strong><button className="icon-btn" aria-label="Close" onClick={onClose}>×</button></header>
+      {items.map((it, i) => (
+        <button key={i} className="am-item" disabled={it.disabled} onClick={() => { it.run(); onClose(); }}>{it.label}{it.key && <kbd>{it.key}</kbd>}</button>
+      ))}
+      <p className="muted small" style={{ margin: "4px 2px 0" }}>The mouse is back — reach the sidebar or header. Close this to hide it again.</p>
+    </div>
+  );
+}
+
 /** `active` = the 3D office is the panel on screen. It stays mounted while you look at other panels, so the camera, zoom,
  *  position, followers and open chats are exactly as you left them; while inactive it draws nothing and ignores keys. */
 export default function World({ active = true }: { active?: boolean }) {
-  const [mode, setMode] = useState<Mode>("overview");
+  const [mode, setMode] = useState<Mode>("walk"); // one continuous camera now; kept for the Scene's internal branches
   const [hidden, setHidden] = useState(() => document.hidden);
   const [nearby, setNearby] = useState<Nearby | null>(null);
+  const controller = useStore((st) => st.controller);
+  const [handSave, setHandSave] = useState(0); // bump = save the hand zoom
+  const [handRestore, setHandRestore] = useState(0); // bump = restore the saved hand zoom
+  const [handMenu, setHandMenu] = useState<{ x: number; y: number } | null>(null); // hand-mode "what can I do" menu (brings the mouse back)
+  const lastPtr = useRef<{ x: number; y: number } | null>(null);
+  const handMenuOpenRef = useRef(false);
+  handMenuOpenRef.current = !!handMenu;
   const snapshot = useStore((st) => st.snapshot);
   const chatId = useStore((st) => st.chatId);
   const openChat = useStore((st) => st.openChat);
@@ -734,6 +846,9 @@ export default function World({ active = true }: { active?: boolean }) {
   const lsSet = (k: string, v: boolean) => { try { localStorage.setItem(k, v ? "1" : "0"); } catch { /* private mode */ } };
   const [locked, setLocked] = useState(() => lsGet("ao.zoomLock"));
   const [zoom, setZoom] = useState<ZoomReq | null>(null);
+  // The Scene reports when the zoom reaches the top-view band; from there on only project titles are shown.
+  const [labelsOnly, setLabelsOnly] = useState(() => { try { return Number(localStorage.getItem("ao.camZoom")) >= OVERVIEW_ZOOM; } catch { return false; } });
+  const shownLabels = useMemo(() => (labelsOnly ? labelItems.filter((it) => it.kind === "project") : labelItems), [labelsOnly, labelItems]);
   const [reset, setReset] = useState(0);
   const [saveN, setSaveN] = useState(0);
   // Click a laptop screen: the camera flies right in front of it so you can read it; "Back" (or Esc) returns.
@@ -742,10 +857,7 @@ export default function World({ active = true }: { active?: boolean }) {
   const [inCloseup, setInCloseup] = useState(false);
   const skipFrame = useRef(false);
   const closeupWalk = useRef(false);
-  const startCloseup = (i: number) => {
-    const go = () => setCloseup((c) => ({ i, n: (c?.n ?? 0) + 1 }));
-    if (mode === "walk") { closeupWalk.current = true; skipFrame.current = true; setMode("overview"); setTimeout(go, 250); } else go();
-  };
+  const startCloseup = (i: number) => setCloseup((c) => ({ i, n: (c?.n ?? 0) + 1 }));
   const [ready, setReady] = useState(false);
   const onReady = useCallback(() => setReady(true), []);
   const [clearN, setClearN] = useState(0);
@@ -758,7 +870,6 @@ export default function World({ active = true }: { active?: boolean }) {
   useLive(async () => { try { setSubs(await api.subagents()); } catch { /* ignore */ } }, ["subagents"]);
   const [tags, setTags] = useState(() => lsGet("ao.nametags"));
   const showKeymap = useStore((st) => st.showKeymap);
-  const showStatusCounts = useStore((st) => st.showStatusCounts);
   const setShowKeymap = useStore((st) => st.setShowKeymap);
   const frame = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -783,7 +894,7 @@ export default function World({ active = true }: { active?: boolean }) {
   }, []);
 
   // One list of things the keyboard (and the clickable keymap) can do from here.
-  const toggleMode = () => setMode((m) => (m === "overview" ? "walk" : "overview"));
+  const toggleMode = () => setMode("walk"); // legacy: the view no longer switches to a separate overview
   const openMap = () => useStore.getState().setPanel("map"); // the minimap lives in the Map tab
   const toggleLock = () => { lsSet("ao.zoomLock", !locked); setLocked(!locked); };
   const resetView = () => setReset((n) => n + 1);
@@ -792,7 +903,7 @@ export default function World({ active = true }: { active?: boolean }) {
   // the View and Projects panels (in the dock) drive the office through this bus; the office mirrors its state back for them
   const busRef = useRef<(c: import("./viewBus").ViewCmd) => void>(() => {});
   busRef.current = (c) => {
-    if (c.t === "mode") setMode((m) => c.mode ?? (m === "overview" ? "walk" : "overview"));
+    if (c.t === "mode") { /* no separate view mode any more: zooming out is the overview */ }
     else if (c.t === "zoom") setZoom((z) => ({ factor: c.factor, n: (z?.n ?? 0) + 1 }));
     else if (c.t === "pan") setPan((q) => ({ right: c.right, forward: c.forward, n: (q?.n ?? 0) + 1 }));
     else if (c.t === "angle") setAngle((a) => ({ dyaw: c.dyaw, dpitch: c.dpitch, n: (a?.n ?? 0) + 1 }));
@@ -817,7 +928,13 @@ export default function World({ active = true }: { active?: boolean }) {
   const wakeEveryone = () => { const a = ids((w) => w.state === "asleep"); wakeAll(a); a.forEach((id) => sceneApi.current?.look(id, "idle")); };
   const lunch = () => { lunchAll(ids((w) => w.state === "idle")); };
   const orderCoffee = () => { requestCoffee(MANAGER_ID); };
-  const hotkeys = { o: orderCoffee, r: rally, u: wakeEveryone, i: lunch, x: clearFollowers, q: () => setMeetingOpen(!meetingOpen), v: toggleMode, m: openMap, l: toggleLock, t: toggleTags, "0": resetView };
+  // In hand mode E on empty space opens a small menu AND brings the mouse back, so you can reach the sidebar/header.
+  const openHandMenu = () => {
+    const w = frame.current?.clientWidth ?? 800, h = frame.current?.clientHeight ?? 600;
+    const p = lastPtr.current ?? { x: w / 2, y: h / 2 };
+    setHandMenu({ x: Math.max(8, Math.min(p.x, w - 258)), y: Math.max(8, Math.min(p.y, h - 260)) });
+  };
+  const hotkeys = { e: () => { if (nearby) sceneApi.current?.talk(); else if (controller === "hand") openHandMenu(); }, o: orderCoffee, r: rally, u: wakeEveryone, i: lunch, x: clearFollowers, q: () => setMeetingOpen(!meetingOpen), c: resetView, m: openMap, l: toggleLock, t: toggleTags, "0": resetView };
   const hotRef = useRef(hotkeys); hotRef.current = hotkeys;
   const activeRef2 = useRef(active); activeRef2.current = active;
   useEffect(() => {
@@ -833,7 +950,7 @@ export default function World({ active = true }: { active?: boolean }) {
   const entries: KeyEntry[] = KEYMAP.map((def) => {
     const act = def.id.startsWith("action:") ? def.id.slice(7) : "";
     const run: Record<string, [() => void, string | null]> = {
-      mode: [toggleMode, null], talk: [() => sceneApi.current?.talk(), nearWhy], minimap: [openMap, null],
+      camera: [resetView, null], talk: [() => sceneApi.current?.talk(), nearWhy], minimap: [openMap, null],
       rally: [rally, ids((w) => w.state === "waiting").length || rallying ? null : "Nobody is waiting for you"],
       wake: [wakeEveryone, ids((w) => w.state === "asleep").length ? null : "Nobody is asleep"],
       lunch: [lunch, ids((w) => w.state === "idle").length ? null : "Nobody is idle"],
@@ -848,14 +965,31 @@ export default function World({ active = true }: { active?: boolean }) {
 
   return (
     <div style={{ display: "flex", width: "100%", height: "100%", minHeight: 240 }}>
-    <div ref={frame} style={{ position: "relative", flex: 1, minWidth: 0, height: "100%" }}>
-      <Canvas onPointerMissed={() => { setMenu(null); setRoomMenu(null); }} frameloop={hidden || !active ? "never" : "always"} dpr={[1, 2]} camera={{ position: [0, 40, 20], fov: 50, near: 0.1, far: 1000 }}>
-        <Scene mode={mode} layout={layout} jump={jump} onNearby={setNearby} onEnter={enterTeam} ctl={{ onScreen: startCloseup, closeup, closeupExit, onCloseup: setInCloseup, onReady, saveView: saveN, clearView: clearN, labels: labelsApi, active, subs, tags, api: sceneApi, onPick, pan, angle, zoom, reset, locked, warp, view, skipFrame, closeupWalk }} />
+    <div ref={frame} onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); lastPtr.current = { x: e.clientX - r.left, y: e.clientY - r.top }; }} style={{ position: "relative", flex: 1, minWidth: 0, height: "100%" }}>
+      <Canvas style={{ cursor: controller === "hand" && !handMenu ? "none" : undefined }} onPointerMissed={() => { setMenu(null); setRoomMenu(null); }} frameloop={hidden || !active ? "never" : "always"} dpr={[1, 2]} camera={{ position: [0, 40, 20], fov: 50, near: 0.1, far: 1000 }}>
+        <Scene mode={mode} layout={layout} jump={jump} onNearby={setNearby} onEnter={enterTeam} ctl={{ onScreen: startCloseup, closeup, closeupExit, onCloseup: setInCloseup, onReady, saveView: saveN, clearView: clearN, labels: labelsApi, active, subs, tags, api: sceneApi, onPick, pan, angle, zoom, reset, locked, warp, view, skipFrame, closeupWalk, handZoomCmd: { save: handSave, restore: handRestore }, handMenuOpen: handMenuOpenRef, onOverview: setLabelsOnly }} />
       </Canvas>
-      {showStatusCounts && <StatusLegend />}
+      {mode === "walk" && controller === "hand" && (
+        <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }}>
+          <button onClick={() => setHandSave((n) => n + 1)} style={{ padding: "4px 10px", cursor: "pointer", fontSize: 12 }} title="Remember the current zoom">Save zoom</button>
+          <button onClick={() => setHandRestore((n) => n + 1)} style={{ padding: "4px 10px", cursor: "pointer", fontSize: 12 }} title="Go back to the saved zoom">Restore zoom</button>
+          <button onClick={openHandMenu} style={{ padding: "4px 10px", cursor: "pointer", fontSize: 12 }} title="Show what you can do here and bring the mouse back (E)">Actions</button>
+        </div>
+      )}
+      {handMenu && (
+        <HandMenu x={handMenu.x} y={handMenu.y} onClose={() => setHandMenu(null)} items={[
+          { label: "Rally the waiting agents", key: "R", run: rally, disabled: !ids((w) => w.state === "waiting").length },
+          { label: "Wake everyone asleep", key: "U", run: wakeEveryone, disabled: !ids((w) => w.state === "asleep").length },
+          { label: "Lunch: idle agents to the rooms", key: "I", run: lunch, disabled: !ids((w) => w.state === "idle").length },
+          { label: "Order a coffee", key: "O", run: orderCoffee },
+          { label: "Meeting chat with the followers", key: "Q", run: () => setMeetingOpen(!meetingOpen), disabled: !nFollowers },
+          { label: "Save zoom", run: () => setHandSave((n) => n + 1) },
+          { label: "Restore zoom", run: () => setHandRestore((n) => n + 1) },
+        ]} />
+      )}
       <button onClick={clearBubbles} style={{ position: "absolute", top: 10, right: 10, padding: "4px 10px", cursor: "pointer", fontSize: 12 }} title="Mark every speech bubble as read">Clear bubbles</button>
       {!ready && <p className="muted" style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", margin: 0, pointerEvents: "none" }}>Building the office…</p>}
-      <Labels apiRef={labelsApi} items={labelItems} onPick={(it, cx, cy) => {
+      <Labels apiRef={labelsApi} items={shownLabels} onPick={(it, cx, cy) => {
         const r = frame.current?.getBoundingClientRect();
         setMenu(null); setRoomMenu({ item: it, x: cx - (r?.left ?? 0), y: cy - (r?.top ?? 0) + 12 });
       }} />

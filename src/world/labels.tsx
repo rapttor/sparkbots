@@ -45,8 +45,14 @@ export function Labels({ items, onPick, apiRef }: { items: LabelItem[]; onPick: 
             y -= LINE;
           }
           const el = els.current[p.i]!;
-          el.style.transform = `translate(${Math.round(p.sx - w / 2)}px, ${Math.round(y - h)}px)`;
-          el.style.opacity = p.depth > 80 ? "0.55" : "1";
+          // Fade far away, but also fade + lift when you are right up close so the title does not fill the view.
+          const far = p.depth <= 55 ? 1 : Math.max(0.28, 1 - (p.depth - 55) / 90); // distant titles fade, but never vanish
+          const near = Math.max(0, Math.min(1, (p.depth - 6) / 12)); // 0 very close .. 1 from ~18 units out
+          const opacity = near * far;
+          const lift = (1 - near) * 22; // slide up as you approach
+          el.style.transform = `translate(${Math.round(p.sx - w / 2)}px, ${Math.round(y - h - lift)}px)`;
+          el.style.opacity = String(opacity);
+          el.style.pointerEvents = opacity < 0.25 ? "none" : "";
           el.style.zIndex = String(1000 - Math.round(p.depth));
         }
       },

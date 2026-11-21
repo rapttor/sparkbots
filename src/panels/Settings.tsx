@@ -156,11 +156,11 @@ export function Settings() {
   const setAvatar = useStore((s) => s.setAvatar);
   const devLook = useStore((s) => s.devLook);
   const setDevLook = useStore((s) => s.setDevLook);
+  const controller = useStore((s) => s.controller);
+  const setController = useStore((s) => s.setController);
   const snapshot = useStore((s) => s.snapshot);
   const markAllSeen = useStore((s) => s.markAllSeen);
   const showKeymap = useStore((s) => s.showKeymap);
-  const showCounts = useStore((s) => s.showStatusCounts);
-  const setShowCounts = useStore((s) => s.setShowStatusCounts);
   const setShowKeymap = useStore((s) => s.setShowKeymap);
   const setFilters = useStore((s) => s.setFilters);
   const [cfg, setCfg] = useState<Config | null>(null);
@@ -203,6 +203,12 @@ export function Settings() {
   const cfgSaved = <Status m={cfgMsg} />;
 
   const opts: Opt[] = [
+    { id: "controller", section: "Owner", form: true, label: "Controls", words: "avatar hand mouse pointer black white controller walk mode",
+      desc: "Avatar: walk the office with WASD. Hand: a floating hand in the middle of the screen — move the mouse to glide it (faster when zoomed out, slower when zoomed in), A/D to turn, W/S to tilt, scroll to zoom. Click an agent to open it; close the menu to let go.",
+      body: <select value={controller} onChange={(e) => setController(e.target.value as "avatar" | "hand")}>
+        <option value="avatar">Avatar (walk)</option>
+        <option value="hand">Hand</option>
+      </select> },
     { id: "avatar", section: "Owner", form: true, label: "Character", words: "owner player avatar character look choose raptor dinosaur spark robot manager",
       desc: "The character you walk the 3D office with. Saved in this browser.",
       body: <select value={avatar} onChange={(e) => setAvatar(e.target.value)}>
@@ -253,9 +259,6 @@ export function Settings() {
     { id: "reset-filters", section: "General", label: "Reset header filters", words: "search status labels sort open tasks clear",
       desc: "Clear the search, status, label and task filters shown in the header.",
       body: <button onClick={() => setFilters(DEFAULT_FILTERS)}>Reset filters</button> },
-    { id: "status-counts", section: "3D office", label: "Status counts in the corner", words: "legend waiting working error done idle asleep numbers stats top left",
-      desc: "The little Waiting / Working / Error / Done / Idle / Asleep counts in the top-left corner of the 3D view. Off by default: the filters in the header and the project titles already show this. Also in the View menu.",
-      body: <label><input type="checkbox" checked={showCounts} onChange={(e) => setShowCounts(e.target.checked)} /> Show counts</label> },
     { id: "keymap-show", section: "Keymap", label: "Show the keymap in the 3D view", words: "legend keys shortcuts help instructions hotkeys bindings",
       desc: "The clickable list of keys and mouse actions in the corner of the 3D office. Entries you can do right now are buttons; the others are greyed with the reason. Also in the View menu.",
       body: <label><input type="checkbox" checked={showKeymap} onChange={(e) => setShowKeymap(e.target.checked)} /> Show keymap</label> },

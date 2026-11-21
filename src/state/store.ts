@@ -43,17 +43,17 @@ interface OfficeState {
   setMeetingOpen: (v: boolean) => void;
   viewInfo: { mode: "overview" | "walk"; locked: boolean; hasDefault: boolean; tags: boolean; showAll: boolean }; // mirrored from the 3D office for the View panel
   setViewInfo: (v: Partial<OfficeState["viewInfo"]>) => void;
-  showStatusCounts: boolean;  // the Waiting / Working / Error ... counts in the corner of the 3D view (off by default)
-  setShowStatusCounts: (v: boolean) => void;
   showKeymap: boolean;        // the clickable key legend in the 3D view
   setShowKeymap: (v: boolean) => void;
   managerColor: string;       // the player's pants colour
   avatar: string;             // the owner character (developer | raptor | spark)
   devLook: DevLook;           // developer options (top, logo, glasses, beard, overweight)
+  controller: "avatar" | "hand"; // how you drive walk mode: a walking avatar, or a floating hand
   openChat: (id?: string) => void;
   setManagerColor: (c: string) => void;
   setAvatar: (id: string) => void;
   setDevLook: (p: Partial<DevLook>) => void;
+  setController: (c: "avatar" | "hand") => void;
   setPanel: (p: PanelId) => void;
   selectWorker: (id?: string) => void; // open its chat tab and fly the camera to it
 }
@@ -97,13 +97,12 @@ export const useStore = create<OfficeState>((set) => ({
   setMeetingOpen: (meetingOpen) => set({ meetingOpen }),
   viewInfo: { mode: "overview", locked: false, hasDefault: false, tags: false, showAll: false },
   setViewInfo: (v) => set((s) => ({ viewInfo: { ...s.viewInfo, ...v } })),
-  showStatusCounts: (() => { try { return localStorage.getItem("ao.statusCounts") === "1"; } catch { return false; } })(),
-  setShowStatusCounts: (showStatusCounts) => { try { localStorage.setItem("ao.statusCounts", showStatusCounts ? "1" : "0"); } catch { /* private mode */ } set({ showStatusCounts }); },
   showKeymap: (() => { try { return localStorage.getItem("ao.keymap") !== "0"; } catch { return true; } })(),
   setShowKeymap: (showKeymap) => { try { localStorage.setItem("ao.keymap", showKeymap ? "1" : "0"); } catch { /* private mode */ } set({ showKeymap }); },
   managerColor: (() => { try { return localStorage.getItem("ao.managerColor") || "#d97757"; } catch { return "#d97757"; } })(),
   avatar: (() => { try { return localStorage.getItem("ao.avatar") || "developer"; } catch { return "developer"; } })(),
   devLook: loadDevLook(),
+  controller: (() => { try { return localStorage.getItem("ao.controller") === "hand" ? "hand" : "avatar"; } catch { return "avatar"; } })(),
   openChat: (id) => set((s) => {
     const dock = id ? openChatTab(s.dock, id) : s.dock.active.startsWith("chat:") ? closeTab(s.dock, s.dock.active) : s.dock; // no id: close the visible chat
     saveDock(dock);
@@ -112,6 +111,7 @@ export const useStore = create<OfficeState>((set) => ({
   setManagerColor: (managerColor) => { try { localStorage.setItem("ao.managerColor", managerColor); } catch { /* private mode */ } set({ managerColor }); },
   setAvatar: (avatar) => { try { localStorage.setItem("ao.avatar", avatar); } catch { /* private mode */ } set({ avatar }); },
   setDevLook: (p) => set((s) => { const devLook = { ...s.devLook, ...p }; saveDevLook(devLook); return { devLook }; }),
+  setController: (controller) => { try { localStorage.setItem("ao.controller", controller); } catch { /* private mode */ } set({ controller }); },
   setPanel: (p) => set((s) => { const dock = openPanel(s.dock, p); saveDock(dock); return { dock, chatId: activeChatId(dock) }; }),
   selectWorker: (id) => set((s) => {
     if (!id) return {};

@@ -1,29 +1,8 @@
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { WorkerState } from "../../server/adapters/types";
-import { useStore } from "../state/store";
 import type { Layout, TeamArea } from "./layout";
-import { STATE_COLORS, STATE_LABELS, STATE_ORDER } from "./colors";
-
-export function StatusLegend() {
-  const snapshot = useStore((s) => s.snapshot);
-  const counts = useMemo(() => {
-    const c: Record<WorkerState, number> = { asleep: 0, idle: 0, working: 0, waiting: 0, done: 0, error: 0 };
-    for (const t of snapshot?.teams ?? []) for (const w of t.workers) c[w.state]++;
-    return c;
-  }, [snapshot]);
-  return (
-    <div className="legend status-legend">
-      {STATE_ORDER.map((s) => (
-        <div key={s} className="legend-row">
-          <span className="legend-dot" style={{ background: STATE_COLORS[s] }} />
-          <span>{STATE_LABELS[s]}</span>
-          <b className="legend-n">{counts[s]}</b>
-        </div>
-      ))}
-    </div>
-  );
-}
+import { STATE_COLORS, STATE_ORDER } from "./colors";
 
 export function ProjectLegend({ layout, onJump, hidden, showAll, onShowAll }: { layout: Layout; onJump: (a: TeamArea) => void; hidden: number; showAll: boolean; onShowAll: (v: boolean) => void }) {
   const [filter, setFilter] = useState("");

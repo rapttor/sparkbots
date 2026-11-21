@@ -24,8 +24,6 @@ interface ViewControlsProps {
 /** One "View" button in the app header; it opens the panel with mode, zoom, pan, angle, zoom lock. */
 export function ViewControls(p: ViewControlsProps) {
   const showKeymap = useStore((s) => s.showKeymap);
-  const showCounts = useStore((s) => s.showStatusCounts);
-  const setShowCounts = useStore((s) => s.setShowStatusCounts);
   const setShowKeymap = useStore((s) => s.setShowKeymap);
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
@@ -71,7 +69,6 @@ export function ViewControls(p: ViewControlsProps) {
             <button className="small" onClick={p.onReset}>⟲ Reset view</button>
             <button className="small" onClick={p.onSaveDefault} title="Remember this camera (and the walk zoom and angle) as the default for opening and resetting the view">⭐ Save as default</button>
             {p.hasDefault && <button className="small" onClick={p.onClearDefault} title="Go back to the built-in default view">Clear default</button>}
-            <button className={`small ${showCounts ? "fb-on" : ""}`} onClick={() => setShowCounts(!showCounts)} title="The Waiting / Working / Error ... counts in the corner">📊 Counts</button>
             <button className={`small ${showKeymap ? "fb-on" : ""}`} onClick={() => setShowKeymap(!showKeymap)}>⌨ Keymap</button>
           </Row>
           <div className="muted small">{walk ? "Right-drag turns the view." : "Drag to orbit, right-drag to pan, wheel to zoom."}</div>

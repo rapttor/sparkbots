@@ -10,7 +10,7 @@ export interface KeyDef {
 }
 
 export const KEYMAP: KeyDef[] = [
-  { id: "mode", keys: "V", label: "Switch walk / overview", actionable: true },
+  { id: "camera", keys: "C", label: "Camera behind you at the default zoom (zoom in = first-person, zoom out = overview)", actionable: true },
   { id: "talk", keys: "E", label: "Talk to the nearby agent", actionable: true },
   ...ACTIONS.map((a): KeyDef => ({ id: `action:${a.key}`, keys: a.key.toUpperCase(), label: `${a.label}: ${a.hint}`, actionable: true })),
   { id: "minimap", keys: "M", label: "Open the Map tab (the minimap)", actionable: true },
@@ -25,11 +25,11 @@ export const KEYMAP: KeyDef[] = [
   { id: "tags", keys: "T", label: "Show / hide name tags", actionable: true },
   { id: "reset", keys: "0", label: "Reset the view", actionable: true },
   { id: "esc", keys: "Esc", label: "Close the open menu or chat", actionable: true },
-  { id: "move", keys: "W A S D / arrows", label: "Walk (walk mode)", actionable: false },
+  { id: "move", keys: "W A S D / arrows", label: "Avatar: move. Hand: A/D turn, W/S zoom", actionable: false },
   { id: "sprint", keys: "Shift", label: "Hold while walking to sprint (speeds up)", actionable: false },
-  { id: "floor", keys: "Click floor", label: "Walk there (walk mode)", actionable: false },
+  { id: "floor", keys: "Click floor", label: "Avatar: walk there. Hand: move the hand there", actionable: false },
   { id: "agent", keys: "Click agent", label: "Open the agent menu", actionable: false },
-  { id: "dbl", keys: "Double-click project", label: "Walk into that project (overview)", actionable: false },
-  { id: "rdrag", keys: "Right-drag", label: "Turn the view (walk) / pan (overview)", actionable: false },
-  { id: "wheel", keys: "Scroll", label: "Zoom", actionable: false },
+  { id: "dbl", keys: "Double-click project", label: "Go to that project", actionable: false },
+  { id: "rdrag", keys: "Right-drag", label: "Turn the view", actionable: false },
+  { id: "wheel", keys: "Scroll", label: "Zoom (in = first-person, out = overview)", actionable: false },
 ];
