@@ -8,6 +8,7 @@ import { KEYMAP } from "../world/keymap";
 import { listAvatars } from "../world/avatar";
 import { LOGO_EMOJIS, TOP_STYLES, type TopStyle } from "../world/devLook";
 import { DEFAULT_FILTERS } from "./teamFilters";
+import type { OpenCodeModel } from "../shared/opencode";
 
 type NumKey = "historyDays" | "idleThresholdSec" | "asleepAfterMin" | "doneWaveSec" | "errorSec";
 const NUMS: { key: NumKey; label: string; desc: string; words: string }[] = [
@@ -59,7 +60,7 @@ function FormField({ o }: { o: Opt }) {
 const MODES = ["", "default", "acceptEdits", "plan"];
 const list = (s: string) => s.split(/[,\n]/).map((x) => x.trim()).filter(Boolean);
 
-interface Row { name: string; globs: string; color: string; tools: string; mode: string }
+interface Row { name: string; globs: string; color: string; cwd: string; source: string; model: string; tools: string; mode: string }
 type Msg = { ok: boolean; text: string } | null;
 
 function Status({ m }: { m: Msg }) {
@@ -72,6 +73,9 @@ function toRows(t: Teams): Row[] {
     name,
     globs: (t.merges[name] ?? []).join("\n"),
     color: t.colors[name] ?? "",
+    cwd: t.overrides[name]?.cwd ?? "",
+    source: t.overrides[name]?.source ?? "",
+    model: t.overrides[name]?.model ?? "",
     tools: (t.overrides[name]?.allowedTools ?? []).join(", "),
     mode: t.overrides[name]?.permissionMode ?? "",
   }));
@@ -86,10 +90,14 @@ function toTeams(rows: Row[]): Teams {
     if (globs.length) t.merges[name] = globs;
     if (r.color) t.colors[name] = r.color;
     const tools = list(r.tools);
-    if (tools.length || r.mode) {
+    const cwd = r.cwd.trim(), model = r.model.trim();
+    if (tools.length || r.mode || cwd || r.source || model) {
       t.overrides[name] = {};
       if (tools.length) t.overrides[name].allowedTools = tools;
       if (r.mode) t.overrides[name].permissionMode = r.mode;
+      if (cwd) t.overrides[name].cwd = cwd;
+      if (r.source) t.overrides[name].source = r.source as "claude" | "codex" | "opencode";
+      if (model) t.overrides[name].model = model;
     }
   }
   return t;
@@ -133,6 +141,30 @@ function ClaudeSetup() {
   );
 }
 
+/** Start one new agent in this project, using the row's (unsaved) cwd/source/model as the hire config. */
+function HireBox({ team, cwd, source, model }: { team: string; cwd: string; source: string; model: string }) {
+  const [prompt, setPrompt] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<Msg>(null);
+  const hire = async () => {
+    setBusy(true); setMsg(null);
+    try {
+      const r = await api.hire({ team: team.trim(), cwd: cwd.trim() || undefined, source: source || undefined, model: model.trim() || undefined, prompt: prompt.trim() });
+      setMsg({ ok: true, text: `Hired ${r.source}${r.model ? ` (${r.model})` : ""} in ${r.cwd}` });
+      setPrompt("");
+    } catch (e) { setMsg({ ok: false, text: (e as Error).message }); }
+    setBusy(false);
+  };
+  return (
+    <p className="settings-hire">
+      <input placeholder={`Opening prompt for the new ${source || "claude"} agent`} value={prompt} maxLength={2000}
+        onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void hire(); }} />
+      <button disabled={busy || !team.trim() || !prompt.trim()} onClick={() => void hire()}>{busy ? "Hiring…" : "Hire"}</button>{" "}
+      <Status m={msg} />
+    </p>
+  );
+}
+
 function ArchiveList() {
   const [items, setItems] = useState<ArchivedItem[]>([]);
   useLive(async () => { try { setItems(await api.archived()); } catch { /* ignore */ } }, ["archive"]);
@@ -168,6 +200,7 @@ export function Settings() {
   const [rows, setRows] = useState<Row[]>([]);
   const [teamMsg, setTeamMsg] = useState<Msg>(null);
   const [hooks, setHooks] = useState<{ installed: boolean; settingsPath: string } | null>(null);
+  const [ocModels, setOcModels] = useState<OpenCodeModel[]>([]);
   const [loadErr, setLoadErr] = useState("");
   const [query, setQuery] = useState("");
   const [wrap, width] = useWidth<HTMLElement>();
@@ -180,6 +213,7 @@ export function Settings() {
     api.config().then(setCfg).catch((e: Error) => setLoadErr(e.message));
     api.teams().then((t) => setRows(toRows(t))).catch((e: Error) => setLoadErr(e.message));
     api.hooks().then(setHooks).catch(() => setHooks(null));
+    api.opencodeModels().then((r) => setOcModels(r.models)).catch(() => setOcModels([]));
   }, []);
 
   const saveCfg = async (next: Config) => {
@@ -271,6 +305,9 @@ export function Settings() {
     { id: "clean-env", section: "Claude runs", label: "Clean environment", words: "anthropic gateway token base url api key proxy opencode env variables 401",
       desc: "Start runs without the ANTHROPIC_* variables (gateway URL, tokens) that the shell running SparkBots exported. Turn it on if runs fail with authentication errors because of a leftover variable.",
       body: cfg && <label><input type="checkbox" checked={cfg.cleanEnv} onChange={(e) => void saveCfg({ ...cfg, cleanEnv: e.target.checked })} /> Drop ANTHROPIC_* variables {cfgSaved}</label> },
+    { id: "opencode-model", section: "OpenCode runs", label: "Default model", words: "opencode model provider providerID ollama local big expensive default --model",
+      desc: "Model for messages and new hires in OpenCode, in provider/model form (for example opencode/deepseek-v4.1-flash-free). Leave empty to keep each chat's own model, then OpenCode's default. A project can override this in Projects below.",
+      body: cfg && <><input list="settings-oc-models" placeholder="(chat's own model)" value={cfg.opencodeModel} maxLength={100} onChange={(e) => setCfg({ ...cfg, opencodeModel: e.target.value.trim() })} onBlur={() => void saveCfg(cfg)} /> {cfgSaved}</> },
     { id: "claude-test", section: "Claude runs", wide: true, label: "Test run", words: "try check hello works connection setup status",
       desc: "Runs a tiny prompt in your most recent project and shows the answer or the problem, plus which gateway and model the next run uses.",
       body: <ClaudeSetup /> },
@@ -294,8 +331,8 @@ export function Settings() {
         <p>{hooks ? (hooks.installed ? "Hooks installed." : "Hooks not installed.") : "Hooks status unavailable."} {hooks && <span className="muted small mono">{hooks.settingsPath}</span>}</p>
         <p className="mono small">pnpm start hooks install<br />pnpm start hooks uninstall</p>
       </> },
-    { id: "teams", section: "Projects", wide: true, label: "Project teams, permissions and tools", words: "merge directories globs allowedTools permissionMode acceptEdits plan bypass color team override name",
-      desc: "Merge directories into one team with globs, give a team a color, and set which tools and permission mode runs in it use. Bypass is never offered.",
+    { id: "teams", section: "Projects", wide: true, label: "Project teams, permissions, hires and tools", words: "merge directories globs allowedTools permissionMode acceptEdits plan bypass color team override name hire cwd working directory model agent opencode codex",
+      desc: "Merge directories into one team with globs, give a team a color, and set which tools and permission mode runs in it use. A project can also save the working directory, agent and model used when you hire someone here. Bypass is never offered.",
       body: <>
         {rows.map((r, i) => (
           <div key={i} className="opt-team">
@@ -306,14 +343,24 @@ export function Settings() {
             </p>
             <p><textarea rows={2} style={{ width: "100%" }} placeholder="/path/to/project*" value={r.globs} onChange={(e) => patch(i, { globs: e.target.value })} /></p>
             <p>
+              <input placeholder="Hire working directory (absolute path; empty = newest session)" value={r.cwd} maxLength={1024} onChange={(e) => patch(i, { cwd: e.target.value })} />
+            </p>
+            <p>
+              <select aria-label="Hire agent" value={r.source} onChange={(e) => patch(i, { source: e.target.value })}>
+                <option value="">Claude (default)</option><option value="claude">Claude Code</option><option value="opencode">OpenCode</option>
+              </select>{" "}
+              <input list="settings-oc-models" placeholder="Hire model (provider/model)" value={r.model} maxLength={100} onChange={(e) => patch(i, { model: e.target.value.trim() })} />
+            </p>
+            <p>
               <input placeholder="allowedTools (comma list)" value={r.tools} onChange={(e) => patch(i, { tools: e.target.value })} />{" "}
               <select aria-label="Permission mode" value={r.mode} onChange={(e) => patch(i, { mode: e.target.value })}>
                 {MODES.map((m) => <option key={m} value={m}>{m || "(user default)"}</option>)}
               </select>
             </p>
+            <HireBox team={r.name} cwd={r.cwd} source={r.source} model={r.model} />
           </div>
         ))}
-        <button onClick={() => setRows([...rows, { name: "", globs: "", color: "", tools: "", mode: "" }])}>Add team</button>{" "}
+        <button onClick={() => setRows([...rows, { name: "", globs: "", color: "", cwd: "", source: "", model: "", tools: "", mode: "" }])}>Add team</button>{" "}
         <button onClick={() => void saveTeams()}>Save</button> <Status m={teamMsg} />
       </> },
   ];
@@ -328,6 +375,7 @@ export function Settings() {
 
   return (
     <section className={`settings ${compact ? "compact" : ""}`} ref={wrap}>
+      <datalist id="settings-oc-models">{ocModels.map((m) => <option key={m.id} value={m.id} label={`${m.name} · ${m.provider}`} />)}</datalist>
       <aside className="settings-nav">
         <h1>Settings</h1>
         <input type="search" placeholder="Search settings" value={query} onChange={(e) => setQuery(e.target.value)} />

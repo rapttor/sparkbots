@@ -35,6 +35,20 @@ const isInternal = (text: string): boolean =>
 
 const cleanTitle = (text: string): string => text.replace(/\s+/g, " ").trim().slice(0, 60);
 
+/** OpenCode stores the model as JSON (`{providerID,id,variant}`); older rows may already be `provider/model`. */
+function sessionModel(raw: string | null): string | undefined {
+  if (!raw) return undefined;
+  try {
+    const o = JSON.parse(raw) as { providerID?: unknown; id?: unknown };
+    const provider = typeof o.providerID === "string" ? o.providerID.trim() : "";
+    const id = typeof o.id === "string" ? o.id.trim() : "";
+    if (provider && id) return `${provider}/${id}`;
+    return id || undefined;
+  } catch {
+    return raw.includes("/") ? raw.trim() : undefined;
+  }
+}
+
 /** One-line records shared with the JSONL tailer. Text records mimic Claude Code so search/recent chats reuse the same readers. */
 function jsonLine(o: unknown): string { return `${JSON.stringify(o)}\n`; }
 
@@ -112,9 +126,10 @@ export async function discoverSessions(dbFile = opencodeDbPath()): Promise<Sessi
     const dir = opencodeCacheDir();
     mkdirSync(dir, { recursive: true });
     const since = Date.now() - MAX_AGE_MS;
+    // Only top-level chats are agents. Sessions with a parent are subagents: they belong to their parent, not a desk.
     const rows = db.prepare(
       `select id, project_id, parent_id, directory, title, time_created, time_updated, time_archived, model
-         from session where time_archived is null and time_updated >= ? order by time_updated desc`,
+         from session where time_archived is null and parent_id is null and time_updated >= ? order by time_updated desc`,
     ).all(since) as unknown as SessionRow[];
     const projects = new Map((db.prepare("select id, worktree from project").all() as unknown as { id: string; worktree: string }[]).map((p) => [p.id, p.worktree]));
     const out: SessionRef[] = [];
@@ -137,10 +152,14 @@ export async function discoverSessions(dbFile = opencodeDbPath()): Promise<Sessi
       const size = statSync(file).size;
       out.push({
         id: `opencode:${s.id}`, source: "opencode", file, cwd, title: (m.title || "OpenCode chat").slice(0, 60),
-        mtimeMs: s.time_updated, sizeBytes: size,
+        mtimeMs: s.time_updated, sizeBytes: size, model: sessionModel(s.model),
       });
     }
-    if (dirty) saveJson("cache/opencode/index.json", { schemaVersion: CACHE_VERSION, sessions: meta });
+    if (dirty) {
+      const alive = new Set(out.map((s) => s.id.slice("opencode:".length)));
+      for (const id of Object.keys(meta)) if (!alive.has(id)) delete meta[id];
+      saveJson("cache/opencode/index.json", { schemaVersion: CACHE_VERSION, sessions: meta });
+    }
     return out;
   } finally { db.close(); }
 }

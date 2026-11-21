@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useStore } from "../state/store";
 import { StateBadge } from "../panels/Badge";
 import { BotIcon } from "../panels/BotIcon";
-import { api, call, type ChatMessage, type RunRecord } from "../api";
+import { api, call, type ChatMessage, type RunRecord, type Teams } from "../api";
 import { useLive } from "../state/live";
 import { runProblem, type RunProblem } from "./runStatus";
+import { OpenCodeModelPicker } from "./OpenCodeModelPicker";
 import { displayName } from "../util";
 
 const stopProp = (e: React.SyntheticEvent) => e.stopPropagation();
@@ -75,10 +76,18 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
   // model for the next message; remembered per agent in this browser ("" = Claude Code's default)
   const [model, setModelState] = useState(() => { try { return localStorage.getItem(`ao.model.${workerId}`) ?? ""; } catch { return ""; } });
   const setModel = (m: string) => { setModelState(m); try { localStorage.setItem(`ao.model.${workerId}`, m); } catch { /* private mode */ } };
-  useEffect(() => { try { setModelState(localStorage.getItem(`ao.model.${workerId}`) ?? ""); } catch { setModelState(""); } }, [workerId]);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`ao.model.${workerId}`);
+      setModelState(saved ?? (w?.source === "opencode" ? w.model ?? "" : ""));
+    } catch { setModelState(w?.source === "opencode" ? w.model ?? "" : ""); }
+  }, [workerId, w?.source, w?.model]);
   const [problem, setProblem] = useState<RunProblem | null>(null);
   const [svcModels, setSvcModels] = useState<string[]>([]); // models of the services you added (Ollama, ...): usable names for the Model box
   useEffect(() => { call<{ status?: { models?: string[] } }[]>("GET", "/api/services").then((l) => setSvcModels([...new Set(l.flatMap((s) => s.status?.models ?? []))].slice(0, 30))).catch(() => {}); }, []);
+  const [teams, setTeams] = useState<Teams | null>(null);
+  const [modelPicker, setModelPicker] = useState(false);
+  useEffect(() => { api.teams().then(setTeams).catch(() => {}); }, []);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -105,10 +114,11 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
   }, [messages, busy]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    // Escape closes the chat, but not while a picker is on top: that Escape belongs to the picker.
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !modelPicker) onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, modelPicker]);
 
   if (!w) return null;
   const isCodex = w.source === "codex";
@@ -154,7 +164,13 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
       setUploading((n) => n - 1);
     }
   };
-  const spawn = () => guard(async () => { await api.spawn(w.cwd, fresh, model || undefined); setFresh(""); setShowFresh(false); setNote("New worker started"); });
+  // The project's saved hire config (Settings > Projects) chooses the source and model for a new worker here.
+  const hireSource = teams?.overrides[w.team]?.source ?? "claude";
+  const spawn = () => guard(async () => {
+    const r = await api.hire({ team: w.team, cwd: w.cwd, prompt: fresh });
+    setFresh(""); setShowFresh(false);
+    setNote(`New ${r.source} worker started${r.model ? ` (${r.model})` : ""}`);
+  });
   const onEnter = (e: React.KeyboardEvent<HTMLTextAreaElement>, submit: () => void, ok: boolean) => {
     e.stopPropagation();
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (ok) submit(); }
@@ -177,7 +193,7 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
                 onKeyUp={stopProp} onBlur={(e) => saveName(e.currentTarget.value)} />
             : <strong title="Click to rename" style={{ cursor: "text" }} onClick={() => setRenaming(true)}>{w.name || w.title || "(untitled)"} ✎</strong>}
           {w.name && <span className="wc-sub muted" title={w.title}>Session: {w.title}</span>}
-          <span className="wc-sub"><StateBadge state={w.state} /> <span>{w.activity}</span>{w.source === "opencode" && <span className="muted"> · opencode</span>}{w.source === "codex" && <span className="muted"> · codex</span>}</span>
+          <span className="wc-sub"><StateBadge state={w.state} /> <span>{w.activity}</span>{w.source === "opencode" && <span className="muted"> · opencode{w.model ? ` · ${w.model}` : ""}</span>}{w.source === "codex" && <span className="muted"> · codex</span>}</span>
         </div>
         {onDock && (
           <span className="wc-dockbtns">
@@ -244,9 +260,12 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
           <button className="small" onClick={archive} disabled={w.liveInTerminal} title={w.liveInTerminal ? "Live in a terminal: close it first" : "Archive this agent (nothing is deleted)"}>🗄 Archive</button>
           {!isCodex && <><button className="small" onClick={() => fileInput.current?.click()} title="Attach files or images (max 15 MB each)">📎 Attach</button>
           <input ref={fileInput} type="file" multiple hidden onChange={(e) => { if (e.target.files) void attach(e.target.files); e.target.value = ""; }} /></>}
+          {isOpenCode && <button type="button" className="wc-model-open" onClick={() => setModelPicker(true)} title="Browse OpenCode models with provider, version, context and cost">
+            <span className="muted">Model</span> <b>{model || "project / global default"}</b> <span aria-hidden>▾</span>
+          </button>}
           {!isCodex && !isOpenCode && <label className="wc-forkopt" title="Model used for the next message. Switching models mid-conversation is fine: the session keeps its history.">
             Model:{" "}
-            <input list="wc-models" className="wc-model" value={model} placeholder="default" maxLength={80} onChange={(e) => setModel(e.target.value.trim())} onKeyDown={(e) => e.stopPropagation()} onKeyUp={stopProp} />
+            <input list="wc-models" className="wc-model" value={model} placeholder="default" maxLength={100} onChange={(e) => setModel(e.target.value.trim())} onKeyDown={(e) => e.stopPropagation()} onKeyUp={stopProp} />
             <datalist id="wc-models"><option value="opus" /><option value="sonnet" /><option value="haiku" />{svcModels.map((m) => <option key={m} value={m} />)}</datalist>
           </label>}
         </div>
@@ -268,7 +287,7 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
                   onChange={(e) => setFresh(e.target.value)}
                   onKeyDown={(e) => onEnter(e, () => void spawn(), fresh.trim().length > 0)}
                   onKeyUp={stopProp}
-                  placeholder="Prompt for a new worker in this directory"
+                  placeholder={`Prompt for a new ${hireSource} worker in this directory`}
                   aria-label="New worker prompt"
                 />
                 <div className="wc-btns">
@@ -279,6 +298,10 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
             )}
         </div>}
       </footer>
+      {modelPicker && isOpenCode && (
+        <OpenCodeModelPicker current={model} onClose={() => setModelPicker(false)}
+          onPick={(m) => { setModel(m); setModelPicker(false); setNote(m ? `Model set to ${m}` : "Using the project / global model"); }} />
+      )}
     </div>
   );
 }

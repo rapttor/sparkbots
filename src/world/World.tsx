@@ -529,7 +529,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     ctl.view.current.mode = modeRef.current;
     const mvx = pos.current.x - playerState.x, mvz = pos.current.z - playerState.z, mv = Math.hypot(mvx, mvz);
     if (mv > 0.002) { playerState.hx = mvx / mv; playerState.hz = mvz / mv; playerState.still = 0; } else playerState.still += dt; // followers trail, then huddle
-    playerState.on = modeRef.current === "walk"; playerState.x = pos.current.x; playerState.z = pos.current.z;
+    playerState.on = modeRef.current === "walk"; playerState.x = pos.current.x; playerState.z = pos.current.z; playerState.fast = false;
     if (modeRef.current === "walk" && !labelsOnly && !frozen.current) {
       bossTimer.current -= dt;
       const moved = Math.hypot(pos.current.x - bossAt.current.x, pos.current.z - bossAt.current.z);
@@ -643,6 +643,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       // Holding Shift sprints: the speed builds up smoothly from walking pace towards a top speed, and drops back when you stop.
       const moving = dx !== 0 || dz !== 0;
       const want = moving && ks.has("shift") ? SPRINT_SPEED : WALK_SPEED;
+      playerState.fast = moving && (ks.has("shift") || (dest.current ? Math.hypot(dest.current.x - p.x, dest.current.z - p.z) > 6 : false));
       if (!moving) speedNow.current = WALK_SPEED;
       else speedNow.current += (want - speedNow.current) * (1 - Math.exp(-(want > speedNow.current ? SPRINT_ACCEL : 9) * dt));
       const spd = speedNow.current;
@@ -1060,7 +1061,7 @@ export default function World({ active = true }: { active?: boolean }) {
   return (
     <div style={{ display: "flex", width: "100%", height: "100%", minHeight: 240 }}>
     <div ref={frame} onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); lastPtr.current = { x: e.clientX - r.left, y: e.clientY - r.top }; }} style={{ position: "relative", flex: 1, minWidth: 0, height: "100%" }}>
-      <Canvas style={{ cursor: controller === "hand" && !handMenu ? "none" : undefined }} onPointerMissed={() => { setMenu(null); setRoomMenu(null); }} frameloop={hidden || !active ? "never" : "always"} dpr={[1, maxDpr]} camera={{ position: [0, 40, 20], fov: 50, near: 0.1, far: 1000 }}>
+      <Canvas style={{ cursor: controller === "hand" && !handMenu && !labelsOnly ? "none" : undefined }} onPointerMissed={() => { setMenu(null); setRoomMenu(null); }} frameloop={hidden || !active ? "never" : "always"} dpr={[1, maxDpr]} camera={{ position: [0, 40, 20], fov: 50, near: 0.1, far: 1000 }}>
         <Scene mode={mode} layout={layout} jump={jump} onNearby={setNearby} onEnter={enterTeam} ctl={{ onScreen: startCloseup, closeup, closeupExit, onCloseup: setInCloseup, onReady, saveView: saveN, clearView: clearN, labels: labelsApi, active, subs, tags, api: sceneApi, onPick, pan, angle, zoom, reset, locked, warp, view, skipFrame, closeupWalk, handZoomCmd: { save: handSave, restore: handRestore }, handMenuOpen: handMenuOpenRef, onOverview: setLabelsOnly }} />
       </Canvas>
       {mode === "walk" && controller === "hand" && (
@@ -1099,8 +1100,7 @@ export default function World({ active = true }: { active?: boolean }) {
       {meetingOpen && <div style={{ position: "absolute", right: 10, bottom: 10, zIndex: 6 }}><MeetingChat onClose={() => setMeetingOpen(false)} /></div>}
       {showKeymap && <KeymapLegend entries={entries} onHide={() => setShowKeymap(false)} />}
       {menu && menuWorker && (
-        <AgentMenu worker={menuWorker} scene={sceneApi.current ?? { talk() {}, act() {}, look() {}, sendTo() {}, archive: (_id, done) => done() }} onClose={() => setMenu(null)}
-          x={Math.max(4, Math.min(menu.x + 6, (frame.current?.clientWidth ?? 800) - 262))} y={Math.max(4, Math.min(menu.y, (frame.current?.clientHeight ?? 600) - 330))} />
+        <AgentMenu worker={menuWorker} scene={sceneApi.current ?? { talk() {}, act() {}, look() {}, sendTo() {}, archive: (_id, done) => done() }} onClose={() => setMenu(null)} />
       )}
       {nearby && (
         <div style={{ ...box, left: "50%", bottom: 24, transform: "translateX(-50%)", fontSize: 14 }}>

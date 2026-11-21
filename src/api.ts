@@ -3,6 +3,7 @@ import type { Config, Teams } from "../server/config";
 import type { Card, Column } from "../server/board/routes";
 import type { LabelDef } from "../server/adapters/types";
 import type { WorkSpan } from "../server/history";
+import type { OpenCodeModel } from "./shared/opencode";
 
 export type { Config, Teams };
 import type { ChatMessage } from "../server/adapters/claude-code/transcript";
@@ -10,7 +11,8 @@ import type { ChatMessage } from "../server/adapters/claude-code/transcript";
 export type { RunRecord, Card, Column, WorkSpan, ChatMessage };
 export interface LiveProc { session: string; pid: number; kind: string; startedAt: number; cwd?: string; title?: string }
 export interface Processes { live: LiveProc[]; runs: RunRecord[] }
-export type SendResult = { queued: true; position: number } | { queued: false; run: RunRecord } | { queued: false; codex: true } | { queued: false; opencode: true };
+export type SendResult = { queued: true; position: number } | { queued: false; run: RunRecord } | { queued: false; codex: true } | { queued: false; opencode: true; model?: string | null };
+export type HireResult = { started: boolean; source: "claude" | "codex" | "opencode"; cwd: string; model?: string | null; runId?: string };
 export type NerdInfo = ReturnType<typeof import("../server/nerd").nerdSnapshot>;
 export interface SearchHit { session: string; at: number; role: string; snippet: string; title: string; team: string; name?: string; archived: boolean }
 export interface SubagentInfo { id: string; type: string; description: string; model?: string; finished: boolean; mtimeMs: number }
@@ -44,6 +46,8 @@ export const api = {
   send: (session: string, prompt: string, fork = false, model?: string, attachments?: string[]) => call<SendResult>("POST", "/api/send", { session, prompt, fork, model, attachments }),
   upload: (name: string, data: string) => call<{ id: string; name: string; size: number }>("POST", "/api/uploads", { name, data }),
   spawn: (cwd: string, prompt: string, model?: string) => call<RunRecord>("POST", "/api/spawn", { cwd, prompt, model }),
+  hire: (p: { team?: string; cwd?: string; source?: string; model?: string; prompt: string }) => call<HireResult>("POST", "/api/hire", p),
+  opencodeModels: () => call<{ models: OpenCodeModel[] }>("GET", "/api/opencode/models"),
   stop: (runId: string) => call<{ ok: true }>("POST", "/api/stop", { runId }),
   board: () => call<Card[]>("GET", "/api/board"),
   importTasks: (team: string) => call<{ added: number; skipped: number; file: string }>("POST", "/api/board/import", { team }),

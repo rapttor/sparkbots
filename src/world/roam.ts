@@ -37,7 +37,7 @@ export function effectiveState<S extends string>(id: string, real: S): S | Look[
   return l.state;
 }
 /** The manager's position in walk mode (null in overview): bots step out of the way. */
-export const player: { x: number; z: number; on: boolean; hx: number; hz: number; still: number } = { x: 0, z: 0, on: false, hx: 0, hz: -1, still: 0 };
+export const player: { x: number; z: number; on: boolean; hx: number; hz: number; still: number; fast: boolean } = { x: 0, z: 0, on: false, hx: 0, hz: -1, still: 0, fast: false };
 
 const SEP = 0.8;        // bots keep at least this far apart
 const PLAYER_SEP = 0.95;

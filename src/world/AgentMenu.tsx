@@ -47,8 +47,8 @@ function Detail({ w }: { w: Worker }) {
   );
 }
 
-/** Popup that opens when you click an agent: talk, actions, show-as (visual only), and quick actions. */
-export function AgentMenu({ worker: w, x, y, scene, onClose }: { worker: Worker; x: number; y: number; scene: SceneApi; onClose: () => void }) {
+/** Centered dialog that opens when you click an agent: talk, actions, show-as (visual only), and quick actions. */
+export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene: SceneApi; onClose: () => void }) {
   const openChat = useStore((s) => s.openChat);
   const followers = useStore((s) => s.followers);
   const toggleFollower = useStore((s) => s.toggleFollower);
@@ -63,9 +63,15 @@ export function AgentMenu({ worker: w, x, y, scene, onClose }: { worker: Worker;
   useEffect(() => {
     const away = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) onClose(); };
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden"; // the dialog scrolls itself; the page behind stays put
     document.addEventListener("mousedown", away);
     document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
   }, [onClose]);
 
   const running = runs.find((r) => r.session === w.id && r.status === "running");
@@ -85,7 +91,8 @@ export function AgentMenu({ worker: w, x, y, scene, onClose }: { worker: Worker;
   );
 
   return (
-    <div className="agent-menu" ref={ref} style={{ left: x, top: y }} onWheel={(e) => e.stopPropagation()}>
+    <div className="agent-dialog-backdrop">
+      <div className="agent-menu agent-dialog" ref={ref} role="dialog" aria-modal="true" aria-label={`Actions for ${displayName(w)}`} onWheel={(e) => e.stopPropagation()}>
       <header className="am-head">
         <BotIcon color={w.color} size={22} title="Robot color: click to choose (recolors this agent in the 3D office)" onPick={(c) => { void api.setBotColor(w.id, c).catch((e: Error) => setNote(e.message)); }} />
         <strong title={w.title}>{displayName(w)}</strong>
@@ -132,6 +139,7 @@ export function AgentMenu({ worker: w, x, y, scene, onClose }: { worker: Worker;
       </div>
       {note && <p className="small am-note">{note}</p>}
       {detail && <Detail w={w} />}
+      </div>
     </div>
   );
 }

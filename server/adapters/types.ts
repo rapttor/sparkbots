@@ -10,6 +10,7 @@ export interface SessionRef {
   title: string;       // <= 60 chars
   mtimeMs: number;
   sizeBytes: number;
+  model?: string;      // provider/model when the source records it (OpenCode)
 }
 
 export interface LiveInfo {
@@ -54,6 +55,7 @@ export interface Worker {
   lastEventAt: Ts;
   liveInTerminal: boolean;
   helpers: number;
+  model?: string;      // provider/model when known (OpenCode)
   preview?: string;
   said?: { text: string; at: Ts }; // latest assistant message; hidden in streaming mode
   color: string; // bot color: own choice, else the project's, else default orange

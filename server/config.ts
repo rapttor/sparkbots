@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import type { AgentSource } from "./adapters/types";
 
 export function aoHome(): string {
   return process.env.AO_HOME ?? path.join(os.homedir(), ".agent-office");
@@ -37,7 +38,8 @@ export interface Config {
   streamingMode: boolean;
   doneWaveSec: number;
   errorSec: number;
-  runModel: string;      // model for runs started from SparkBots ("" = Claude Code default)
+  runModel: string;      // model for Claude runs started from SparkBots ("" = Claude Code default)
+  opencodeModel: string; // model for OpenCode runs ("" = the session's own model, then OpenCode's default)
   cleanEnv: boolean;     // start runs without ANTHROPIC_* variables inherited from the server's shell
 }
 
@@ -51,6 +53,7 @@ export const defaultConfig: Config = {
   doneWaveSec: 5,
   errorSec: 120,
   runModel: "",
+  opencodeModel: "",
   cleanEnv: false,
 };
 
@@ -58,11 +61,19 @@ export function loadConfig(): Config {
   return loadJson<Config>("config.json", defaultConfig);
 }
 
+export interface TeamOverride {
+  allowedTools?: string[];
+  permissionMode?: string;
+  model?: string;       // provider/model or Claude alias; wins over the global model for this project
+  source?: AgentSource; // default agent for hires in this project
+  cwd?: string;         // explicit working directory for hires (otherwise the newest known session dir)
+}
+
 export interface Teams {
   schemaVersion: 1;
   merges: Record<string, string[]>;
   colors: Record<string, string>;
-  overrides: Record<string, { allowedTools?: string[]; permissionMode?: string }>;
+  overrides: Record<string, TeamOverride>;
 }
 
 export const defaultTeams: Teams = { schemaVersion: 1, merges: {}, colors: {}, overrides: {} };

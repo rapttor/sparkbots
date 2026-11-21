@@ -164,7 +164,7 @@ export class Company {
       const bot = chosen ?? (s.source === "opencode" ? OPENCODE_DEFAULT_COLOR : lighter(this.botColors.forTeam(team)));
       const w: Worker = { id: s.id, source: s.source ?? "claude", team, cwd: s.cwd, title: s.title, name: this.botColors.names[s.id], state: r.state, activity: r.activity,
         lastEventAt: Math.max(r.lastEventAt, s.mtimeMs), liveInTerminal: liveInfo?.kind === "interactive",
-        helpers: r.helpers.size, preview: this.cfg.streamingMode ? undefined : r.preview, said: this.cfg.streamingMode ? undefined : r.said, stats: this.sessionStats.get(s.id), color: bot };
+        helpers: r.helpers.size, model: s.model, preview: this.cfg.streamingMode ? undefined : r.preview, said: this.cfg.streamingMode ? undefined : r.said, stats: this.sessionStats.get(s.id), color: bot };
       let t = byTeam.get(team);
       if (!t) byTeam.set(team, t = { name: team, color: teamColor(team, this.teams.colors), workers: [], lastActivityAt: 0, labels: this.labels.forTeam(team), botColor: this.botColors.forTeam(team) });
       t.workers.push(w); t.lastActivityAt = Math.max(t.lastActivityAt, w.lastEventAt);

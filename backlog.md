@@ -43,8 +43,12 @@ most of the things here is cosmetic, and should not interfere agents work , this
 [14.1 done](docs/TASKS.md#phase-14--opencode-sessions-as-agents-planned-2026-11-21) several OpenCode CLI terminals should show up as workers/agents, be clickable in 3D, and accept board tasks — **done:** OpenCode sessions are discovered read-only from its SQLite DB, mirrored to JSONL, shown in Teams/3D/Stats/search, and can be messaged from chat; board-card assignment is still open.
 
 - [14.1 done](docs/TASKS.md#phase-14--opencode-sessions-as-agents-planned-2026-11-21) read-only discovery from `~/.local/share/opencode/opencode.db` (SQLite; `[VERIFY]` schema), never auth/credential tables
-- [14.2 done](docs/TASKS.md#phase-14--opencode-sessions-as-agents-planned-2026-11-21) source chip + bot look + Teams/Control Room/Stats/search — OpenCode uses the TARS monolith (white top/bottom frame + swinging side legs/arms, dark centre, 1.5x height and 0.6x height wide; the frame and legs take the bot colour)
+- [14.2 done](docs/TASKS.md#phase-14--opencode-sessions-as-agents-planned-2026-11-21) source chip + bot look + Teams/Control Room/Stats/search — OpenCode uses the TARS monolith (white top/bottom frame + swinging side legs/arms, dark centre, 1.5x height and 0.6x height wide; the frame and legs take the bot colour; when rushing the side arms spin and the body leans forward)
 - [14.3 in progress](docs/TASKS.md#phase-14--opencode-sessions-as-agents-planned-2026-11-21) opt-in command path via documented OpenCode CLI `[VERIFY]`; same safety rules as Claude/Codex (argv, live-in-terminal guard) — sends work; stop, run registry and board-card assignment still open
+- [14.9 done](docs/TASKS.md#phase-14--opencode-sessions-as-agents-planned-2026-11-21) OpenCode model control — global `opencodeModel`, per-project `model`, explicit per-message picker; sends pass `--model` instead of letting the CLI pick a surprise Ollama model; the chat shows the model
+- [14.10 done](docs/TASKS.md#phase-14--opencode-sessions-as-agents-planned-2026-11-21) discovery cleanup — subagent sessions (`parent_id`) no longer get desks; stale index entries pruned; session model exposed
+- [14.11 done](docs/TASKS.md#phase-14--opencode-sessions-as-agents-planned-2026-11-21) hire OpenCode in a project — saved cwd/source/model per project, inline Hire prompt in Settings > Projects, `POST /api/hire`
+- [14.12 done](docs/TASKS.md#phase-14--opencode-sessions-as-agents-planned-2026-11-21) OpenCode model picker dialog — large centered catalogue with search/provider filter, model id, family/release, context, output, cost, capabilities and variants; "Use for this chat" and "Make default" (next new agents)
 
 # other agents
 

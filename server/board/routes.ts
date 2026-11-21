@@ -66,7 +66,11 @@ export function registerBoard(app: FastifyInstance, c: Company, runs: RunManager
   app.post<{ Params: { id: string }; Body: { session?: string; cwd?: string; fork?: boolean } }>("/api/board/:id/assign", async (req) => {
     const b = load(); const card = b.cards.find((x) => x.id === req.params.id); if (!card) throw bad("no such card");
     const prompt = `${card.title}\n\n${card.body}`.trim();
-    const overrides = (cwd: string) => c.teams?.overrides[teamFor(cwd, c.teams.merges)] ?? {}; // team tool/permission settings apply to cards too
+    // Team tool/permission settings apply to cards too. A project model is only used when it belongs to Claude.
+    const overrides = (cwd: string) => {
+      const o = c.teams?.overrides[teamFor(cwd, c.teams.merges)] ?? {};
+      return { ...(o.source === "claude" && o.model ? { model: o.model } : {}), ...(o.allowedTools ? { allowedTools: o.allowedTools } : {}), ...(o.permissionMode ? { permissionMode: o.permissionMode } : {}) };
+    };
     let runId: string, session: string | undefined;
     if (req.body?.session) {
       const s = c.sessions.get(req.body.session); if (!s) throw bad("unknown session");

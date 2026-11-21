@@ -16,12 +16,17 @@ import { recentMessages } from "./adapters/claude-code/transcript";
 import { recentMessages as recentCodexMessages } from "./adapters/codex/transcript";
 import { recentMessages as recentOpenCodeMessages } from "./adapters/opencode/transcript";
 import { CodexCommandError, queueMessage as queueCodexMessage } from "./adapters/codex/command";
-import { OpenCodeCommandError, queueMessage as queueOpenCodeMessage } from "./adapters/opencode/command";
+import { listModels as listOpenCodeModels, OpenCodeCommandError, queueMessage as queueOpenCodeMessage, spawnSession as spawnOpenCodeSession } from "./adapters/opencode/command";
 import { runPrompt, taskInfo, type TaskInfo } from "./tasks";
-import { saveJson, type Config, type Teams } from "./config";
+import { saveJson, type Config, type TeamOverride, type Teams } from "./config";
+import { statSync } from "node:fs";
+import { isAbsolute } from "node:path";
+import type { AgentSource } from "./adapters/types";
 import { hookToEvents, isInstalled, readSettings, settingsPath } from "./adapters/claude-code/hooks";
 
 const str = (v: unknown): string | undefined => (typeof v === "string" && v.length > 0 && v.length < 100_000 ? v : undefined);
+const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,100}$/;
+const SOURCES: readonly AgentSource[] = ["claude", "codex", "opencode"];
 
 /** Lets index.ts ask whether the task lists changed (it pings browsers when the signature differs). */
 export const tasks: { fn: () => string } = { fn: () => "" };
@@ -32,7 +37,13 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
   runs.listeners.add((e: RunEvent) => { const a = log.get(e.runId) ?? []; a.push(e.line); log.set(e.runId, a.slice(-200)); ping("runs"); });
   runs.onChange = () => { ping("runs"); ping("processes"); };
 
-  const overrides = (cwd: string) => ({ ...(c.cfg.runModel ? { model: c.cfg.runModel } : {}), ...(c.teams.overrides[teamFor(cwd, c.teams.merges)] ?? {}) });
+  const teamOverride = (cwd: string): TeamOverride => c.teams.overrides[teamFor(cwd, c.teams.merges)] ?? {};
+  /** Claude runs: the project's own model (when it is a Claude project) wins over the global Claude model. */
+  const overrides = (cwd: string) => {
+    const o = teamOverride(cwd);
+    const model = o.source === "claude" && o.model ? o.model : c.cfg.runModel;
+    return { ...(model ? { model } : {}), ...(o.allowedTools ? { allowedTools: o.allowedTools } : {}), ...(o.permissionMode ? { permissionMode: o.permissionMode } : {}) };
+  };
   runs.envProvider = () => (c.cfg.cleanEnv ? cleanEnv(process.env) : process.env);
   const wrap = <T>(fn: () => T) => { try { return fn(); } catch (e) { if (e instanceof CommandError) throw Object.assign(new Error(e.message), { statusCode: e.status }); throw e; } };
 
@@ -52,10 +63,13 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     }
     if (s.source === "opencode") {
       const att = resolveAttachments(req.body?.attachments);
-      try { await queueOpenCodeMessage(s.id, withAttachments(prompt, att.files), s.cwd, { fork: !!req.body?.fork, files: att.files.map((f) => f.path), model: str(req.body?.model) }); }
+      const team = teamOverride(s.cwd);
+      // Explicit choice, then the project's model, then the global OpenCode model, then the chat's own model.
+      const model = str(req.body?.model) || (team.source === "opencode" ? team.model : undefined) || c.cfg.opencodeModel || s.model;
+      try { await queueOpenCodeMessage(s.id, withAttachments(prompt, att.files), s.cwd, { fork: !!req.body?.fork, files: att.files.map((f) => f.path), model }); }
       catch (e) { if (e instanceof OpenCodeCommandError) throw Object.assign(new Error(e.message), { statusCode: e.status }); throw e; }
       ping("messages", s.id);
-      return { queued: false as const, opencode: true as const };
+      return { queued: false as const, opencode: true as const, model: model ?? null };
     }
     const att = resolveAttachments(req.body.attachments);
     return wrap(() => runs.send(s.id, s.cwd, withAttachments(prompt, att.files), { ...overrides(s.cwd), fork: !!req.body.fork, ...(str(req.body.model) ? { model: str(req.body.model) } : {}), ...(att.dirs.length ? { addDirs: att.dirs } : {}) }));
@@ -65,6 +79,31 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     if (!cwd || !prompt || ![...c.sessions.values()].some((s) => s.cwd === cwd)) throw Object.assign(new Error("known project cwd and prompt required"), { statusCode: 400 });
     return wrap(() => runs.spawnNew(cwd, prompt, { ...overrides(cwd), ...(str(req.body?.model) ? { model: str(req.body?.model) } : {}) }));
   });
+  /** Hire a new agent in a project: picks the project's configured working directory, source and model by default. */
+  app.post<{ Body: { team?: string; cwd?: string; source?: string; model?: string; prompt?: string } }>("/api/hire", async (req) => {
+    const body = req.body ?? {};
+    const teamName = str(body.team);
+    const ov: TeamOverride = (teamName ? c.teams.overrides[teamName] : undefined) ?? {};
+    const cwd = str(body.cwd) ?? ov.cwd ?? (teamName ? [...c.sessions.values()].filter((s) => teamFor(s.cwd, c.teams.merges) === teamName).sort((a, b) => b.mtimeMs - a.mtimeMs)[0]?.cwd : undefined);
+    if (!cwd) throw Object.assign(new Error("a working directory (or a known project) is required"), { statusCode: 400 });
+    if (!isAbsolute(cwd)) throw Object.assign(new Error("working directory must be an absolute path"), { statusCode: 400 });
+    try { if (!statSync(cwd).isDirectory()) throw new Error(); } catch { throw Object.assign(new Error(`working directory does not exist: ${cwd}`), { statusCode: 400 }); }
+    const prompt = str(body.prompt);
+    if (!prompt) throw Object.assign(new Error("prompt required"), { statusCode: 400 });
+    const source = (str(body.source) ?? ov.source ?? "claude") as AgentSource;
+    if (!SOURCES.includes(source)) throw Object.assign(new Error("source must be claude, codex or opencode"), { statusCode: 400 });
+    const model = str(body.model) ?? ov.model ?? (source === "opencode" ? c.cfg.opencodeModel : c.cfg.runModel) ?? undefined;
+    if (model && !MODEL.test(model)) throw Object.assign(new Error("invalid model name"), { statusCode: 400 });
+    if (source === "codex") throw Object.assign(new Error("Hiring Codex agents is not supported yet"), { statusCode: 400 });
+    if (source === "opencode") {
+      try { await spawnOpenCodeSession(cwd, prompt, { model }); }
+      catch (e) { if (e instanceof OpenCodeCommandError) throw Object.assign(new Error(e.message), { statusCode: e.status }); throw e; }
+      return { started: true, source, cwd, model: model ?? null };
+    }
+    return wrap(() => { const r = runs.spawnNew(cwd, prompt, { ...overrides(cwd), ...(model ? { model } : {}) }); return { started: true, source, cwd, model: model ?? null, runId: r.runId }; });
+  });
+  /** The model ids the local OpenCode CLI can use, for pickers and per-project defaults. */
+  app.get("/api/opencode/models", async () => ({ models: await listOpenCodeModels() }));
   app.post<{ Body: { runId?: string } }>("/api/stop", async (req) => wrap(() => { runs.stop(str(req.body?.runId) ?? ""); return { ok: true }; }));
   app.get("/api/processes", async () => ({
     live: [...c.live.entries()].map(([session, i]) => ({ session, pid: i.pid, kind: i.kind, startedAt: i.startedAt, cwd: c.sessions.get(session)?.cwd, title: c.sessions.get(session)?.title })),
@@ -184,6 +223,7 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
       if (b[k] !== undefined) { if (typeof b[k] !== "number" || !Number.isFinite(b[k]) || b[k]! <= 0 || b[k]! > 100_000) throw bad(`${k} must be a positive number`); next[k] = b[k]!; }
     }
     if (b.runModel !== undefined) { if (typeof b.runModel !== "string" || (b.runModel !== "" && !/^[A-Za-z0-9][A-Za-z0-9._:\-\[\]]{0,79}$/.test(b.runModel))) throw bad("runModel must be empty or a model name"); next.runModel = b.runModel; }
+    if (b.opencodeModel !== undefined) { if (typeof b.opencodeModel !== "string" || (b.opencodeModel !== "" && !MODEL.test(b.opencodeModel))) throw bad("opencodeModel must be empty or provider/model"); next.opencodeModel = b.opencodeModel; }
     if (b.cleanEnv !== undefined) { if (typeof b.cleanEnv !== "boolean") throw bad("cleanEnv must be boolean"); next.cleanEnv = b.cleanEnv; }
     if (b.streamingMode !== undefined) { if (typeof b.streamingMode !== "boolean") throw bad("streamingMode must be boolean"); next.streamingMode = b.streamingMode; }
     Object.assign(c.cfg, next); saveJson("config.json", c.cfg); onChange(); return c.cfg;
@@ -194,8 +234,12 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     const strs = (a: unknown) => Array.isArray(a) && a.every((x) => typeof x === "string");
     for (const v of Object.values(b.merges ?? {})) if (!strs(v)) throw bad("merges must map to string arrays");
     for (const o of Object.values(b.overrides ?? {})) {
+      if (!o || typeof o !== "object") throw bad("team overrides must be objects");
       if (o.permissionMode === "bypassPermissions") throw bad("bypassPermissions is never allowed");
       if (o.allowedTools !== undefined && !strs(o.allowedTools)) throw bad("allowedTools must be string array");
+      if (o.model !== undefined && (typeof o.model !== "string" || !MODEL.test(o.model))) throw bad("team model must be provider/model or empty");
+      if (o.source !== undefined && !SOURCES.includes(o.source as AgentSource)) throw bad("team source must be claude, codex or opencode");
+      if (o.cwd !== undefined && (typeof o.cwd !== "string" || !isAbsolute(o.cwd))) throw bad("team cwd must be an absolute path");
     }
     c.teams.merges = b.merges ?? {}; c.teams.colors = b.colors ?? {}; c.teams.overrides = b.overrides ?? {};
     saveJson("teams.json", c.teams); onChange(); return c.teams;

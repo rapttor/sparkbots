@@ -17,6 +17,7 @@ afterEach(() => {
 describe("config", () => {
   it("returns defaults when file is missing", () => {
     expect(loadConfig().port).toBe(4317);
+    expect(loadConfig().opencodeModel).toBe("");
     expect(loadTeams().merges).toEqual({});
   });
   it("returns defaults when file is corrupt", () => {
