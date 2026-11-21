@@ -14,29 +14,29 @@ along with what we already have and check for possible problems, and do ask what
 
 most of the things here is cosmetic, and should not interfere agents work , this is mostly for visual effects and boredom 
 
-> Planning note (2026-11-21): decisions locked and tasks written as Phase 13 in `docs/TASKS.md`. `planned` below means "written, not started"; the link points at the epic. Duplicate kanban/dataroom sections were merged.
+> Planning note (2026-11-21, statuses updated after the hand-mode + performance session): decisions locked and tasks written as Phase 13 in `docs/TASKS.md`. `planned` = written, not started; `in progress` = partly done; `done` = shipped (number in the note is the task id). Duplicate kanban/dataroom sections were merged.
 
 # general instructions 
 
-[13.1 planned](docs/TASKS.md#131-player-camera-interaction) getting near agent, even not at the desk, utilizing click on him, or action: E you can also "call him" and invoke action menu...
+[13.1 in progress](docs/TASKS.md#131-player-camera-interaction) getting near agent, even not at the desk, utilizing click on him, or action: E you can also "call him" and invoke action menu... — clicking/menus use the live bot position; E/proximity still use the nearest desk (13.1.6).
 
 # zooming 
-- [13.1 planned](docs/TASKS.md#131-player-camera-interaction) zoom out should move camera slowly in top/view mode overview, 
-- [13.1 planned](docs/TASKS.md#131-player-camera-interaction) can zoom out until everything shown on screen: thats for now max zoom out...
+- [13.1 done](docs/TASKS.md#131-player-camera-interaction) zoom out should move camera slowly in top/view mode overview — the camera starts rising immediately on zoom-out and reaches the top view (13.1.16, 13.1.17, 13.1.19).
+- [13.1 done](docs/TASKS.md#131-player-camera-interaction) can zoom out until everything shown on screen: thats for now max zoom out — top-view band auto-centers on all areas + rooms and shows only the project titles (13.1.17, 13.1.18).
 
 # camera movement
 
-- [13.1 planned](docs/TASKS.md#131-player-camera-interaction) no camera position jumps anywhere: Go there, reset, saved/default view, walk/overview switch, warp, project focus, dock links and laptop close-up must fly smoothly; fast is fine, snapping is not.
-- [13.1 planned](docs/TASKS.md#131-player-camera-interaction) the 3D view is always mounted, so opening/closing panels must never reset or jump the camera.
+- [13.1 done](docs/TASKS.md#131-player-camera-interaction) no camera position jumps anywhere: Go there, reset, saved/default view, walk/overview switch, warp, project focus, dock links and laptop close-up must fly smoothly; fast is fine, snapping is not — one `flyTo` path, tests in `test/camera.test.ts` (13.1.10-13.1.13).
+- [13.1 done](docs/TASKS.md#131-player-camera-interaction) the 3D view is always mounted, so opening/closing panels must never reset or jump the camera — dock tabs keep the scene mounted with camera/zoom/position (13.1.14).
 
 # "our" look 
 
-- [13.1 planned](docs/TASKS.md#131-player-camera-interaction) we should be able to change our look - chose an character
-- [13.1 planned](docs/TASKS.md#131-player-camera-interaction) everything stays in same manner, pixelated, our own generic look/feel (decision: keep the current low-poly look, no pixelation pass)
-- [13.1 planned](docs/TASKS.md#131-player-camera-interaction) we should start in walk mode, near center/amenities.. 
-- [13.1 planned](docs/TASKS.md#131-player-camera-interaction) camera shuld be a bit further away, not too much, but as we wanna play the game and have overview of everything around...
-- [13.1 planned](docs/TASKS.md#131-player-camera-interaction) new action - allow to jump on space - seeing overview of map and selecting where to go
-- [13.1 planned](docs/TASKS.md#131-player-camera-interaction) initial;y lets set us as pixel raptor dinosaurus - in raptor #ce0 color.. (decision: low-poly raptor default, spark bot still selectable)
+- [13.1 done](docs/TASKS.md#131-player-camera-interaction) we should be able to change our look - chose an character — developer / raptor / spark picker + developer customisation in Settings (13.1.1, 13.1.2, 13.1.9).
+- [13.1 done](docs/TASKS.md#131-player-camera-interaction) everything stays in same manner, pixelated, our own generic look/feel (decision: keep the current low-poly look, no pixelation pass) — decision implemented; all avatars/bots are procedural low-poly.
+- [13.1 in progress](docs/TASKS.md#131-player-camera-interaction) we should start in walk mode, near center/amenities.. — starts in walk mode, but the first spawn is still at the campus edge (13.1.3).
+- [13.1 done](docs/TASKS.md#131-player-camera-interaction) camera shuld be a bit further away, not too much, but as we wanna play the game and have overview of everything around... — one continuous zoom with a default story angle and an overview at the far end (13.1.16).
+- [13.1 planned](docs/TASKS.md#131-player-camera-interaction) new action - allow to jump on space - seeing overview of map and selecting where to go — still open; the Map tab/zoom-out overview covers the same idea for now (13.1.5).
+- [13.1 in progress](docs/TASKS.md#131-player-camera-interaction) initial;y lets set us as pixel raptor dinosaurus - in raptor #ce0 color.. (decision: low-poly raptor default, spark bot still selectable) — raptor is built and selectable, but the current default is developer; changing the default is still open (13.1.1, 13.1.2).
 
 # other agents
 
@@ -80,6 +80,10 @@ most of the things here is cosmetic, and should not interfere agents work , this
 - [13.3 planned](docs/TASKS.md#133-board-and-backlog-track) backlog.md track can be toggled if someone doesn't like it
 - [13.3 planned](docs/TASKS.md#133-board-and-backlog-track) we create/use backlog.md to show big tasks in backlog tracks; backlog per project should use/offer to create backlog.md file like this, with similar instructions at top
 
+- i have added a /work/templates/template-backlog-v1_rapttor.md which sould be starting template for new kanban backlog per project, if there's nothing already present in the project - we could ask user to use "principles" from it in his backlog , if he has it... 
+
+ 
+
 # cubicles..
 
 [13.4 planned](docs/TASKS.md#134-cubicles-identity-caffeine-rate-limit) we talked about instead desks we have cubicles, for workers - 2 walls one for workers actually working now in shelves (moved from room corner/s) second wall for rewareds, items, pets, office iems robot will have/get as rewards, or during gameplays.. (decision: wrap the existing desks, keep the laptop/status screen)
@@ -111,15 +115,15 @@ oh, yes, drones...
 
 # desk/laptop 
 
-[13.1 planned](docs/TASKS.md#131-player-camera-interaction) in on agent click we need action: go to your desk.. actions should be open / not collapsed.
+[13.1 in progress](docs/TASKS.md#131-player-camera-interaction) in on agent click we need action: go to your desk.. actions should be open / not collapsed. — Talk opens the chat and the bot walks to its desk; the Actions section is still collapsed by default (13.1.7).
 
-[13.1 planned](docs/TASKS.md#131-player-camera-interaction) clicking on laptop screen is good, but camera should go in that possitoon from the current one, not jump far behind and then zoom in screen.
+[13.1 done](docs/TASKS.md#131-player-camera-interaction) clicking on laptop screen is good, but camera should go in that possitoon from the current one, not jump far behind and then zoom in screen. — the close-up flies from the current pose and back (13.1.8, 13.1.11).
 
-[13.1 planned](docs/TASKS.md#131-player-camera-interaction) when in this look, you should be positioned aside agent/pair programming :D 
+[13.1 planned](docs/TASKS.md#131-player-camera-interaction) when in this look, you should be positioned aside agent/pair programming :D — close-up is in front of the laptop; a spot beside the agent is still open (13.1.8). 
 
 # agents, general
 
-[13.1 planned](docs/TASKS.md#131-player-camera-interaction) clicking on agent should show his project, given name/ session name... as like this meeting a agent in hallaway, i dont know what project he is on... 
+[13.1 in progress](docs/TASKS.md#131-player-camera-interaction) clicking on agent should show his project, given name/ session name... as like this meeting a agent in hallaway, i dont know what project he is on... — the menu shows the given name, title and cwd; the project/team line is still missing (13.1.7). 
 
 [13.4 planned](docs/TASKS.md#134-cubicles-identity-caffeine-rate-limit) if project have a color, internal one, agent should carry hat with thaat color. 
 

@@ -11,7 +11,7 @@ export function FollowBar() {
     <div className="follow-bar">
       <span>👥 {n} following you</span>
       <button className="small" onClick={() => setMeetingOpen(!meetingOpen)}>{meetingOpen ? "Hide meeting chat" : "💬 Meeting chat"}</button>
-      <button className="small" onClick={clear} title="Send everyone back to what they were doing (X)">Dismiss</button>
+      <button className="small" onClick={clear} title="Meeting over: release everyone and send them back to what they were doing (X)">Release all</button>
     </div>
   );
 }

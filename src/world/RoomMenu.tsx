@@ -18,6 +18,8 @@ export function RoomMenu({ item, workers, everyone, x, y, scene, onGo, onClose }
 }) {
   const setFollowers = useStore((s) => s.setFollowers);
   const setMeetingOpen = useStore((s) => s.setMeetingOpen);
+  const followers = useStore((s) => s.followers);
+  const clearFollowers = useStore((s) => s.clearFollowers);
   const [info, setInfo] = useState(false);
   const [note, setNote] = useState("");
   const [runs, setRuns] = useState<RunRecord[]>([]);
@@ -62,6 +64,7 @@ export function RoomMenu({ item, workers, everyone, x, y, scene, onGo, onClose }
     <div className="agent-menu" ref={ref} style={{ left: x, top: y }} onWheel={(e) => e.stopPropagation()}>
       <header className="am-head"><strong>{item.name}</strong><span className="muted small">{project ? `${workers.length} agents` : "room"}</span><button className="icon-btn" aria-label="Close" onClick={onClose}>×</button></header>
       {item2("📍 Go there", () => { onGo(); onClose(); })}
+      {followers.length > 0 && item2(`🚪 Release the meeting (${followers.length})`, () => { clearFollowers(); onClose(); })}
       {project && <ProjectActions name={item.name} workers={workers} onDone={onClose} />}
       {!project && item.poiId && item2(`📍 Send idle agents here`, () => {
         const go = everyone.filter((w) => w.state === "idle" || w.state === "asleep").slice(0, MAX);

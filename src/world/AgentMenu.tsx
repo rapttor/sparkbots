@@ -14,7 +14,7 @@ import { requestCoffee } from "./servicebots";
 export interface SceneApi {
   talk: () => void;
   act: (key: string, workerId?: string) => void;
-  look: (id: string, state: WorkerState | null, sit?: boolean) => void;
+  look: (id: string, state: WorkerState | null, sit?: boolean, ms?: number) => void;
   archive: (id: string, done: () => void) => void;
   sendTo: (id: string, poiId: string) => void;
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Billboard } from "@react-three/drei";
-import { CanvasTexture, PlaneGeometry, SRGBColorSpace, type Group } from "three";
+import { CanvasTexture, PlaneGeometry, SRGBColorSpace, Vector3, type Group, type MeshBasicMaterial } from "three";
 import type { Worker } from "../../server/adapters/types";
 import { useStore } from "../state/store";
 import type { Layout } from "./layout";
@@ -15,6 +15,7 @@ const LINES = 6; // up to six lines of the message; the full text is one click a
 const W = 2.6, H = 1.8;
 const CW = 520, CH = 360;
 const TYPE_CHARS_PER_SEC = 42;
+const READ_NEAR = 45, READ_FAR = 65; // bubbles fade out once they are too far to read
 
 const LABEL: Record<string, string> = { waiting: "NEEDS YOU", done: "FINISHED", error: "ERROR", working: "UPDATE", idle: "MESSAGE", asleep: "MESSAGE" };
 
@@ -45,15 +46,23 @@ export function drawBubble(ctx: CanvasRenderingContext2D, w: Worker): number {
   const bh = 76 + Math.max(1, lines.length) * 32 + 14; // header + text + padding
   const top = CH - 48 - bh;
   ctx.translate(0, top);                                // bottom-align: tip of the tail always at the canvas bottom
-  ctx.fillStyle = "#0e1424"; ctx.strokeStyle = accent; ctx.lineWidth = 8;
-  ctx.beginPath();
-  ctx.roundRect(4, 4, bw, bh, r);
-  ctx.fill(); ctx.stroke();
+  // A see-through "forcefield" in the bubble's status color, with a dim window inside so the text stays readable.
+  ctx.fillStyle = accent; ctx.globalAlpha = 0.26;
+  ctx.beginPath(); ctx.roundRect(4, 4, bw, bh, r); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "rgba(12,18,32,0.76)";
+  ctx.beginPath(); ctx.roundRect(12, 12, bw - 16, bh - 16, Math.max(6, r - 6)); ctx.fill();
+  ctx.strokeStyle = accent; ctx.lineWidth = 8;
+  ctx.beginPath(); ctx.roundRect(4, 4, bw, bh, r); ctx.stroke();
   const tip = bh + 44;
-  ctx.beginPath(); ctx.moveTo(CW / 2 - 26, bh); ctx.lineTo(CW / 2, tip); ctx.lineTo(CW / 2 + 26, bh);
-  ctx.fillStyle = "#0e1424"; ctx.fill();
+  ctx.fillStyle = accent; ctx.globalAlpha = 0.26;
+  ctx.beginPath(); ctx.moveTo(CW / 2 - 26, bh); ctx.lineTo(CW / 2, tip); ctx.lineTo(CW / 2 + 26, bh); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "rgba(12,18,32,0.76)";
+  ctx.beginPath(); ctx.moveTo(CW / 2 - 19, bh); ctx.lineTo(CW / 2, tip - 7); ctx.lineTo(CW / 2 + 19, bh); ctx.fill();
+  ctx.strokeStyle = accent; ctx.lineWidth = 6;
   ctx.beginPath(); ctx.moveTo(CW / 2 - 26, bh + 2); ctx.lineTo(CW / 2, tip); ctx.lineTo(CW / 2 + 26, bh + 2); ctx.stroke();
-  ctx.fillStyle = "#0e1424"; ctx.fillRect(CW / 2 - 24, bh - 6, 48, 10);
+  ctx.fillStyle = "rgba(12,18,32,0.76)"; ctx.fillRect(CW / 2 - 24, bh - 6, 48, 10);
 
   ctx.fillStyle = accent; ctx.font = "bold 24px system-ui, sans-serif"; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
   ctx.beginPath(); ctx.arc(40, 44, 9, 0, Math.PI * 2); ctx.fill();
@@ -76,6 +85,7 @@ export function SpeechBubbles({ layout, getPos }: { layout: Layout; getPos: (id:
   const slots = useRef<{ ctx: CanvasRenderingContext2D; tex: CanvasTexture; id: string; full: string; reveal: number; drawn: number; closeY: number; worker: Worker | null }[]>([]);
   const dismissed = useRef(new Map<string, number>()); // visual-only: worker id -> dismissed message timestamp
   const groups = useRef<(Group | null)[]>([]);
+  const mats = useRef<(MeshBasicMaterial | null)[]>([]);
   const last = useRef(0);
 
   if (slots.current.length === 0 && typeof document !== "undefined") {
@@ -122,12 +132,28 @@ export function SpeechBubbles({ layout, getPos }: { layout: Layout; getPos: (id:
       }
     }
     const t = state.clock.elapsedTime;
+    const cam = state.camera;
+    const anchor = new Vector3();
     slots.current.forEach((s, k) => {
       const g = groups.current[k];
       if (!g) return;
       const p = s.id ? getPos(s.id) : undefined;
       g.visible = !!p;
-      if (p) g.position.set(p.x, 2.6 + Math.sin(t * 2 + k) * 0.06, p.z);
+      if (p) {
+        g.position.set(p.x, 2.6 + Math.sin(t * 2 + k) * 0.06, p.z);
+        const dist = cam.position.distanceTo(anchor.copy(g.position));
+        // Keep roughly the same on-screen size a bit further away, so you can still read a bubble without walking up to it.
+        const scale = Math.min(3.2, Math.max(1, dist / 16));
+        g.scale.setScalar(scale);
+        g.position.y += (H / 2) * (scale - 1); // grow upward so the tail stays over the bot
+        // Past the point where growing can keep the text readable, fade the bubble away instead of shrinking it to a speck.
+        const fade = Math.max(0, Math.min(1, (READ_FAR - dist) / (READ_FAR - READ_NEAR)));
+        const mat = mats.current[k];
+        if (mat) mat.opacity = fade;
+        g.visible = fade > 0.02;
+      } else {
+        g.visible = false;
+      }
     });
   });
 
@@ -147,7 +173,7 @@ export function SpeechBubbles({ layout, getPos }: { layout: Layout; getPos: (id:
               }
               openChat(s.id);
             }}>
-              <meshBasicMaterial map={s.tex} transparent depthTest={false} depthWrite={false} toneMapped={false} />
+              <meshBasicMaterial ref={(m) => { mats.current[k] = m; }} map={s.tex} transparent depthTest={false} depthWrite={false} toneMapped={false} />
             </mesh>
           </Billboard>
         </group>

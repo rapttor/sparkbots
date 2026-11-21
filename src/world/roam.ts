@@ -36,6 +36,36 @@ export const player: { x: number; z: number; on: boolean; hx: number; hz: number
 const SEP = 0.8;        // bots keep at least this far apart
 const PLAYER_SEP = 0.95;
 
+// ---- neighbour lookup -------------------------------------------------------------------------------------------------
+// With hundreds of bots, checking every other bot for every step is O(n²) and stalls the frame. They all live in a uniform
+// grid that is rebuilt once per simulated frame; queries only touch the cells around the point.
+const CELL = 2; // one cell covers SEP / PLAYER_SEP / LOOK_AHEAD inside a 3x3 query
+const cellKey = (cx: number, cz: number) => (cx + 32768) * 65536 + (cz + 32768);
+const grid = new Map<number, Roam[]>();
+let gridReady = false;
+
+/** Rebuild the position grid. Call once before stepping the bots in a frame. */
+export function rebuildRoamGrid(): void {
+  grid.clear();
+  for (const o of roams.values()) {
+    const k = cellKey(Math.floor(o.x / CELL), Math.floor(o.z / CELL));
+    const cell = grid.get(k);
+    if (cell) cell.push(o); else grid.set(k, [o]);
+  }
+  gridReady = true;
+}
+
+/** Visit the bots near (x, z) within radius. Falls back to every bot before the first grid build. */
+function forEachNear(x: number, z: number, radius: number, cb: (o: Roam) => void): void {
+  if (!gridReady) { for (const o of roams.values()) cb(o); return; }
+  const span = Math.ceil(radius / CELL);
+  const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
+  for (let dz = -span; dz <= span; dz++) for (let dx = -span; dx <= span; dx++) {
+    const cell = grid.get(cellKey(cx + dx, cz + dz));
+    if (cell) for (const o of cell) cb(o);
+  }
+}
+
 /**
  * Keeps bots from walking through each other (and through the manager). Wanderers always step aside; a bot that is
  * on its way somewhere steps aside for anyone who is not a wanderer; bots sitting at their desks or lying in bed never move.
@@ -52,20 +82,21 @@ export function separate(id: string, r: Roam): void {
     const k = ((min - d) * share) / Math.max(d, 1e-3);
     r.x += dx * k; r.z += dz * k;
   };
-  for (const [oid, o] of roams) {
-    if (oid === id) continue;
-    if (r.mode !== "wander" && o.mode === "wander") continue; // the wanderer yields to us
+  const self = roams.get(id);
+  forEachNear(r.x, r.z, SEP, (o) => {
+    if (o === self) return;
+    if (r.mode !== "wander" && o.mode === "wander") return; // the wanderer yields to us
     push(o.x, o.z, SEP, o.moving && (o.mode === "wander" || r.mode === "wander") ? 0.5 : 1);
-  }
+  });
   if (player.on) push(player.x, player.z, PLAYER_SEP, 1);
 }
 
 /** Pushes the manager out of any bot it overlaps (returns the corrected position). */
 export function pushPlayerOut(p: { x: number; z: number }): void {
-  for (const o of roams.values()) {
+  forEachNear(p.x, p.z, 0.7, (o) => {
     const dx = p.x - o.x, dz = p.z - o.z, d = Math.hypot(dx, dz);
     if (d < 0.7 && d > 1e-3) { const k = (0.7 - d) / d; p.x += dx * k; p.z += dz * k; }
-  }
+  });
 }
 
 
@@ -186,11 +217,13 @@ const isOdd = (id: string) => { let h = 0; for (let i = 0; i < id.length; i++) h
  */
 export function occupiedAt(id: string, x: number, z: number, radius: number): boolean {
   if (player.on && Math.hypot(player.x - x, player.z - z) < radius) return true;
-  for (const [oid, o] of roams) {
-    if (oid === id || o.mode === "wander") continue;
-    if (Math.hypot(o.x - x, o.z - z) < radius) return true;
-  }
-  return false;
+  const self = roams.get(id);
+  let found = false;
+  forEachNear(x, z, radius, (o) => {
+    if (found || o === self || o.mode === "wander") return;
+    if (Math.hypot(o.x - x, o.z - z) < radius) found = true;
+  });
+  return found;
 }
 
 /**
@@ -209,7 +242,8 @@ export function steerAround(id: string, r: { x: number; z: number }, ux: number,
     sx += -uz * side * w; sz += ux * side * w;
   };
   if (player.on) consider(player.x, player.z);
-  for (const [oid, o] of roams) if (oid !== id) consider(o.x, o.z);
+  const self = roams.get(id);
+  forEachNear(r.x, r.z, LOOK_AHEAD, (o) => { if (o !== self) consider(o.x, o.z); });
   if (sx === 0 && sz === 0) return [ux, uz];
   const nx = ux + sx, nz = uz + sz, len = Math.hypot(nx, nz) || 1;
   return [nx / len, nz / len];

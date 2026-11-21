@@ -4,10 +4,11 @@ import type { TeamArea } from "./layout";
 
 /** A floating title: a project or a room/leisure area. Click = go there. */
 export interface LabelItem { id: string; name: string; x: number; z: number; y: number; color: string; kind: "project" | "room"; area: TeamArea; poiId?: string }
-export interface LabelsApi { update: (camera: Camera, width: number, height: number) => void }
+export interface LabelsApi { update: (camera: Camera, width: number, height: number, zoom?: number) => void }
 
 const v = new Vector3();
-const LINE = 24; // how far a label is lifted when another one is in its way
+const LINE = 24;
+const ZOOM_HIDE = 0.34, ZOOM_SHOW = 0.58; // titles stay out of the way up close and arrive as you zoom out // how far a label is lifted when another one is in its way
 
 /**
  * Titles floating above the projects and rooms, drawn as HTML so they are crisp and clickable at any distance. Every frame
@@ -21,7 +22,8 @@ export function Labels({ items, onPick, apiRef }: { items: LabelItem[]; onPick: 
 
   useEffect(() => {
     apiRef.current = {
-      update: (camera, width, height) => {
+      update: (camera, width, height, zoom = 1) => {
+        const zoomFade = Math.max(0, Math.min(1, (zoom - ZOOM_HIDE) / (ZOOM_SHOW - ZOOM_HIDE)));
         const vis: { i: number; sx: number; sy: number; depth: number }[] = [];
         items.forEach((it, i) => {
           const el = els.current[i];
@@ -48,7 +50,7 @@ export function Labels({ items, onPick, apiRef }: { items: LabelItem[]; onPick: 
           // Fade far away, but also fade + lift when you are right up close so the title does not fill the view.
           const far = p.depth <= 55 ? 1 : Math.max(0.28, 1 - (p.depth - 55) / 90); // distant titles fade, but never vanish
           const near = Math.max(0, Math.min(1, (p.depth - 6) / 12)); // 0 very close .. 1 from ~18 units out
-          const opacity = near * far;
+          const opacity = near * far * zoomFade;
           const lift = (1 - near) * 22; // slide up as you approach
           el.style.transform = `translate(${Math.round(p.sx - w / 2)}px, ${Math.round(y - h - lift)}px)`;
           el.style.opacity = String(opacity);

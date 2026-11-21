@@ -13,6 +13,7 @@ type Status = { text: string; err?: boolean };
 export function MeetingChat({ onClose }: { onClose: () => void }) {
   const snapshot = useStore((s) => s.snapshot);
   const followers = useStore((s) => s.followers);
+  const release = useStore((s) => s.clearFollowers);
   const all = snapshot?.teams.flatMap((t) => t.workers) ?? [];
   const people = followers.map((id) => all.find((w) => w.id === id)).filter((w): w is NonNullable<typeof w> => !!w);
   const [text, setText] = useState("");
@@ -50,7 +51,8 @@ export function MeetingChat({ onClose }: { onClose: () => void }) {
     <div className="wc-root meeting" onWheel={(e) => e.stopPropagation()}>
       <header className="wc-head">
         <strong style={{ flex: 1 }}>💬 Meeting · {people.length} agent{people.length === 1 ? "" : "s"}</strong>
-        <button className="icon-btn" aria-label="Close" onClick={onClose}>×</button>
+        {people.length > 0 && <button className="small" onClick={release} title="End the meeting and send everyone back to their work (X)">Release all</button>}
+        <button className="icon-btn" aria-label="Hide the meeting chat" title="Hide the chat; the agents keep following you until you release them" onClick={onClose}>×</button>
       </header>
       <div className="wc-body">
         {people.length === 0 && <p className="wc-empty">Nobody is following you. Shift+click agents or press F next to one.</p>}
@@ -69,7 +71,10 @@ export function MeetingChat({ onClose }: { onClose: () => void }) {
         <div className="wc-input">
           <textarea rows={2} value={text} placeholder="One message for everyone in the meeting" aria-label="Meeting message"
             onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }} onKeyUp={(e) => e.stopPropagation()} />
-          <div className="wc-btns"><button disabled={busy || !text.trim() || !people.length || tooMany} onClick={() => void send()}>Send to all</button></div>
+          <div className="wc-btns">
+            <button disabled={busy || !text.trim() || !people.length || tooMany} onClick={() => void send()}>Send to all</button>
+            <button className="small" onClick={release} title="Meeting over: release every agent (X)">End meeting</button>
+          </div>
         </div>
       </footer>
     </div>

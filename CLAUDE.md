@@ -13,7 +13,7 @@ A local, browser-based 3D "company" where every Claude Code session is a worker,
 - **No `--dangerously-skip-permissions`, ever.** Nothing the office spawns may bypass Claude Code permissions. This is a hard rule, not a default.
 - **Undocumented formats get `[VERIFY]`.** Claude Code's on-disk formats (`~/.claude/sessions/`, JSONL record shapes) are not a public API. Every parser is defensive: unknown fields are ignored, unparseable lines are skipped and counted, and nothing crashes the server.
 - **Original mascot only.** Workers are an original low-poly "spark bot" design. No Claude/Anthropic logo, wordmark or likeness anywhere in the repo, assets or screenshots (trademark; required for open source).
-- **Scope discipline.** Phases 1-5 are done; later work is tracked in `docs/TASKS.md` (phases 7-11).
+- **Scope discipline.** Work is tracked in `docs/TASKS.md`: phases 1-9 and 11 are done, 10.6 and parts of 12 are open, and Phase 13 (backlog) is in progress (13.0 not started; 13.1 mostly done). Keep the task list updated when work is planned or finished.
 
 ---
 

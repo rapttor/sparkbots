@@ -216,14 +216,17 @@ export function poseBot(m: Meshes, i: number, d: DeskSlot, t: number, animate: b
   grp.rotation.set(r.lying ? 0 : lean, r.ry + spin, r.lying ? Math.PI / 2 : sway);
   grp.updateMatrix();
   const codex = d.worker.source === "codex";
-  put(m.body, i, 0, 0, 0, 0, codex ? 0 : 1);
-  put(m.codexHead, i, 0, 0.14, 0, 0, codex ? 1 : 0);
-  put(m.codexBody, i, 0, -0.22, 0, 0, codex ? 1 : 0);
+  if (codex) {
+    put(m.codexHead, i, 0, 0.14, 0, 0, 1);
+    put(m.codexBody, i, 0, -0.22, 0, 0, 1);
+    put(m.codexVisor, i, 0, 0.14, -0.306, 0, 1);
+    put(m.codexEyes, i, 0, 0.14, -0.332, 0, 1);
+  } else {
+    put(m.body, i, 0, 0, 0, 0, 1);
+    put(m.visor, i, 0, 0.07, -0.255, 0, 1);
+  }
   put(m.legA, i, 0, -0.29, 0, 0, 1, swing);
   put(m.legB, i, 0, -0.29, 0, 0, 1, -swing);
-  put(m.visor, i, 0, 0.07, -0.255, 0, codex ? 0 : 1);
-  put(m.codexVisor, i, 0, 0.14, -0.306, 0, codex ? 1 : 0);
-  put(m.codexEyes, i, 0, 0.14, -0.332, 0, codex ? 1 : 0);
   put(m.antenna, i, 0, -0.07, 0, wave);
   putWorld(m.beacon, i, c.x, 1.9, c.z, beacon);
 }

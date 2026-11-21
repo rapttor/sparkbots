@@ -24,7 +24,7 @@ import { applyFilters } from "../panels/teamFilters";
 import { MAX_DESKS, computeLayout, visibleTeams, type Layout, type TeamArea } from "./layout";
 import { nav, Flow, buildNav } from "./nav";
 import { ZonesLayer } from "./zonelayer";
-import { lunchAll, wakeAll, followerList, insideRoom, meeting, MAX_SEATS, setFollowers, startErrand, setPois } from "./roam";
+import { lunchAll, followerList, insideRoom, meeting, MAX_SEATS, setFollowers, startErrand, setPois, rebuildRoamGrid } from "./roam";
 import { roams, setLook, clearLook, player as playerState, pushPlayerOut } from "./roam";
 import { ACTIONS } from "./actions";
 import { Minibots } from "./minibots";
@@ -58,6 +58,7 @@ const HAND_DIST = 16; // kept for the hand's world-per-pixel speed; zoom uses th
 // At the far end of the zoom the camera is near top-down and the room slabs z-fight at that distance. From here on,
 // hide the 3D world and leave only the project titles (stacked as usual) so picking a project is calm and reliable.
 const OVERVIEW_ZOOM = 0.8, OVERVIEW_EXIT = 0.76; // hysteresis so scrolling around the threshold does not strobe
+const SIM_STEP = 1 / 30; // bots and their matrices are ticked at ~30 Hz, not once per (possibly 120 Hz) render
 
 interface JumpReq { area: TeamArea; n: number }
 
@@ -87,6 +88,9 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   }, [layout, boxes]);
   useEffect(() => { setFollowers(useStore.getState().followers); return useStore.subscribe((s) => setFollowers(s.followers)); }, []);
   const animatedRef = useRef<number[]>([]);
+  const simAccum = useRef(0); // seconds since the last bot tick (see SIM_STEP)
+  const bossTimer = useRef(5); // seconds until the next "boss is coming" few nearby sleepers wake up
+  const bossAt = useRef(new Vector3(0, 0, 0));
   const meshesRef = useRef<Meshes | null>(null);
   const refs = {
     desk: useRef<InstancedMesh>(null), ring: useRef<InstancedMesh>(null), body: useRef<InstancedMesh>(null),
@@ -289,7 +293,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     if (zoomT.current >= OVERVIEW_ZOOM) zoomT.current = 0.6; // picking a project from the top view dives back into the office
     if (modeRef.current === "walk") {
       const next = new Vector3(area.x, 0, area.z + area.d / 2 + 1.5);
-      if (controllerRef.current === "hand") { handPos.current.copy(next); handPos.current.y = 0; clampHand(); const pose = officePose(next, 0.5); flyTo(pose.cam, pose.target); return; }
+      if (controllerRef.current === "hand") { handPos.current.copy(next); handPos.current.y = 0; clampHand(); camFocus.current.copy(handPos.current); clampFocus(); const pose = officePose(next, 0.5); flyTo(pose.cam, pose.target); return; }
       dest.current = null;
       const pose = officePose(next, avatarRef.current.focusY);
       flyTo(pose.cam, pose.target, { done: () => pos.current.copy(next) });
@@ -371,7 +375,11 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gl, camera]);
   useEffect(() => {
-    if (ctl.reset > 0) { zoomT.current = DEFAULT_ZOOM_T; yaw.current = 0; } // "behind you" at the default zoom
+    if (ctl.reset > 0) { // "behind it" at the default zoom: centre on the hand, or look along the avatar's back
+      zoomT.current = DEFAULT_ZOOM_T;
+      if (controllerRef.current === "hand") { camFocus.current.copy(handPos.current); clampFocus(); yaw.current = 0; }
+      else yaw.current = player.current?.rotation.y ?? 0;
+    }
   }, [ctl.reset]);
 
   // Save / restore the current zoom (kept in this browser).
@@ -392,12 +400,18 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       walk: { zoom: zoomT.current, yaw: yaw.current, pitch: 0 },
     });
   }, [ctl.saveView, camera]);
-  useEffect(() => { if (ctl.clearView) { clearView(); zoomT.current = DEFAULT_ZOOM_T; yaw.current = 0; } }, [ctl.clearView]);
+  useEffect(() => {
+    if (!ctl.clearView) return;
+    clearView();
+    zoomT.current = DEFAULT_ZOOM_T;
+    if (controllerRef.current === "hand") { camFocus.current.copy(handPos.current); clampFocus(); yaw.current = 0; }
+    else yaw.current = player.current?.rotation.y ?? 0;
+  }, [ctl.clearView]);
   useEffect(() => {
     const w = ctl.warp;
     if (!w) return;
     const next = new Vector3(w.x, 0, w.z);
-    if (controllerRef.current === "hand") { handPos.current.copy(next); clampHand(); const pose = officePose(next, 0.5); flyTo(pose.cam, pose.target); return; }
+    if (controllerRef.current === "hand") { handPos.current.copy(next); clampHand(); camFocus.current.copy(handPos.current); clampFocus(); const pose = officePose(next, 0.5); flyTo(pose.cam, pose.target); return; }
     dest.current = null;
     const pose = officePose(next, avatarRef.current.focusY);
     flyTo(pose.cam, pose.target, { done: () => pos.current.copy(next) });
@@ -420,7 +434,20 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   // Sleepers and parked robots are skipped by the frame loop; anything that needs them to move (an action, an errand, following) adds them back.
   const ensureAnimated = (id: string) => {
     const i = layoutRef.current.desks.findIndex((d) => d.worker.id === id);
-    if (i >= 0 && !animatedRef.current.includes(i)) animatedRef.current = [...animatedRef.current, i];
+    if (i >= 0 && !animatedRef.current.includes(i)) animatedRef.current.push(i);
+  };
+  /** Boss is coming: wake a random few sleepers near the manager so they hop to their desk and look busy, then sleep again. */
+  const wakeNearbySleepers = (count: number, radius: number) => {
+    const p = pos.current;
+    const pool = layoutRef.current.desks
+      .filter((d) => d.worker.state === "asleep")
+      .map((d) => ({ d, dist: Math.hypot(d.x - p.x, d.z - p.z) }))
+      .filter((x) => x.dist <= radius);
+    for (let k = pool.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [pool[k], pool[j]] = [pool[j]!, pool[k]!]; }
+    for (const { d } of pool.slice(0, count)) {
+      setLook(d.worker.id, "working", false, 18_000 + Math.random() * 30_000);
+      ensureAnimated(d.worker.id);
+    }
   };
   useEffect(() => { // followers are always animated
     const wake = () => useStore.getState().followers.forEach(ensureAnimated);
@@ -449,9 +476,9 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       archive: (id, done) => {
         // walk to the data room to file itself away; without one the archive happens at once
         if (!startErrand(id, "data-room:console", done)) done();
-        else { const i = layoutRef.current.desks.findIndex((d) => d.worker.id === id); if (i >= 0 && !animatedRef.current.includes(i)) animatedRef.current = [...animatedRef.current, i]; }
+        else { const i = layoutRef.current.desks.findIndex((d) => d.worker.id === id); if (i >= 0 && !animatedRef.current.includes(i)) animatedRef.current.push(i); }
       },
-      look: (id, state, sit) => { if (state) { setLook(id, state, !!sit); animate(id); } else clearLook(id); },
+      look: (id, state, sit, ms) => { if (state) { setLook(id, state, !!sit, ms); animate(id); } else clearLook(id); },
     };
     return () => { ctl.api.current = null; };
   }, [ctl.api]);
@@ -490,7 +517,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       yaw.current *= Math.exp(-5 * dt);
       if (Math.abs(yaw.current) < 0.002) { yaw.current = 0; aligning.current = false; }
     }
-    ctl.labels.current?.update(camera, gl.domElement.clientWidth, gl.domElement.clientHeight); // floating titles follow the camera
+    ctl.labels.current?.update(camera, gl.domElement.clientWidth, gl.domElement.clientHeight, zoomT.current); // floating titles follow the camera
     if (!readyOnce.current) { readyOnce.current = true; ctl.onReady(); }
     sampleFrame(dt, state.clock.elapsedTime, gl.info);
     nerd.bots = roams.size;
@@ -498,6 +525,15 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     const mvx = pos.current.x - playerState.x, mvz = pos.current.z - playerState.z, mv = Math.hypot(mvx, mvz);
     if (mv > 0.002) { playerState.hx = mvx / mv; playerState.hz = mvz / mv; playerState.still = 0; } else playerState.still += dt; // followers trail, then huddle
     playerState.on = modeRef.current === "walk"; playerState.x = pos.current.x; playerState.z = pos.current.z;
+    if (modeRef.current === "walk" && !labelsOnly && !frozen.current) {
+      bossTimer.current -= dt;
+      const moved = Math.hypot(pos.current.x - bossAt.current.x, pos.current.z - bossAt.current.z);
+      if (bossTimer.current <= 0 && moved > 1.2) { // you walked somewhere: a couple of nearby sleepers suddenly look busy
+        bossTimer.current = 6 + Math.random() * 7;
+        bossAt.current.copy(pos.current);
+        wakeNearbySleepers(1 + Math.floor(Math.random() * 3), 20);
+      }
+    }
     meeting.count = meeting.room && followerList().length && insideRoom(meeting.room, pos.current.x, pos.current.z) ? Math.min(followerList().length, MAX_SEATS) : 0;
     if (modeRef.current === "walk") { ctl.view.current.x = pos.current.x; ctl.view.current.z = pos.current.z; }
     else if (controls.current) { ctl.view.current.x = controls.current.target.x; ctl.view.current.z = controls.current.target.z; }
@@ -517,23 +553,37 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     }
     const m = meshesRef.current;
     const anim = animatedRef.current;
-    if (m && anim.length > 0) {
-      const t = state.clock.elapsedTime;
-      const desks = layoutRef.current.desks;
-      for (let k = 0; k < anim.length; k++) {
-        const d = desks[anim[k]]!;
-        poseBot(m, anim[k], d, t, true, stepRoam(d, Math.min(dt, 0.1), modeOf(d, fetchedRef.current)));
+    if (m && anim.length > 0 && !labelsOnly) {
+      simAccum.current = Math.min(0.25, simAccum.current + dt);
+      if (simAccum.current >= SIM_STEP) {
+        const step = Math.min(simAccum.current, 0.1);
+        simAccum.current = 0;
+        rebuildRoamGrid(); // one grid for all the neighbour checks in this tick
+        const t = state.clock.elapsedTime;
+        const desks = layoutRef.current.desks;
+        const stillActive: number[] = [];
+        for (let k = 0; k < anim.length; k++) {
+          const d = desks[anim[k]]!;
+          const mode = modeOf(d, fetchedRef.current);
+          const r = stepRoam(d, step, mode);
+          poseBot(m, anim[k], d, t, true, r);
+          // Back asleep and lying still: drop it from the loop so a one-off wake does not cost frames forever.
+          if (!(mode === "sleep" && r.lying && !r.moving)) stillActive.push(anim[k]!);
+        }
+        animatedRef.current = stillActive;
+        m.body.instanceMatrix.needsUpdate = true;
+        m.codexHead.instanceMatrix.needsUpdate = true;
+        m.codexBody.instanceMatrix.needsUpdate = true;
+        m.codexVisor.instanceMatrix.needsUpdate = true;
+        m.codexEyes.instanceMatrix.needsUpdate = true;
+        m.visor.instanceMatrix.needsUpdate = true;
+        m.antenna.instanceMatrix.needsUpdate = true;
+        m.legA.instanceMatrix.needsUpdate = true;
+        m.legB.instanceMatrix.needsUpdate = true;
+        m.beacon.instanceMatrix.needsUpdate = true;
       }
-      m.body.instanceMatrix.needsUpdate = true;
-      m.codexHead.instanceMatrix.needsUpdate = true;
-      m.codexBody.instanceMatrix.needsUpdate = true;
-      m.codexVisor.instanceMatrix.needsUpdate = true;
-      m.codexEyes.instanceMatrix.needsUpdate = true;
-      m.visor.instanceMatrix.needsUpdate = true;
-      m.antenna.instanceMatrix.needsUpdate = true;
-      m.legA.instanceMatrix.needsUpdate = true;
-      m.legB.instanceMatrix.needsUpdate = true;
-      m.beacon.instanceMatrix.needsUpdate = true;
+    } else {
+      simAccum.current = 0;
     }
 
     if (modeRef.current !== "walk") {
@@ -925,7 +975,22 @@ export default function World({ active = true }: { active?: boolean }) {
   const ids = (pred: (w: BotWorker) => boolean) => layout.desks.filter((d) => pred(d.worker)).map((d) => d.worker.id);
   const rallying = useStore((st) => st.followers.length > 0 && st.followers.every((f) => layout.desks.find((d) => d.worker.id === f)?.worker.state === "waiting"));
   const rally = () => { if (rallying) clearFollowers(); else useStore.getState().setFollowers(ids((w) => w.state === "waiting")); };
-  const wakeEveryone = () => { const a = ids((w) => w.state === "asleep"); wakeAll(a); a.forEach((id) => sceneApi.current?.look(id, "idle")); };
+  // "Boss is coming": a random few sleepers near you jump up and look busy (not the whole office — that was expensive and
+  // short-lived, and 400 robots all moving at once is what made the machine hang).
+  const bossComing = () => {
+    const px = view.current.x, pz = view.current.z;
+    const asleep = layout.desks.filter((d) => d.worker.state === "asleep");
+    const near = asleep
+      .map((d) => ({ d, dist: Math.hypot(d.x - px, d.z - pz) }))
+      .filter((x) => x.dist <= 22)
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 12);
+    const pool = near.length ? near : asleep.map((d) => ({ d, dist: 0 }));
+    for (let k = pool.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [pool[k], pool[j]] = [pool[j]!, pool[k]!]; }
+    for (const { d } of pool.slice(0, 2 + Math.floor(Math.random() * 4))) {
+      sceneApi.current?.look(d.worker.id, "working", false, 18_000 + Math.random() * 30_000);
+    }
+  };
   const lunch = () => { lunchAll(ids((w) => w.state === "idle")); };
   const orderCoffee = () => { requestCoffee(MANAGER_ID); };
   // In hand mode E on empty space opens a small menu AND brings the mouse back, so you can reach the sidebar/header.
@@ -934,7 +999,7 @@ export default function World({ active = true }: { active?: boolean }) {
     const p = lastPtr.current ?? { x: w / 2, y: h / 2 };
     setHandMenu({ x: Math.max(8, Math.min(p.x, w - 258)), y: Math.max(8, Math.min(p.y, h - 260)) });
   };
-  const hotkeys = { e: () => { if (nearby) sceneApi.current?.talk(); else if (controller === "hand") openHandMenu(); }, o: orderCoffee, r: rally, u: wakeEveryone, i: lunch, x: clearFollowers, q: () => setMeetingOpen(!meetingOpen), c: resetView, m: openMap, l: toggleLock, t: toggleTags, "0": resetView };
+  const hotkeys = { e: () => { if (nearby) sceneApi.current?.talk(); else if (controller === "hand") openHandMenu(); }, o: orderCoffee, r: rally, u: bossComing, i: lunch, x: clearFollowers, q: () => setMeetingOpen(!meetingOpen), c: resetView, m: openMap, l: toggleLock, t: toggleTags, "0": resetView };
   const hotRef = useRef(hotkeys); hotRef.current = hotkeys;
   const activeRef2 = useRef(active); activeRef2.current = active;
   useEffect(() => {
@@ -946,13 +1011,15 @@ export default function World({ active = true }: { active?: boolean }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   const walking = mode === "walk";
+  // A big office at 120 Hz Retina is fill-rate bound: trade a little sharpness for a usable frame rate.
+  const maxDpr = layout.desks.length > 110 ? 1.35 : layout.desks.length > 70 ? 1.6 : 2;
   const nearWhy = !walking ? "Walk mode only" : !nearby ? "No agent close by" : null;
   const entries: KeyEntry[] = KEYMAP.map((def) => {
     const act = def.id.startsWith("action:") ? def.id.slice(7) : "";
     const run: Record<string, [() => void, string | null]> = {
       camera: [resetView, null], talk: [() => sceneApi.current?.talk(), nearWhy], minimap: [openMap, null],
       rally: [rally, ids((w) => w.state === "waiting").length || rallying ? null : "Nobody is waiting for you"],
-      wake: [wakeEveryone, ids((w) => w.state === "asleep").length ? null : "Nobody is asleep"],
+      wake: [bossComing, ids((w) => w.state === "asleep").length ? null : "Nobody is asleep"],
       lunch: [lunch, ids((w) => w.state === "idle").length ? null : "Nobody is idle"],
       coffee: [orderCoffee, layout.zones.some((z) => z.zone.id === "coffee-station") ? null : "There is no coffee station"],
       lock: [toggleLock, null], tags: [toggleTags, null], dismiss: [clearFollowers, nFollowers ? null : "Nobody is following you"],
@@ -966,7 +1033,7 @@ export default function World({ active = true }: { active?: boolean }) {
   return (
     <div style={{ display: "flex", width: "100%", height: "100%", minHeight: 240 }}>
     <div ref={frame} onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); lastPtr.current = { x: e.clientX - r.left, y: e.clientY - r.top }; }} style={{ position: "relative", flex: 1, minWidth: 0, height: "100%" }}>
-      <Canvas style={{ cursor: controller === "hand" && !handMenu ? "none" : undefined }} onPointerMissed={() => { setMenu(null); setRoomMenu(null); }} frameloop={hidden || !active ? "never" : "always"} dpr={[1, 2]} camera={{ position: [0, 40, 20], fov: 50, near: 0.1, far: 1000 }}>
+      <Canvas style={{ cursor: controller === "hand" && !handMenu ? "none" : undefined }} onPointerMissed={() => { setMenu(null); setRoomMenu(null); }} frameloop={hidden || !active ? "never" : "always"} dpr={[1, maxDpr]} camera={{ position: [0, 40, 20], fov: 50, near: 0.1, far: 1000 }}>
         <Scene mode={mode} layout={layout} jump={jump} onNearby={setNearby} onEnter={enterTeam} ctl={{ onScreen: startCloseup, closeup, closeupExit, onCloseup: setInCloseup, onReady, saveView: saveN, clearView: clearN, labels: labelsApi, active, subs, tags, api: sceneApi, onPick, pan, angle, zoom, reset, locked, warp, view, skipFrame, closeupWalk, handZoomCmd: { save: handSave, restore: handRestore }, handMenuOpen: handMenuOpenRef, onOverview: setLabelsOnly }} />
       </Canvas>
       {mode === "walk" && controller === "hand" && (
@@ -979,10 +1046,11 @@ export default function World({ active = true }: { active?: boolean }) {
       {handMenu && (
         <HandMenu x={handMenu.x} y={handMenu.y} onClose={() => setHandMenu(null)} items={[
           { label: "Rally the waiting agents", key: "R", run: rally, disabled: !ids((w) => w.state === "waiting").length },
-          { label: "Wake everyone asleep", key: "U", run: wakeEveryone, disabled: !ids((w) => w.state === "asleep").length },
+          { label: "Boss is coming: wake a few nearby", key: "U", run: bossComing, disabled: !ids((w) => w.state === "asleep").length },
           { label: "Lunch: idle agents to the rooms", key: "I", run: lunch, disabled: !ids((w) => w.state === "idle").length },
           { label: "Order a coffee", key: "O", run: orderCoffee },
           { label: "Meeting chat with the followers", key: "Q", run: () => setMeetingOpen(!meetingOpen), disabled: !nFollowers },
+          { label: "Release the meeting: send everyone back", key: "X", run: clearFollowers, disabled: !nFollowers },
           { label: "Save zoom", run: () => setHandSave((n) => n + 1) },
           { label: "Restore zoom", run: () => setHandRestore((n) => n + 1) },
         ]} />
