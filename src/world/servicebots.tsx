@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { BoxGeometry, InstancedMesh, Object3D, type Group, type Mesh } from "three";
 import type { Layout } from "./layout";
@@ -59,6 +60,8 @@ export function ServiceBots({ layout }: { layout: Layout }) {
   const bots = useRef<Bot[]>([]);
   const baristaRef = useRef<Group>(null), baristaArm = useRef<Mesh>(null), baristaSteam = useRef<Mesh>(null);
   const nextReady = useRef(0);
+  const [toast, setToast] = useState(0); // > 0: order taken (time), < 0: queue full
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(0), 2600); return () => clearTimeout(t); }, [toast]);
   const lay = useRef(layout);
   lay.current = layout;
 
@@ -131,7 +134,10 @@ export function ServiceBots({ layout }: { layout: Layout }) {
   return (
     <>
       {st && (
-        <group position={[st.x + 0.5, 0, st.z - 1.95]} rotation={[0, Math.PI, 0]}>
+        <group position={[st.x + 0.1, 0.05, st.z - 2.95]} rotation={[0, Math.PI, 0]} scale={1.35}
+          onClick={(e) => { e.stopPropagation(); if (requestCoffee(MANAGER_ID)) setToast(Date.now()); else setToast(-Date.now()); }}
+          onPointerOver={() => { document.body.style.cursor = "pointer"; }} onPointerOut={() => { document.body.style.cursor = ""; }}>
+          <mesh position={[0, 0.9, 0]}><boxGeometry args={[1.4, 1.9, 1.2]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh>{/* generous click target */}
           <group ref={baristaRef}>
             <mesh position={[0, 0.55, 0]}><boxGeometry args={[0.7, 0.5, 0.45]} /><meshStandardMaterial color="#b45309" roughness={0.6} /></mesh>
             <mesh position={[0, 0.6, -0.23]}><boxGeometry args={[0.52, 0.34, 0.05]} /><meshStandardMaterial color="#f5f5f4" roughness={0.7} /></mesh>
@@ -143,7 +149,12 @@ export function ServiceBots({ layout }: { layout: Layout }) {
             <mesh position={[-0.18, 0.2, 0]}><boxGeometry args={[0.12, 0.3, 0.12]} /><meshStandardMaterial color="#7c2d12" /></mesh>
             <mesh position={[0.18, 0.2, 0]}><boxGeometry args={[0.12, 0.3, 0.12]} /><meshStandardMaterial color="#7c2d12" /></mesh>
           </group>
-          <mesh ref={baristaSteam} position={[1.5, 1.4, 0.05]} visible={false}><boxGeometry args={[1, 1, 1]} /><meshBasicMaterial color="#ffffff" transparent opacity={0.55} toneMapped={false} /></mesh>
+          {toast !== 0 && (
+            <Html position={[0, 1.9, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
+              <div className="barista-toast">{toast > 0 ? "☕ Coming right up!" : "☕ One moment, I'm busy…"}</div>
+            </Html>
+          )}
+          <mesh ref={baristaSteam} position={[1.6, 1.4, -0.65]} visible={false}><boxGeometry args={[1, 1, 1]} /><meshBasicMaterial color="#ffffff" transparent opacity={0.55} toneMapped={false} /></mesh>
         </group>
       )}
       <instancedMesh ref={body} args={[geoBody, undefined, POOL]} frustumCulled={false}><meshStandardMaterial color="#2dd4bf" roughness={0.6} /></instancedMesh>

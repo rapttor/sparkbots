@@ -287,3 +287,22 @@ button.kmap-row:disabled{opacity:.45;cursor:not-allowed}
 .card-on{border-color:var(--accent);background:#d9775714}
 .pm-badge{position:absolute;top:1px;right:1px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;background:var(--accent);color:#fff;font-size:10px;line-height:14px;text-align:center;font-weight:700}
 .pm-icon{position:relative}
+.barista-toast{white-space:nowrap;padding:5px 10px;border-radius:999px;background:rgba(10,12,20,.92);border:1px solid #b45309;color:#fde68a;font-size:12px}
+.wc-help{margin:6px 0;padding:8px 10px;border:1px solid #b45309;border-radius:8px;background:#b4530914}
+.wc-help p{margin:0 0 6px}
+.wc-help-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+/* chat composer */
+.wc-compose{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:stretch}
+.wc-compose textarea{resize:vertical;min-height:64px}
+.wc-compose .wc-btns{display:flex;flex-direction:column;gap:6px;min-width:112px}
+.wc-send{flex:1;padding:8px 14px}
+.wc-send.off,.wc-forkrow .off{opacity:.45;cursor:not-allowed}
+.wc-forkrow{display:flex;align-items:center;gap:4px}
+.wc-forkrow .small{flex:1;white-space:nowrap}
+.wc-info{font-size:15px;line-height:1;padding:2px 4px}
+.wc-infobox{margin:4px 0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#0e1424}
+.wc-infobox p{margin:0 0 6px}
+.wc-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px}
+.wc-files{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.wc-files .chip .icon-btn{padding:0 2px;margin-left:4px}
+.closeup-back{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:7;padding:7px 14px;border-radius:999px;cursor:pointer;background:rgba(10,12,20,.9);border:1px solid var(--accent);color:#fff}

@@ -26,6 +26,7 @@ import { roams, setLook, clearLook, player as playerState, pushPlayerOut } from 
 import { ACTIONS } from "./actions";
 import { Minibots } from "./minibots";
 import { MANAGER_ID, requestCoffee, ServiceBots } from "./servicebots";
+import { CoffeeFactory } from "./coffeefactory";
 import { ManagerWalls } from "./walls";
 import { nerd, sampleFrame } from "../state/nerd";
 import { clearView, loadView, saveView } from "./viewDefault";
@@ -53,7 +54,7 @@ const WALK_DIST = Math.hypot(4.5, 6.5);
 interface JumpReq { area: TeamArea; n: number }
 
 export interface AngleReq { dyaw: number; dpitch: number; n: number }
-interface SceneCtl { onReady: () => void; saveView: number; clearView: number; labels: { current: LabelsApi | null }; active: boolean; subs: Record<string, SubagentInfo[]>; tags: boolean; api: { current: SceneApi | null }; onPick: (id: string, x: number, y: number) => void; pan: PanReq | null; angle: AngleReq | null; zoom: ZoomReq | null; reset: number; locked: boolean; warp: Warp | null; view: { current: ViewState } }
+interface SceneCtl { onScreen: (i: number) => void; closeup: { i: number; n: number } | null; closeupExit: number; onCloseup: (on: boolean) => void; onReady: () => void; saveView: number; clearView: number; labels: { current: LabelsApi | null }; active: boolean; subs: Record<string, SubagentInfo[]>; tags: boolean; api: { current: SceneApi | null }; onPick: (id: string, x: number, y: number) => void; pan: PanReq | null; angle: AngleReq | null; zoom: ZoomReq | null; reset: number; locked: boolean; warp: Warp | null; view: { current: ViewState } }
 
 function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; layout: Layout; jump: JumpReq | null; onNearby: (n: Nearby | null) => void; onEnter: (a: TeamArea) => void; ctl: SceneCtl }) {
   const activeRef = useRef(ctl.active);
@@ -188,6 +189,31 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     const cur = controls.current ? controls.current.target.clone() : new Vector3();
     flight.current = { t: 0, fromC: camera.position.clone(), toC: new Vector3(tgt.x, h, tgt.z + h * 0.45), fromT: cur, toT: tgt };
   }, [jump, camera]);
+
+  // Laptop close-up: fly to a spot right in front of the screen (the orbit limits are relaxed while we are there).
+  type Orbit = { target: Vector3; update: () => void; minDistance: number; maxPolarAngle: number };
+  const prevView = useRef<{ cam: Vector3; target: Vector3 } | null>(null);
+  useEffect(() => {
+    const c = ctl.closeup, o = controls.current as unknown as Orbit | null;
+    if (!c || !o) return;
+    const d = layoutRef.current.desks[c.i];
+    if (!d) return;
+    if (!prevView.current) prevView.current = { cam: camera.position.clone(), target: o.target.clone() };
+    o.minDistance = 0.5; o.maxPolarAngle = Math.PI / 2.02;
+    const screenAt = new Vector3(d.x, 1.36, d.z - 0.33);
+    flight.current = { t: 0, fromC: camera.position.clone(), toC: new Vector3(screenAt.x, screenAt.y + 0.1, screenAt.z + 1.35), fromT: o.target.clone(), toT: screenAt };
+    ctl.onCloseup(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctl.closeup]);
+  useEffect(() => {
+    const o = controls.current as unknown as Orbit | null, p = prevView.current;
+    if (!ctl.closeupExit || !o || !p) return;
+    prevView.current = null;
+    flight.current = { t: 0, fromC: camera.position.clone(), toC: p.cam, fromT: o.target.clone(), toT: p.target };
+    setTimeout(() => { o.minDistance = 4; o.maxPolarAngle = Math.PI / 2.3; }, 900);
+    ctl.onCloseup(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctl.closeupExit]);
 
   // Header controls: zoom buttons, reset, minimap click.
   useEffect(() => {
@@ -484,10 +510,11 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       </instancedMesh>
       <ZonesLayer layout={layout} onZone={(id) => { if (id === "data-room") useStore.getState().setPanel("data"); }} />
       <ConferenceLayer layout={layout} />
-      <DeskScreens layout={layout} openId={chatId} />
+      <DeskScreens layout={layout} openId={chatId} onScreen={ctl.onScreen} />
       <FxLayer />
       <Icons />
       <Minibots layout={layout} subs={ctl.subs} />
+      <CoffeeFactory layout={layout} />
       <ServiceBots layout={layout} />
       <ManagerWalls layout={layout} onOpenBoard={() => useStore.getState().setPanel("board")} onOpenNotes={() => useStore.getState().setPanel("notes")} />
       {ctl.tags && <NameTags layout={layout} getCenter={() => (modeRef.current === "walk" ? pos.current : controls.current?.target ?? pos.current)} />}
@@ -597,6 +624,14 @@ export default function World({ active = true }: { active?: boolean }) {
   const [zoom, setZoom] = useState<ZoomReq | null>(null);
   const [reset, setReset] = useState(0);
   const [saveN, setSaveN] = useState(0);
+  // Click a laptop screen: the camera flies right in front of it so you can read it; "Back" (or Esc) returns.
+  const [closeup, setCloseup] = useState<{ i: number; n: number } | null>(null);
+  const [closeupExit, setCloseupExit] = useState(0);
+  const [inCloseup, setInCloseup] = useState(false);
+  const startCloseup = (i: number) => {
+    const go = () => setCloseup((c) => ({ i, n: (c?.n ?? 0) + 1 }));
+    if (mode === "walk") { setMode("overview"); setTimeout(go, 250); } else go();
+  };
   const [ready, setReady] = useState(false);
   const onReady = useCallback(() => setReady(true), []);
   const [clearN, setClearN] = useState(0);
@@ -638,7 +673,7 @@ export default function World({ active = true }: { active?: boolean }) {
   const openMap = () => useStore.getState().setPanel("map"); // the minimap lives in the Map tab
   const toggleLock = () => { lsSet("ao.zoomLock", !locked); setLocked(!locked); };
   const resetView = () => setReset((n) => n + 1);
-  const closeOverlays = () => { if (menu) setMenu(null); else if (chatId) openChat(undefined); };
+  const closeOverlays = () => { if (inCloseup) setCloseupExit((n) => n + 1); else if (menu) setMenu(null); else if (chatId) openChat(undefined); };
   const toggleTags = () => { lsSet("ao.nametags", !tags); setTags(!tags); };
   // the View and Projects panels (in the dock) drive the office through this bus; the office mirrors its state back for them
   const busRef = useRef<(c: import("./viewBus").ViewCmd) => void>(() => {});
@@ -701,7 +736,7 @@ export default function World({ active = true }: { active?: boolean }) {
     <div style={{ display: "flex", width: "100%", height: "100%", minHeight: 240 }}>
     <div ref={frame} style={{ position: "relative", flex: 1, minWidth: 0, height: "100%" }}>
       <Canvas onPointerMissed={() => { setMenu(null); setRoomMenu(null); }} frameloop={hidden || !active ? "never" : "always"} dpr={[1, 2]} camera={{ position: [0, 40, 20], fov: 50, near: 0.1, far: 1000 }}>
-        <Scene mode={mode} layout={layout} jump={jump} onNearby={setNearby} onEnter={enterTeam} ctl={{ onReady, saveView: saveN, clearView: clearN, labels: labelsApi, active, subs, tags, api: sceneApi, onPick, pan, angle, zoom, reset, locked, warp, view }} />
+        <Scene mode={mode} layout={layout} jump={jump} onNearby={setNearby} onEnter={enterTeam} ctl={{ onScreen: startCloseup, closeup, closeupExit, onCloseup: setInCloseup, onReady, saveView: saveN, clearView: clearN, labels: labelsApi, active, subs, tags, api: sceneApi, onPick, pan, angle, zoom, reset, locked, warp, view }} />
       </Canvas>
       {showStatusCounts && <StatusLegend />}
       <button onClick={clearBubbles} style={{ position: "absolute", top: 10, right: 10, padding: "4px 10px", cursor: "pointer", fontSize: 12 }} title="Mark every speech bubble as read">Clear bubbles</button>
@@ -716,6 +751,7 @@ export default function World({ active = true }: { active?: boolean }) {
           scene={sceneApi.current ?? { talk() {}, act() {}, look() {}, sendTo() {}, archive: (_id, done) => done() }}
           onGo={() => setJump((j) => ({ area: roomMenu.item.area, n: (j?.n ?? 0) + 1 }))} onClose={() => setRoomMenu(null)} />
       )}
+      {inCloseup && <button className="closeup-back" onClick={() => setCloseupExit((n) => n + 1)}>← Back to the office</button>}
       <FollowBar />
       {meetingOpen && <div style={{ position: "absolute", right: 10, bottom: 10, zIndex: 6 }}><MeetingChat onClose={() => setMeetingOpen(false)} /></div>}
       {showKeymap && <KeymapLegend entries={entries} onHide={() => setShowKeymap(false)} />}

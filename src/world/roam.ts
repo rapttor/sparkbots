@@ -173,3 +173,44 @@ export function lunchAll(ids: string[]): number {
   }
   return n;
 }
+
+// ---- going around people --------------------------------------------------------------------------------------------
+const LOOK_AHEAD = 1.5;
+
+const isOdd = (id: string) => { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0; return (h & 1) === 1; };
+
+/**
+ * Is the manager, or another robot that is not just wandering, standing within `radius` of the point? A robot that wants to
+ * sit at its desk waits a step away while that is true (instead of pushing against whoever is in the way) and takes the
+ * seat when it is free again.
+ */
+export function occupiedAt(id: string, x: number, z: number, radius: number): boolean {
+  if (player.on && Math.hypot(player.x - x, player.z - z) < radius) return true;
+  for (const [oid, o] of roams) {
+    if (oid === id || o.mode === "wander") continue;
+    if (Math.hypot(o.x - x, o.z - z) < radius) return true;
+  }
+  return false;
+}
+
+/**
+ * Bends the walking direction (ux, uz) around whoever is in the way ahead: the manager and other robots. Each obstacle in
+ * front pushes the direction to the side away from it (to a fixed side when it is dead ahead, so two robots do not dither).
+ */
+export function steerAround(id: string, r: { x: number; z: number }, ux: number, uz: number): [number, number] {
+  let sx = 0, sz = 0;
+  const consider = (ox: number, oz: number) => {
+    const rx = ox - r.x, rz = oz - r.z, d = Math.hypot(rx, rz);
+    if (d > LOOK_AHEAD || d < 1e-3) return;
+    if (rx * ux + rz * uz <= 0.1 * d) return; // behind us or beside us: not in the way
+    const lateral = rx * -uz + rz * ux;       // > 0: obstacle is on our left
+    const side = Math.abs(lateral) < 0.15 ? (isOdd(id) ? 1 : -1) : lateral > 0 ? -1 : 1;
+    const w = ((LOOK_AHEAD - d) / LOOK_AHEAD) * 1.8;
+    sx += -uz * side * w; sz += ux * side * w;
+  };
+  if (player.on) consider(player.x, player.z);
+  for (const [oid, o] of roams) if (oid !== id) consider(o.x, o.z);
+  if (sx === 0 && sz === 0) return [ux, uz];
+  const nx = ux + sx, nz = uz + sz, len = Math.hypot(nx, nz) || 1;
+  return [nx / len, nz / len];
+}

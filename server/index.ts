@@ -12,6 +12,7 @@ import { claudeDir } from "./adapters/claude-code/discover";
 import { registerRoutes, tasks as taskSig } from "./routes";
 import { Hub } from "./sync";
 import { nerdSnapshot, startLagSampler } from "./nerd";
+import { cleanOldUploads } from "./uploads";
 import { listSubagents } from "./adapters/claude-code/subagents";
 import { sync as syncBoard } from "./board/routes";
 
@@ -47,6 +48,7 @@ app.get("/api/stats", async () => company.stats.snapshot());
 const ping: Hub["changed"] = (k, id) => hub?.changed(k, id);
 const runs = registerRoutes(app, company, () => push(), ping);
 startLagSampler();
+cleanOldUploads();
 app.get("/api/nerd", async () => nerdSnapshot({ company, runs, clients: () => wss.clients.size, rev: () => hub?.rev ?? 0 }));
 setInterval(() => { if (syncBoard(runs)) ping("board"); }, 3000);
 app.get("/*", async (req, reply) => {

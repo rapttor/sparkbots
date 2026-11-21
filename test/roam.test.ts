@@ -51,3 +51,36 @@ describe("followers", () => {
     meeting.room = null;
   });
 });
+
+import { occupiedAt, steerAround } from "../src/world/roam";
+describe("going around people", () => {
+  beforeEach(() => { roams.clear(); Object.assign(player, { on: false, x: 0, z: 0 }); });
+  it("leaves the direction alone when nothing is in the way", () => {
+    expect(steerAround("a", { x: 0, z: 0 }, 1, 0)).toEqual([1, 0]);
+    Object.assign(player, { on: true, x: -3, z: 0 }); // behind
+    expect(steerAround("a", { x: 0, z: 0 }, 1, 0)).toEqual([1, 0]);
+  });
+  it("bends away from the manager standing ahead on the left or the right", () => {
+    Object.assign(player, { on: true, x: 1, z: -0.5 }); // ahead, to the side with smaller z
+    const a = steerAround("a", { x: 0, z: 0 }, 1, 0);
+    expect(a[1]).toBeGreaterThan(0.05); // goes towards +z, away from the obstacle
+    Object.assign(player, { x: 1, z: 0.5 });
+    expect(steerAround("a", { x: 0, z: 0 }, 1, 0)[1]).toBeLessThan(-0.05);
+  });
+  it("picks a side when the obstacle is dead ahead, and the result is a unit vector", () => {
+    Object.assign(player, { on: true, x: 1, z: 0 });
+    const [x, z] = steerAround("a", { x: 0, z: 0 }, 1, 0);
+    expect(Math.abs(z)).toBeGreaterThan(0.05);
+    expect(Math.hypot(x, z)).toBeCloseTo(1, 5);
+  });
+  it("knows when the manager or a seated robot stands on a spot, but ignores wanderers", () => {
+    expect(occupiedAt("a", 0, 0, 0.85)).toBe(false);
+    Object.assign(player, { on: true, x: 0.3, z: 0 });
+    expect(occupiedAt("a", 0, 0, 0.85)).toBe(true);
+    player.on = false;
+    roams.set("b", { x: 0.2, z: 0, tx: 0, tz: 0, wait: 0, ry: 0, lying: false, moving: false, mode: "wander", awakeUntil: 0, flash: false, angle: 0, clip: null, icon: "", visit: null, errand: null });
+    expect(occupiedAt("a", 0, 0, 0.85)).toBe(false);
+    roams.get("b")!.mode = "desk";
+    expect(occupiedAt("a", 0, 0, 0.85)).toBe(true);
+  });
+});

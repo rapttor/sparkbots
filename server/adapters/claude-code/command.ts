@@ -26,6 +26,10 @@ export function buildArgs(prompt: string, session: string | undefined, opts: Sen
     if (!/^[A-Za-z0-9][A-Za-z0-9._:\-\[\]]{0,79}$/.test(opts.model)) throw new CommandError(400, "invalid model name");
     a.push("--model", opts.model);
   }
+  for (const d of opts.addDirs ?? []) { // folders the run may read (attached files): absolute, no parent hops, never flag-like
+    if (!d.startsWith("/") || d.split("/").includes("..") || /[\0\n]/.test(d)) throw new CommandError(400, "invalid attachment folder");
+    a.push(`--add-dir=${d}`);
+  }
   if (opts.permissionMode) a.push("--permission-mode", opts.permissionMode);
   if (opts.allowedTools?.length) a.push(`--allowedTools=${opts.allowedTools.join(",")}`);
   return a;

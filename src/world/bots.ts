@@ -4,7 +4,7 @@ import type { DeskSlot, Layout } from "./layout";
 import { STATE_COLORS } from "./colors";
 import { nav } from "./nav";
 import { followerIndex, followerList, followTarget, poiExists, pickVisit, releaseVisit, slotPos, conductors } from "./roam";
-import { roams, looks, effectiveState, separate, type BotMode, type Roam } from "./roam";
+import { roams, looks, effectiveState, occupiedAt, steerAround, separate, type BotMode, type Roam } from "./roam";
 import { fxPose } from "./fx";
 import { IDLE_CLIPS, STATE_ICON, clipById, statusClip, type Clip } from "./clips";
 
@@ -119,7 +119,10 @@ export function stepRoam(d: DeskSlot, dt: number, mode: BotMode): Roam {
     r.tx = g.x; r.tz = g.z;
   }
   const dx = r.tx - r.x, dz = r.tz - r.z, dist = Math.hypot(dx, dz);
-  r.moving = dist > 0.05;
+  // Someone (the manager, another robot) is standing on the spot we want: wait a step away instead of pushing against them.
+  const blocked = (mode === "desk" || mode === "rush") && dist > 0.05 && dist < 1.8 && occupiedAt(d.worker.id, r.tx, r.tz, 0.85);
+  r.moving = dist > 0.05 && !blocked;
+  if (blocked) r.ry = Math.atan2(-dx, -dz);
   if (r.moving) {
     const speed = r.visit && !r.visit.arrived ? 1.6 : mode === "follow" && dist > 4 ? 6 : speedOf[mode]; // followers hurry to catch up // walking to a zone is a stroll, not a wander
     const step = Math.min(dist, speed * dt);
@@ -128,6 +131,7 @@ export function stepRoam(d: DeskSlot, dt: number, mode: BotMode): Roam {
       const dir = nav.flow.dir(r.x, r.z, nav.flow.field(r.tx, r.tz));
       if (dir) { ux = dir.dx; uz = dir.dz; }
     }
+    [ux, uz] = steerAround(d.worker.id, r, ux, uz); // go around whoever is in the way
     r.x += ux * step; r.z += uz * step;
     r.ry = Math.atan2(-ux, -uz);
   } else if (mode === "follow") {

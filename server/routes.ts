@@ -9,6 +9,7 @@ import { BotColorError } from "./botColors";
 import { ArchiveError } from "./archive";
 import { cleanEnv } from "./adapters/claude-code/command";
 import { registerNotes } from "./notes";
+import { registerUploads, resolveAttachments, withAttachments } from "./uploads";
 import { registerServices } from "./services/routes";
 import { listSubagents } from "./adapters/claude-code/subagents";
 import { recentMessages } from "./adapters/claude-code/transcript";
@@ -33,11 +34,12 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
 
   app.get("/api/runs", async () => runs.runs.slice(-50));
   app.get<{ Params: { id: string } }>("/api/runs/:id/log", async (r) => log.get(r.params.id) ?? []);
-  app.post<{ Body: { session?: string; prompt?: string; fork?: boolean; model?: string } }>("/api/send", async (req) => {
+  app.post<{ Body: { session?: string; prompt?: string; fork?: boolean; model?: string; attachments?: unknown } }>("/api/send", async (req) => {
     const session = str(req.body?.session), prompt = str(req.body?.prompt);
     const s = session ? c.sessions.get(session) : undefined;
     if (!s || !prompt) throw Object.assign(new Error("session and prompt required"), { statusCode: 400 });
-    return wrap(() => runs.send(s.id, s.cwd, prompt, { ...overrides(s.cwd), fork: !!req.body.fork, ...(str(req.body.model) ? { model: str(req.body.model) } : {}) }));
+    const att = resolveAttachments(req.body.attachments);
+    return wrap(() => runs.send(s.id, s.cwd, withAttachments(prompt, att.files), { ...overrides(s.cwd), fork: !!req.body.fork, ...(str(req.body.model) ? { model: str(req.body.model) } : {}), ...(att.dirs.length ? { addDirs: att.dirs } : {}) }));
   });
   app.post<{ Body: { cwd?: string; prompt?: string; model?: string } }>("/api/spawn", async (req) => {
     const cwd = str(req.body?.cwd), prompt = str(req.body?.prompt);
@@ -179,6 +181,7 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
   });
   registerBoard(app, c, runs, () => ping("board"));
   registerNotes(app, () => ping("notes"));
+  registerUploads(app);
   registerServices(app, () => ping("services"));
   return runs;
 }

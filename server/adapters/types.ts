@@ -25,7 +25,7 @@ export type AgentEvent =
   | { kind: "subagent"; session: SessionId; childId: string; state: "start" | "end"; at: Ts }
   | { kind: "error"; session: SessionId; message: string; at: Ts };
 
-export interface SendOpts { allowedTools?: string[]; permissionMode?: string; fork?: boolean; model?: string }
+export interface SendOpts { allowedTools?: string[]; permissionMode?: string; fork?: boolean; model?: string; addDirs?: string[] }
 export interface RunHandle { runId: string; pid: number; session?: SessionId; stop(): void }
 
 export interface AgentAdapter {

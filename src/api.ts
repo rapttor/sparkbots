@@ -41,7 +41,8 @@ export async function call<T>(method: string, path: string, body?: unknown): Pro
 export const api = {
   runs: () => call<RunRecord[]>("GET", "/api/runs"),
   runLog: (id: string) => call<StreamLine[]>("GET", `/api/runs/${id}/log`),
-  send: (session: string, prompt: string, fork = false, model?: string) => call<SendResult>("POST", "/api/send", { session, prompt, fork, model }),
+  send: (session: string, prompt: string, fork = false, model?: string, attachments?: string[]) => call<SendResult>("POST", "/api/send", { session, prompt, fork, model, attachments }),
+  upload: (name: string, data: string) => call<{ id: string; name: string; size: number }>("POST", "/api/uploads", { name, data }),
   spawn: (cwd: string, prompt: string, model?: string) => call<RunRecord>("POST", "/api/spawn", { cwd, prompt, model }),
   stop: (runId: string) => call<{ ok: true }>("POST", "/api/stop", { runId }),
   board: () => call<Card[]>("GET", "/api/board"),

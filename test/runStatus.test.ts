@@ -23,3 +23,11 @@ describe("runProblem", () => {
     expect(runProblem([])).toBeNull();
   });
 });
+
+describe("runProblem model errors", () => {
+  it("flags a model the endpoint does not know", () => {
+    const p = runProblem([{ type: "result", is_error: true, result: "There's an issue with the selected model (claude-sonnet-5-5). It may not exist or you may not have access to it." }])!;
+    expect(p.kind).toBe("model");
+    expect(runProblem([{ type: "result", is_error: true, result: "boom" }])!.kind).toBeUndefined();
+  });
+});

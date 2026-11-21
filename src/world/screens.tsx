@@ -88,7 +88,7 @@ export function drawScreen(ctx: CanvasRenderingContext2D, w: Worker, now: number
 const keyOf = (w: Worker, now: number) =>
   [w.id, w.state, w.activity, w.title, w.name, w.helpers, w.liveInTerminal, w.stats?.workMs, w.stats?.tokens, w.stats?.turns, w.stats?.tools, w.stats?.ctx, Math.floor(now / 10_000)].join("|");
 
-export function DeskScreens({ layout, openId }: { layout: Layout; openId?: string }) {
+export function DeskScreens({ layout, openId, onScreen }: { layout: Layout; openId?: string; onScreen?: (deskIndex: number) => void }) {
   const { camera } = useThree();
   const base = useRef<InstancedMesh>(null);
   const lid = useRef<InstancedMesh>(null);
@@ -183,12 +183,13 @@ export function DeskScreens({ layout, openId }: { layout: Layout; openId?: strin
       <instancedMesh ref={lid} args={[geo.lid, undefined, MAX_DESKS]} frustumCulled={false}>
         <meshStandardMaterial roughness={0.6} />
       </instancedMesh>
-      <instancedMesh ref={screen} args={[geo.plane, undefined, MAX_DESKS]} frustumCulled={false}>
+      <instancedMesh ref={screen} args={[geo.plane, undefined, MAX_DESKS]} frustumCulled={false}
+        onClick={onScreen ? (e) => { e.stopPropagation(); if (e.instanceId !== undefined) onScreen(e.instanceId); } : undefined}>
         <meshBasicMaterial toneMapped={false} />
       </instancedMesh>
       {slots.current.map((s, k) => (
         <group key={k} ref={(g) => { poolRefs.current[k] = g; }} visible={false}>
-          <mesh geometry={geo.plane} position={[0, LID_H / 2, 0.03]}>
+          <mesh geometry={geo.plane} position={[0, LID_H / 2, 0.03]} onClick={onScreen ? (e) => { e.stopPropagation(); if (s.desk >= 0) onScreen(s.desk); } : undefined}>
             <meshBasicMaterial map={s.tex} toneMapped={false} />
           </mesh>
         </group>

@@ -7,6 +7,7 @@ import { fmtDuration, fmtNum } from "../util";
 import type { SceneApi } from "./AgentMenu";
 import type { LabelItem } from "./labels";
 import { ProjectActions } from "./ProjectActions";
+import { MANAGER_ID, requestCoffee } from "./servicebots";
 
 const CONTINUE = "Please continue where you left off.";
 const MAX = 12; // at most this many agents per group action
@@ -67,6 +68,7 @@ export function RoomMenu({ item, workers, everyone, x, y, scene, onGo, onClose }
         if (!window.confirm(`Send ${go.length} idle agent${go.length === 1 ? "" : "s"} to "${item.name}" for a minute? (visual only)`)) return;
         go.forEach((w) => scene.sendTo(w.id, item.poiId!)); onClose();
       })}
+      {item.id === "z:coffee-station" && item2("☕ Order a coffee", () => { requestCoffee(MANAGER_ID); onClose(); })}
       {item2(`ⓘ ${project ? "Status" : "Who is here"}`, () => setInfo(!info))}
       {note && <p className="small am-note">{note}</p>}
       {info && project && (
