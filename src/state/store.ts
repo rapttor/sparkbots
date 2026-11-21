@@ -7,6 +7,7 @@ import { countMessage, nerd } from "./nerd";
 import { ClientState, type ServerMsg, type Slice } from "../shared/sync";
 
 import { activeChatId, closeTab, loadDock, openChatTab, openPanel, saveDock, setActive, setWidth, type DockState, type PanelId, type TabKey } from "./dock";
+import { loadDevLook, saveDevLook, type DevLook } from "../world/devLook";
 export type { PanelId } from "./dock";
 
 /** Ask another part of the UI to bring something into view: the 3D camera flies to an agent / project, the Teams list scrolls to a project. */
@@ -46,9 +47,13 @@ interface OfficeState {
   setShowStatusCounts: (v: boolean) => void;
   showKeymap: boolean;        // the clickable key legend in the 3D view
   setShowKeymap: (v: boolean) => void;
-  managerColor: string;       // the player bot
+  managerColor: string;       // the player's pants colour
+  avatar: string;             // the owner character (developer | raptor | spark)
+  devLook: DevLook;           // developer options (top, logo, glasses, beard, overweight)
   openChat: (id?: string) => void;
   setManagerColor: (c: string) => void;
+  setAvatar: (id: string) => void;
+  setDevLook: (p: Partial<DevLook>) => void;
   setPanel: (p: PanelId) => void;
   selectWorker: (id?: string) => void; // open its chat tab and fly the camera to it
 }
@@ -97,12 +102,16 @@ export const useStore = create<OfficeState>((set) => ({
   showKeymap: (() => { try { return localStorage.getItem("ao.keymap") !== "0"; } catch { return true; } })(),
   setShowKeymap: (showKeymap) => { try { localStorage.setItem("ao.keymap", showKeymap ? "1" : "0"); } catch { /* private mode */ } set({ showKeymap }); },
   managerColor: (() => { try { return localStorage.getItem("ao.managerColor") || "#d97757"; } catch { return "#d97757"; } })(),
+  avatar: (() => { try { return localStorage.getItem("ao.avatar") || "developer"; } catch { return "developer"; } })(),
+  devLook: loadDevLook(),
   openChat: (id) => set((s) => {
     const dock = id ? openChatTab(s.dock, id) : s.dock.active.startsWith("chat:") ? closeTab(s.dock, s.dock.active) : s.dock; // no id: close the visible chat
     saveDock(dock);
     return { dock, chatId: activeChatId(dock) };
   }),
   setManagerColor: (managerColor) => { try { localStorage.setItem("ao.managerColor", managerColor); } catch { /* private mode */ } set({ managerColor }); },
+  setAvatar: (avatar) => { try { localStorage.setItem("ao.avatar", avatar); } catch { /* private mode */ } set({ avatar }); },
+  setDevLook: (p) => set((s) => { const devLook = { ...s.devLook, ...p }; saveDevLook(devLook); return { devLook }; }),
   setPanel: (p) => set((s) => { const dock = openPanel(s.dock, p); saveDock(dock); return { dock, chatId: activeChatId(dock) }; }),
   selectWorker: (id) => set((s) => {
     if (!id) return {};

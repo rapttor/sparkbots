@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import {
-  BoxGeometry, Color, CylinderGeometry, InstancedMesh, SphereGeometry, Sphere, Vector3,
+  BoxGeometry, Color, CylinderGeometry, DoubleSide, InstancedMesh, SphereGeometry, Sphere, Vector3,
   type Group, type Mesh,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -11,6 +11,9 @@ import { useStore } from "../state/store";
 import { api, type SubagentInfo } from "../api";
 import { useLive } from "../state/live";
 import { DESK_D, DESK_W, PLAYER_RADIUS, deskBoxes, resolveMove } from "./collide";
+import { advance, flyDurationFor, REDUCED_MAX, smooth } from "./camera";
+import { getAvatar, sparkParts, type PartRefs, type PoseClip } from "./avatar";
+import { avatarTextures } from "./avatarTextures";
 import { DeskScreens } from "./screens";
 import { SpeechBubbles } from "./bubbles";
 import { AgentMenu, type SceneApi } from "./AgentMenu";
@@ -29,7 +32,7 @@ import { MANAGER_ID, requestCoffee, ServiceBots } from "./servicebots";
 import { CoffeeFactory } from "./coffeefactory";
 import { ManagerWalls } from "./walls";
 import { nerd, sampleFrame } from "../state/nerd";
-import { clearView, loadView, saveView } from "./viewDefault";
+import { clearView, loadFlyPrefs, loadView, saveView } from "./viewDefault";
 import { zoneIcon } from "./zones";
 import { Labels, type LabelItem, type LabelsApi } from "./labels";
 import { RoomMenu } from "./RoomMenu";
@@ -54,7 +57,7 @@ const WALK_DIST = Math.hypot(4.5, 6.5);
 interface JumpReq { area: TeamArea; n: number }
 
 export interface AngleReq { dyaw: number; dpitch: number; n: number }
-interface SceneCtl { onScreen: (i: number) => void; closeup: { i: number; n: number } | null; closeupExit: number; onCloseup: (on: boolean) => void; onReady: () => void; saveView: number; clearView: number; labels: { current: LabelsApi | null }; active: boolean; subs: Record<string, SubagentInfo[]>; tags: boolean; api: { current: SceneApi | null }; onPick: (id: string, x: number, y: number) => void; pan: PanReq | null; angle: AngleReq | null; zoom: ZoomReq | null; reset: number; locked: boolean; warp: Warp | null; view: { current: ViewState } }
+interface SceneCtl { onScreen: (i: number) => void; closeup: { i: number; n: number } | null; closeupExit: number; onCloseup: (on: boolean) => void; onReady: () => void; saveView: number; clearView: number; labels: { current: LabelsApi | null }; active: boolean; subs: Record<string, SubagentInfo[]>; tags: boolean; api: { current: SceneApi | null }; onPick: (id: string, x: number, y: number) => void; pan: PanReq | null; angle: AngleReq | null; zoom: ZoomReq | null; reset: number; locked: boolean; warp: Warp | null; view: { current: ViewState }; skipFrame: { current: boolean }; closeupWalk: { current: boolean } }
 
 function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; layout: Layout; jump: JumpReq | null; onNearby: (n: Nearby | null) => void; onEnter: (a: TeamArea) => void; ctl: SceneCtl }) {
   const activeRef = useRef(ctl.active);
@@ -62,7 +65,10 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   useEffect(() => { if (!ctl.active) keys.current.clear(); }, [ctl.active]); // a key held while you switched panels must not keep walking
   const lockedRef = useRef(ctl.locked);
   lockedRef.current = ctl.locked;
-  const flight = useRef<{ t: number; fromC: Vector3; toC: Vector3; fromT: Vector3; toT: Vector3 } | null>(null);
+  // One tween for every camera move: position + look target, never a snap. `done` runs when it lands.
+  const flight = useRef<{ t: number; duration: number; fromC: Vector3; toC: Vector3; fromT: Vector3; toT: Vector3; done?: () => void } | null>(null);
+  const look = useRef(new Vector3(0, 0, 0)); // where the camera looks in walk mode (no OrbitControls there)
+  const playerInit = useRef(false);
   const layoutRef = useRef(layout);
   const boxes = useMemo(() => [
     ...deskBoxes(layout.desks),
@@ -96,12 +102,21 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   const dest = useRef<Vector3 | null>(null); // click-to-move target (walk mode)
   const goTo = (pt: Vector3) => { if (modeRef.current === "walk") dest.current = new Vector3(pt.x, 0, pt.z); };
   const walkZoom = useRef(loadView()?.walk.zoom ?? 1); // 1 = default follow distance; scroll down zooms out, up zooms in
-  const controls = useRef<{ target: Vector3; update: () => void } | null>(null);
+  // Walk view angle: yaw (turn around the manager) and pitch (camera height). Slight by design: limited ranges.
+  const yaw = useRef(loadView()?.walk.yaw ?? 0), pitch = useRef(loadView()?.walk.pitch ?? WALK_PITCH);
+  const controls = useRef<{ target: Vector3; update: () => void; enabled?: boolean } | null>(null);
   const framed = useRef(false);
   const player = useRef<Group>(null);
   const speedNow = useRef(5), stride = useRef(0);
   const readyOnce = useRef(false);
-  const pLegA = useRef<Mesh>(null), pLegB = useRef<Mesh>(null), pArms = useRef<Mesh>(null); // the manager walks too
+  const avatarId = useStore((s) => s.avatar); // owner character (13.1.1)
+  const devLook = useStore((s) => s.devLook); // developer options (top, logo, glasses, beard, ...)
+  const avatar = useMemo(() => getAvatar(avatarId, devLook), [avatarId, devLook]);
+  const geoms = useMemo(() => avatar.build(), [avatar]);
+  const tex = useMemo(() => avatarTextures(avatar, managerColor, devLook.topColor), [avatar, managerColor, devLook.topColor]);
+  const partRefs = useRef<PartRefs>({}); // the owner's parts, posed per clip each frame
+  const avatarRef = useRef(avatar);
+  avatarRef.current = avatar;
   const pos = useRef(new Vector3(0, 0, 12));
   const keys = useRef(new Set<string>());
   const nearbyId = useRef<string | null>(null);
@@ -112,13 +127,8 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   const assets = useMemo(() => {
     // Blocky pixel bot: body + four legs merged; arm bar (waves when done); two eye boxes (glow in the state color).
     const box = (w: number, h: number, d: number, x: number, y: number, z = 0) => { const g = new BoxGeometry(w, h, d); g.translate(x, y, z); return g; };
-    const body = box(0.86, 0.58, 0.5, 0, 0, 0);
-    // legs hang from their top (pivot at the body's underside) so they can swing; two diagonal pairs
-    const leg = (x: number) => box(0.09, 0.22, 0.09, x, -0.11);
-    const legsA = mergeGeometries([leg(-0.33), leg(0.18)])!;
-    const legsB = mergeGeometries([leg(-0.18), leg(0.32)])!;
-    const arms = box(1.15, 0.15, 0.2, 0, 0);
-    const eyes = mergeGeometries([box(0.07, 0.14, 0.04, -0.255, 0), box(0.07, 0.14, 0.04, 0.255, 0)])!;
+    const sp = sparkParts(); // shared with the owner avatar so the spark bot looks the same either way
+    const { body, legsA, legsB, arms, visor: eyes } = sp;
     // Codex pet: stepped cloud helmet, small body, dark terminal visor and cyan code-chevron eyes.
     const codexHead = mergeGeometries([
       box(0.82, 0.52, 0.52, 0, 0), box(0.58, 0.12, 0.52, 0, 0.31),
@@ -145,25 +155,54 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     };
   }, []);
 
-  const frame = useCallback(() => {
+  /** The camera pose behind the manager in walk mode (no controls there). Looks at the avatar's chest/eye level. */
+  const walkPose = useCallback((p: Vector3) => {
+    const D = WALK_DIST * walkZoom.current, ce = Math.cos(pitch.current);
+    return {
+      cam: new Vector3(p.x + Math.sin(yaw.current) * ce * D, Math.sin(pitch.current) * D, p.z + Math.cos(yaw.current) * ce * D),
+      target: new Vector3(p.x, avatarRef.current.focusY, p.z),
+    };
+  }, []);
+
+  /** Fly to a camera pose. Fast is fine; a jump never is. Distance-based duration, smoothstep, controls locked while flying. */
+  const flyTo = useCallback((toC: Vector3, toT: Vector3, opts: { duration?: number; done?: () => void } = {}) => {
+    const c = controls.current;
+    const dir = new Vector3();
+    camera.getWorldDirection(dir);
+    const fromT = c ? c.target.clone() : camera.position.clone().add(dir.multiplyScalar(10)); // no controls: keep the current aim
+    const distance = camera.position.distanceTo(toC) + fromT.distanceTo(toT);
+    const prefs = loadFlyPrefs(); // Settings > 3D office: fast flights, reduced motion
+    const duration = opts.duration ?? flyDurationFor(distance, prefs);
+    if (c) c.enabled = false;
+    flight.current = {
+      t: 0, duration: prefs.reduced ? Math.min(duration, REDUCED_MAX) : duration,
+      fromC: camera.position.clone(), toC: toC.clone(), fromT, toT: toT.clone(), done: opts.done,
+    };
+  }, [camera]);
+
+  const frame = useCallback((instant = false) => {
     const l = layoutRef.current;
     const saved = loadView(); // the view you saved as your default wins
+    let cam: Vector3, target: Vector3;
     if (saved) {
-      camera.position.set(...saved.cam);
-      if (controls.current) { controls.current.target.set(...saved.target); controls.current.update(); } else camera.lookAt(...saved.target);
+      cam = new Vector3(...saved.cam); target = new Vector3(...saved.target);
+    } else {
+      // otherwise: look at the rooms in the middle (and the projects right around them), not the whole campus
+      const zs = l.zones;
+      const box = zs.length
+        ? { minX: Math.min(...zs.map((z) => z.x - z.w / 2)), maxX: Math.max(...zs.map((z) => z.x + z.w / 2)), minZ: Math.min(...zs.map((z) => z.z - z.d / 2)), maxZ: Math.max(...zs.map((z) => z.z + z.d / 2)) }
+        : { minX: l.minX, maxX: l.maxX, minZ: l.minZ, maxZ: l.maxZ };
+      const span = Math.max(box.maxX - box.minX, box.maxZ - box.minZ) + (zs.length ? 26 : 10);
+      const cx = (box.minX + box.maxX) / 2, cz = (box.minZ + box.maxZ) / 2;
+      cam = new Vector3(cx, span * 0.85, cz + span * 0.3); target = new Vector3(cx, 0, cz);
+    }
+    if (instant) {
+      camera.position.copy(cam); look.current.copy(target);
+      if (controls.current) { controls.current.target.copy(target); controls.current.update(); } else camera.lookAt(target);
       return;
     }
-    // otherwise: look at the rooms in the middle (and the projects right around them), not the whole campus
-    const zs = l.zones;
-    const box = zs.length
-      ? { minX: Math.min(...zs.map((z) => z.x - z.w / 2)), maxX: Math.max(...zs.map((z) => z.x + z.w / 2)), minZ: Math.min(...zs.map((z) => z.z - z.d / 2)), maxZ: Math.max(...zs.map((z) => z.z + z.d / 2)) }
-      : { minX: l.minX, maxX: l.maxX, minZ: l.minZ, maxZ: l.maxZ };
-    const span = Math.max(box.maxX - box.minX, box.maxZ - box.minZ) + (zs.length ? 26 : 10);
-    const cx = (box.minX + box.maxX) / 2, cz = (box.minZ + box.maxZ) / 2;
-    camera.position.set(cx, span * 0.85, cz + span * 0.3);
-    if (controls.current) { controls.current.target.set(cx, 0, cz); controls.current.update(); }
-    else camera.lookAt(cx, 0, cz);
-  }, [camera]);
+    flyTo(cam, target);
+  }, [camera, flyTo]);
 
   useLayoutEffect(() => {
     layoutRef.current = layout;
@@ -178,56 +217,75 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     // where they were when it was computed, so make it cover the whole campus: otherwise idle or sleeping robots cannot be clicked.
     for (const m of [r.desk.current, r.body.current, r.antenna.current]) m.boundingSphere = new Sphere(new Vector3(), 1e5);
     animatedRef.current = writeStatic(meshesRef.current, layout, chatId);
-    if (!framed.current && layout.desks.length > 0) { framed.current = true; frame(); }
+    if (!framed.current && layout.desks.length > 0) { framed.current = true; frame(true); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, frame, chatId]);
 
-  // Re-frame the overview camera when returning from walk mode; spawn player on entering.
+  // Walk/overview: fly the camera, never snap. Spawn the manager once, on the first walk.
   useEffect(() => {
-    if (mode === "overview") frame();
-    else {
-      const l = layoutRef.current;
-      pos.current.set((l.minX + l.maxX) / 2, 0, l.maxZ + 3);
+    if (mode === "overview") {
+      if (ctl.skipFrame.current) {
+        ctl.skipFrame.current = false;
+        if (controls.current) { controls.current.target.copy(look.current); controls.current.update(); }
+        return;
+      }
+      frame();
+      return;
     }
-  }, [mode, frame]);
+    const l = layoutRef.current;
+    if (!playerInit.current) {
+      playerInit.current = true;
+      const spawn = new Vector3((l.minX + l.maxX) / 2, 0, l.maxZ + 3);
+      const pose = walkPose(spawn);
+      flyTo(pose.cam, pose.target, { done: () => pos.current.copy(spawn) }); // arrive with the camera, don't pop ahead of it
+      return;
+    }
+    const pose = walkPose(pos.current);
+    flyTo(pose.cam, pose.target);
+  }, [mode, frame, flyTo, walkPose]);
 
   useEffect(() => {
     if (!jump) return;
     const { area } = jump;
     if (modeRef.current === "walk") {
-      pos.current.set(area.x, 0, area.z + area.d / 2 + 1.5);
+      const next = new Vector3(area.x, 0, area.z + area.d / 2 + 1.5);
+      dest.current = null;
+      const pose = walkPose(next);
+      flyTo(pose.cam, pose.target, { done: () => pos.current.copy(next) });
       return;
     }
     const tgt = new Vector3(area.x, 0, area.z);
     const h = Math.max(area.w, area.d) * 0.9 + 6;
-    const cur = controls.current ? controls.current.target.clone() : new Vector3();
-    flight.current = { t: 0, fromC: camera.position.clone(), toC: new Vector3(tgt.x, h, tgt.z + h * 0.45), fromT: cur, toT: tgt };
-  }, [jump, camera]);
+    flyTo(new Vector3(tgt.x, h, tgt.z + h * 0.45), tgt);
+  }, [jump, flyTo, walkPose]);
 
   // Laptop close-up: fly to a spot right in front of the screen (the orbit limits are relaxed while we are there).
   type Orbit = { target: Vector3; update: () => void; minDistance: number; maxPolarAngle: number };
   const prevView = useRef<{ cam: Vector3; target: Vector3 } | null>(null);
   useEffect(() => {
     const c = ctl.closeup, o = controls.current as unknown as Orbit | null;
-    if (!c || !o) return;
+    if (!c || !o) { ctl.closeupWalk.current = false; return; }
     const d = layoutRef.current.desks[c.i];
-    if (!d) return;
-    if (!prevView.current) prevView.current = { cam: camera.position.clone(), target: o.target.clone() };
+    if (!d) { ctl.closeupWalk.current = false; return; }
+    if (!prevView.current) {
+      if (ctl.closeupWalk.current) { ctl.closeupWalk.current = false; o.target.copy(look.current); } // coming from walk: keep its look direction
+      prevView.current = { cam: camera.position.clone(), target: o.target.clone() };
+    }
     o.minDistance = 0.5; o.maxPolarAngle = Math.PI / 2.02;
     const screenAt = new Vector3(d.x, 1.36, d.z - 0.33);
-    flight.current = { t: 0, fromC: camera.position.clone(), toC: new Vector3(screenAt.x, screenAt.y + 0.1, screenAt.z + 1.35), fromT: o.target.clone(), toT: screenAt };
+    flyTo(new Vector3(screenAt.x, screenAt.y + 0.1, screenAt.z + 1.35), screenAt, { duration: 0.55 });
     ctl.onCloseup(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctl.closeup]);
+  }, [ctl.closeup, flyTo]);
   useEffect(() => {
     const o = controls.current as unknown as Orbit | null, p = prevView.current;
     if (!ctl.closeupExit || !o || !p) return;
     prevView.current = null;
-    flight.current = { t: 0, fromC: camera.position.clone(), toC: p.cam, fromT: o.target.clone(), toT: p.target };
+    flyTo(p.cam, p.target, { duration: 0.55 });
     setTimeout(() => { o.minDistance = 4; o.maxPolarAngle = Math.PI / 2.3; }, 900);
     ctl.onCloseup(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctl.closeupExit]);
+  }, [ctl.closeupExit, flyTo]);
 
   // Header controls: zoom buttons, reset, minimap click.
   useEffect(() => {
@@ -235,13 +293,10 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     if (modeRef.current === "walk") walkZoom.current = Math.min(8, Math.max(0.35, walkZoom.current * ctl.zoom.factor));
     else if (controls.current) {
       const t = controls.current.target;
-      const off = camera.position.clone().sub(t).multiplyScalar(ctl.zoom.factor);
-      camera.position.copy(t).add(off);
-      controls.current.update();
+      const toC = t.clone().add(camera.position.clone().sub(t).multiplyScalar(ctl.zoom.factor));
+      flyTo(toC, t, { duration: 0.22 });
     }
-  }, [ctl.zoom, camera]);
-  // Walk view angle: yaw (turn around the manager) and pitch (camera height). Slight by design: limited ranges.
-  const yaw = useRef(loadView()?.walk.yaw ?? 0), pitch = useRef(loadView()?.walk.pitch ?? WALK_PITCH);
+  }, [ctl.zoom, camera, flyTo]);
   const turn = useCallback((dyaw: number, dpitch: number) => {
     yaw.current = Math.max(-1.3, Math.min(1.3, yaw.current + dyaw));
     pitch.current = Math.max(0.3, Math.min(1.2, pitch.current + dpitch));
@@ -256,9 +311,9 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     const len = off.length(), r = Math.hypot(off.x, off.z);
     const ang = Math.atan2(off.x, off.z) + a.dyaw;
     const el = Math.max(0.25, Math.min(1.35, Math.atan2(off.y, r) + a.dpitch));
-    camera.position.set(c.target.x + Math.sin(ang) * Math.cos(el) * len, c.target.y + Math.sin(el) * len, c.target.z + Math.cos(ang) * Math.cos(el) * len);
-    c.update();
-  }, [ctl.angle, turn, camera]);
+    const toC = new Vector3(c.target.x + Math.sin(ang) * Math.cos(el) * len, c.target.y + Math.sin(el) * len, c.target.z + Math.cos(ang) * Math.cos(el) * len);
+    flyTo(toC, c.target, { duration: 0.22 });
+  }, [ctl.angle, turn, camera, flyTo]);
   useEffect(() => { // overview pan: slide the camera and its target over the floor, relative to the view direction
     const pn = ctl.pan, c = controls.current;
     if (!pn || !c || modeRef.current !== "overview") return;
@@ -268,10 +323,12 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     const gx = fx / fl, gz = fz / fl;                 // ground forward; ground right is (-gz, gx)
     const dx = gx * pn.forward - gz * pn.right, dz = gz * pn.forward + gx * pn.right;
     const k = dist * 0.8;
-    c.target.x += dx * k; c.target.z += dz * k;
-    camera.position.x += dx * k; camera.position.z += dz * k;
-    c.update();
-  }, [ctl.pan, camera]);
+    const target = c.target.clone();
+    target.x += dx * k; target.z += dz * k;
+    const toC = camera.position.clone();
+    toC.x += dx * k; toC.z += dz * k;
+    flyTo(toC, target, { duration: 0.22 });
+  }, [ctl.pan, camera, flyTo]);
   useEffect(() => { // right mouse button drag changes the angle
     const el = gl.domElement;
     let drag: { x: number; y: number } | null = null;
@@ -304,11 +361,17 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   useEffect(() => {
     const w = ctl.warp;
     if (!w) return;
-    if (modeRef.current === "walk") { pos.current.set(w.x, 0, w.z); dest.current = null; return; }
+    if (modeRef.current === "walk") {
+      const next = new Vector3(w.x, 0, w.z);
+      dest.current = null;
+      const pose = walkPose(next);
+      flyTo(pose.cam, pose.target, { done: () => pos.current.copy(next) });
+      return;
+    }
     const tgt = new Vector3(w.x, 0, w.z);
-    const cur = controls.current ? controls.current.target.clone() : new Vector3();
-    flight.current = { t: 0, fromC: camera.position.clone(), toC: camera.position.clone().add(tgt).sub(cur), fromT: cur, toT: tgt };
-  }, [ctl.warp, camera]);
+    const cur = controls.current ? controls.current.target.clone() : look.current.clone();
+    flyTo(camera.position.clone().add(tgt).sub(cur), tgt);
+  }, [ctl.warp, camera, flyTo, walkPose]);
 
   // Walk-mode mouse wheel zoom (like street-view): scroll down = zoom out, scroll up = zoom in.
   useEffect(() => {
@@ -399,14 +462,19 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     if (modeRef.current === "walk") { ctl.view.current.x = pos.current.x; ctl.view.current.z = pos.current.z; }
     else if (controls.current) { ctl.view.current.x = controls.current.target.x; ctl.view.current.z = controls.current.target.z; }
     const fl = flight.current;
-    if (fl && controls.current && modeRef.current === "overview") {
-      fl.t = Math.min(1, fl.t + dt / 0.8);
-      const e = fl.t * fl.t * (3 - 2 * fl.t);
+    if (fl) {
+      fl.t = advance(fl.t, fl.duration, dt);
+      const e = smooth(fl.t); // smoothstep: no lurch at either end
       camera.position.lerpVectors(fl.fromC, fl.toC, e);
-      controls.current.target.lerpVectors(fl.fromT, fl.toT, e);
-      controls.current.update();
-      if (fl.t >= 1) flight.current = null;
-    } else if (fl) flight.current = null;
+      look.current.lerpVectors(fl.fromT, fl.toT, e);
+      const c = controls.current;
+      if (c) { c.enabled = false; c.target.copy(look.current); c.update(); } else camera.lookAt(look.current);
+      if (fl.t >= 1) {
+        flight.current = null;
+        if (c) { c.enabled = true; c.update(); }
+        fl.done?.();
+      }
+    }
     const m = meshesRef.current;
     const anim = animatedRef.current;
     if (m && anim.length > 0) {
@@ -467,22 +535,30 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       if (dest.current && moved < spd * dt * 0.25) dest.current = null; // blocked by a desk: stop
       if (g) g.rotation.y = Math.atan2(-dx, -dz);
     }
-    // the manager's own walk cycle: legs swing in diagonal pairs, hands seesaw; eases back to rest when standing
+    // the owner's own walk cycle: the chosen avatar poses its parts per clip and eases back to rest when standing
     const walking = dx !== 0 || dz !== 0;
     stride.current += dt * 11 * (spd / WALK_SPEED); // faster legs when sprinting
-    const ph = stride.current;
-    const sw = walking ? Math.sin(ph) * 0.85 : 0;
+    const clip: PoseClip = !walking ? "idle" : spd > WALK_SPEED * 1.15 ? "sprint" : "walk";
+    const targets = avatarRef.current.pose({ clip, t: stride.current, speed: spd });
     const ease = 1 - Math.exp(-14 * dt);
-    if (pLegA.current && pLegB.current && pArms.current) {
-      pLegA.current.rotation.x += (sw - pLegA.current.rotation.x) * ease;
-      pLegB.current.rotation.x += (-sw - pLegB.current.rotation.x) * ease;
-      pArms.current.rotation.z += ((walking ? -Math.sin(ph) * 0.6 : 0) - pArms.current.rotation.z) * ease;
+    for (const name of Object.keys(targets)) {
+      const o = partRefs.current[name], tg = targets[name]!;
+      if (!o) continue;
+      o.rotation.x += ((tg.rx ?? 0) - o.rotation.x) * ease;
+      o.rotation.y += ((tg.ry ?? 0) - o.rotation.y) * ease;
+      o.rotation.z += ((tg.rz ?? 0) - o.rotation.z) * ease;
+      const baseY = avatarRef.current.layout[name]?.[1] ?? 0;
+      o.position.y += (baseY + (tg.dy ?? 0) - o.position.y) * ease;
     }
     if (g) g.position.copy(p);
-    const z = walkZoom.current;
-    const D = WALK_DIST * z * (1 + ((spd - WALK_SPEED) / (SPRINT_SPEED - WALK_SPEED)) * 0.15), ce = Math.cos(pitch.current); // the camera drops back a little when sprinting
-    camera.position.lerp(dummy.position.set(p.x + Math.sin(yaw.current) * ce * D, Math.sin(pitch.current) * D, p.z + Math.cos(yaw.current) * ce * D), 1 - Math.exp(-6 * dt));
-    camera.lookAt(p.x, 1, p.z);
+    if (!flight.current) { // a flight owns the camera; resume following the moment it lands
+      const z = walkZoom.current;
+      const D = WALK_DIST * z * (1 + ((spd - WALK_SPEED) / (SPRINT_SPEED - WALK_SPEED)) * 0.15), ce = Math.cos(pitch.current); // the camera drops back a little when sprinting
+      camera.position.lerp(dummy.position.set(p.x + Math.sin(yaw.current) * ce * D, Math.sin(pitch.current) * D, p.z + Math.cos(yaw.current) * ce * D), 1 - Math.exp(-6 * dt));
+      const fy = avatarRef.current.focusY;
+      camera.lookAt(p.x, fy, p.z);
+      look.current.set(p.x, fy, p.z);
+    }
 
     const near = nearestDesk(layoutRef.current, p);
     const id = near ? near.worker.id : null;
@@ -574,13 +650,21 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
         <meshBasicMaterial toneMapped={false} />
       </instancedMesh>
 
-      {/* Player bot (walk mode only) */}
+      {/* Owner (walk mode only): the chosen avatar, tinted with your colour (13.1.1) */}
       <group ref={player} visible={mode === "walk"}>
-        <mesh geometry={assets.bodyG} position={[0, 0.6, 0]}><meshStandardMaterial {...assets.mats.solid} color={managerColor} /></mesh>
-        <mesh ref={pLegA} geometry={assets.legAG} position={[0, 0.31, 0]}><meshStandardMaterial {...assets.mats.solid} color={managerColor} /></mesh>
-        <mesh ref={pLegB} geometry={assets.legBG} position={[0, 0.31, 0]}><meshStandardMaterial {...assets.mats.solid} color={managerColor} /></mesh>
-        <mesh geometry={assets.visorG} position={[0, 0.67, -0.255]}><meshBasicMaterial color="#7dffb0" toneMapped={false} /></mesh>
-        <mesh ref={pArms} geometry={assets.antennaG} position={[0, 0.53, 0]}><meshStandardMaterial {...assets.mats.solid} color={managerColor} /></mesh>
+        {avatar.parts.map((name) => {
+          const isGlow = avatar.glow.includes(name);
+          const isDecal = !!avatar.decals?.some((d) => d.part === name) && tex.emoji;
+          const isPlaid = avatar.pattern?.[name] === "plaid" && tex.plaid;
+          return (
+            <mesh key={`${avatar.id}:${name}`} ref={(el) => { partRefs.current[name] = el; }} geometry={geoms[name]} position={avatar.layout[name]}>
+              {isGlow ? <meshBasicMaterial color="#7dffb0" toneMapped={false} />
+                : isDecal ? <meshBasicMaterial map={tex.emoji!} transparent toneMapped={false} side={DoubleSide} />
+                : isPlaid ? <meshStandardMaterial {...assets.mats.solid} map={tex.plaid!} />
+                : <meshStandardMaterial {...assets.mats.solid} color={avatar.colors?.[name] ?? managerColor} />}
+            </mesh>
+          );
+        })}
       </group>
 
       {mode === "overview" && (
@@ -656,9 +740,11 @@ export default function World({ active = true }: { active?: boolean }) {
   const [closeup, setCloseup] = useState<{ i: number; n: number } | null>(null);
   const [closeupExit, setCloseupExit] = useState(0);
   const [inCloseup, setInCloseup] = useState(false);
+  const skipFrame = useRef(false);
+  const closeupWalk = useRef(false);
   const startCloseup = (i: number) => {
     const go = () => setCloseup((c) => ({ i, n: (c?.n ?? 0) + 1 }));
-    if (mode === "walk") { setMode("overview"); setTimeout(go, 250); } else go();
+    if (mode === "walk") { closeupWalk.current = true; skipFrame.current = true; setMode("overview"); setTimeout(go, 250); } else go();
   };
   const [ready, setReady] = useState(false);
   const onReady = useCallback(() => setReady(true), []);
@@ -764,7 +850,7 @@ export default function World({ active = true }: { active?: boolean }) {
     <div style={{ display: "flex", width: "100%", height: "100%", minHeight: 240 }}>
     <div ref={frame} style={{ position: "relative", flex: 1, minWidth: 0, height: "100%" }}>
       <Canvas onPointerMissed={() => { setMenu(null); setRoomMenu(null); }} frameloop={hidden || !active ? "never" : "always"} dpr={[1, 2]} camera={{ position: [0, 40, 20], fov: 50, near: 0.1, far: 1000 }}>
-        <Scene mode={mode} layout={layout} jump={jump} onNearby={setNearby} onEnter={enterTeam} ctl={{ onScreen: startCloseup, closeup, closeupExit, onCloseup: setInCloseup, onReady, saveView: saveN, clearView: clearN, labels: labelsApi, active, subs, tags, api: sceneApi, onPick, pan, angle, zoom, reset, locked, warp, view }} />
+        <Scene mode={mode} layout={layout} jump={jump} onNearby={setNearby} onEnter={enterTeam} ctl={{ onScreen: startCloseup, closeup, closeupExit, onCloseup: setInCloseup, onReady, saveView: saveN, clearView: clearN, labels: labelsApi, active, subs, tags, api: sceneApi, onPick, pan, angle, zoom, reset, locked, warp, view, skipFrame, closeupWalk }} />
       </Canvas>
       {showStatusCounts && <StatusLegend />}
       <button onClick={clearBubbles} style={{ position: "absolute", top: 10, right: 10, padding: "4px 10px", cursor: "pointer", fontSize: 12 }} title="Mark every speech bubble as read">Clear bubbles</button>

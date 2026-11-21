@@ -1,6 +1,18 @@
+import type { FlyPrefs } from "./camera";
+
 /** The camera the user chose as their default view (saved in this browser). */
 export interface SavedView { cam: [number, number, number]; target: [number, number, number]; walk: { zoom: number; yaw: number; pitch: number } }
 const KEY = "ao.defaultView";
+
+/** Camera-move preferences (Settings > 3D office). Kept here with the other browser-side view settings. */
+export function loadFlyPrefs(): FlyPrefs {
+  try {
+    return {
+      speed: localStorage.getItem("ao.flySpeed") === "fast" ? "fast" : "normal",
+      reduced: localStorage.getItem("ao.reducedMotion") === "1",
+    };
+  } catch { return { speed: "normal", reduced: false }; }
+}
 
 const nums = (a: unknown, n: number): a is number[] => Array.isArray(a) && a.length === n && a.every((x) => typeof x === "number" && Number.isFinite(x));
 

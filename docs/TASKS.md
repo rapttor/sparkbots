@@ -167,7 +167,7 @@ Count: 1 Opus + 1 review, 11 Sonnet, 12 Haiku.
 Done: Phase 8; 9.2, 9.4-9.6, 9.11, 9.14 (file import), 9.15; archive of agents (9.10: agents; board cards still hard-delete); Data room 2D search (9.13, the 3D terminal link is still open); real-data checks: search index 573 sessions / 39,617 messages, sub-agent listing.
 Also done since: follow-me, multi-select, huddle, conference room with one message to everyone (9.7, 9.8, 11.2.1, 11.2.2).
 Latest: everything lives in the central plaza (manager/data rooms on top, amenities in the middle, fun and outdoor areas below); Shift sprints with acceleration; the 3D office stays mounted when you visit other panels (camera, position and zoom are kept); real actions ignore key auto-repeat.
-Open: 9.3 (head part of the bot rig), 10.6 (MCP), and the leftovers below (World.tsx still ~640 lines; new work lives in auto-loaded files), 9.3 (head/antenna parts), 9.9 coffee service robots, 9.12 kanban wall texture + whiteboard, 11.2.3 send-to-spot, 11.2.4 rally, 11.3.2 drag a card onto an agent, 11.3.5 wake all, 11.3.6 guard tests, 11.4.x, Phase 10 (services), 7.27 (Claude run settings).
+Open: 9.3 (head part of the bot rig), 10.6 (MCP), and the leftovers below (World.tsx still ~640 lines; new work lives in auto-loaded files), 9.3 (head/antenna parts), 9.9 coffee service robots, 9.12 kanban wall texture + whiteboard, 11.2.3 send-to-spot, 11.2.4 rally, 11.3.2 drag a card onto an agent, 11.3.5 wake all, 11.3.6 guard tests, 11.4.x, Phase 10 (services), 7.27 (Claude run settings). Phase 13 (backlog: storage/sync, player, data center, board, cubicles, chat, restaurant, games, fun rooms) is planned below; start with 13.0.
 
 - [x] [S] 7.32 Rooms: glass walls and the yard fence are see-through force fields you can walk through (`ghost` props); rooms have no floor color (only the yard and veranda have ground); titles are floating, clickable labels above projects and rooms that stack instead of overlapping (nearest at the bottom); fix: idle, wandering and sleeping agents can be clicked again (cached click bounding sphere)
 - [x] [S] 7.33 Clicking a floating title opens an actions menu: for a project Go there, Continue all (confirm, skips working/terminal agents, max 12), Pause all (only runs started from SparkBots), Rally the waiting, Meeting with this project, Wake the sleepers, Lunch, Status; for a room Go there, Send idle agents here, Who is here
@@ -180,18 +180,114 @@ Open: 9.3 (head part of the bot rig), 10.6 (MCP), and the leftovers below (World
 - [x] [S] 7.40 Chat composer: Send always next to the text box (greyed when it cannot send; for a terminal-held session pressing it explains why), "Send as fork" below it with an ⓘ that says a terminal holds the session (+ copy resume command), no permanent warning; file / image attach (button, drop, paste): saved in ~/.agent-office/uploads, listed in the message, folder given to the run with --add-dir (`server/uploads.ts`, 15 MB per file, 8 per message, cleaned after 14 days); model errors in a run explain where the run is going and offer "Use real Claude" (clean environment) or a model the service has
 - [ ] [S] 7.41 To replace the Claude app: live streaming of replies, approving permission prompts in the chat, slash commands / skills, a model picker per chat with the session's current model shown, image preview of attachments
 - [x] [S] 7.42 Robots go around the manager and each other (steering) and wait a step away when someone stands on their chair, instead of getting stuck; click a laptop screen = the camera flies right in front of it (Back button or Esc returns) — both unverified on screen
-- [ ] [S] 7.43 Redesign the Board (kanban) dialog: nicer columns, cards, spacing, drag targets, header/filters
-- [ ] [S] 7.44 Data room revamp: server racks with blinking red LEDs, tape units with spinning reels and streaming tape, a hydra-like AI core with waving cables and pulses, a force-field wall around it (ghost props), small inspector robots walking between racks (see the plan in the chat: zones/data-room.ts + world/datacenter.tsx)
+- [ ] [S] 7.43 Redesign the Board (kanban) dialog — **moved to 13.3.1** (do not duplicate)
+- [ ] [S] 7.44 Data room revamp: server racks, tapes, hydra cables, force-field, inspector robots — **moved to 13.2.2** (one rack per project; Data center)
 
 ## Phase 12 — Codex sessions as agents (second adapter)
 Checked on this machine (read-only, structure only): `~/.codex/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl` (38 live files; older ones are `archived_sessions/*.jsonl.zst`), `~/.codex/config.toml` lists trusted projects. Records: `session_meta` (id, cwd, cli_version, originator), `turn_context` (cwd, approval policy, sandbox), `event_msg` task_started / task_complete (duration), item_completed, token_count, `token_usage_record` (usage per response), `response_item` message / function_call / custom_tool_call / reasoning. Never read `auth.json`.
-- [ ] [O] 12.1 Multi-adapter core: `Company` is wired to Claude Code today (discover, tailer, parseLine, liveness). Give `SessionRef`/`Worker` a `source: "claude-code" | "codex"`, make the adapter list pluggable (`server/adapters/<id>/` implementing `AgentAdapter`), keep ids unique per source, same project grouping (Claude + Codex sessions of one cwd share a team)
-- [ ] [S] 12.2 Codex discovery, title and cwd from `session_meta`, incremental tail, mapping to `AgentEvent`s (task_started/task_complete = turn start/end, function_call/custom_tool_call = tool with the same activity labels, token_usage_record = usage) with hand-written fixtures under `test/fixtures/codex/`
-- [ ] [S] 12.3 Codex liveness: no sessions dir like Claude's; use `ps` (a `codex` process whose cwd matches) + file mtime < 15 s; mark interactive vs `exec`
-- [ ] [H] 12.4 UI: a small source badge on agents (Teams list, chat header, desk screen), a per-source chip in the header filters, Codex agents get a different eye/ring accent
-- [ ] [S] 12.5 Stats + search: Codex tokens in Stats (separate model rows), Codex transcripts in the Data room index (`source` column)
-- [ ] [S] 12.6 Talking to a Codex agent: `codex exec resume <id> "<prompt>"` in the project dir (argument array, never a shell; never the sandbox/approval bypass flag), same rules as Claude (terminal-open sessions forked or refused, one run per session, Stop only kills our own child). Check the exact flags with `codex exec --help` first
+- [ ] [O] 12.1 Multi-adapter core: **partly done** — `source: "claude" | "codex"` exists and `server/adapters/codex/` implements discovery/tail/parse/command, but `Company` still special-cases Codex (`company.ts:57,80,85`) instead of a pluggable adapter list
+- [x] [S] 12.2 Codex discovery, title and cwd from `session_meta`, incremental tail, mapping to `AgentEvent`s — **done:** `adapters/codex/{discover,parse,transcript}.ts`, `session_index.jsonl` titles
+- [ ] [S] 12.3 Codex liveness: no sessions dir like Claude's; use `ps` (a `codex` process whose cwd matches) + file mtime < 15 s; mark interactive vs `exec` — **open:** still the mtime heuristic only
+- [x] [H] 12.4 UI: source chips in the header filters and a distinct Codex bot look — **done:** `panels/teamFilters.ts`, `world/bots.ts`; add a source badge in Teams/chat header where it is missing
+- [ ] [S] 12.5 Stats + search: Codex usage flows through the event pipeline and the index covers all sessions — **partly:** no `source` column in search results / separate model rows yet
+- [x] [S] 12.6 Talking to a Codex agent — **done:** `adapters/codex/command.ts` uses `codex queue --thread <id> --message <prompt> --resume` as an argv array (no shell); re-check flags on upgrade
 - [ ] [H] 12.7 Archived `.zst` sessions: skipped at first; later an on-demand "load archived" with a streaming zstd reader (needs a decision on a dependency)
+
+## Phase 13 — Backlog requests (planned 2026-11-21)
+
+Locked decisions: keep the low-poly look (no pixelation pass); start in walk mode on the first visit near the plaza, then use the saved/default view; raise the walk zoom clamp instead of auto-switching to overview; **no camera position jumps anywhere** — every camera move flies smoothly (fast is allowed), including reset, default view, walk/overview, Go there, warp, project focus, dock links and laptop close-up; low-poly raptor (#ce00, tinted by the manager colour) as the default player skin with the spark bot selectable; convert Veranda into the restaurant and move the BBQ to the yard; 3D racks = **Data center**, search = **Data room**, processes = **Server room**; one rack per project; cubicles wrap the existing desks with two ghost walls; rate limit auto-detected + manual override with everyone visibly nervous (cosmetic); caffeine cosmetic with small clip flavour; simulated chat PG-13, 100+ threads generated offline; games framework first, then pong/RPS/dice, race last; drone carry cosmetic straight-line only; sponsor values hardcoded with `#` placeholders; all app data in local SQLite; sync local-first outbox, app data + session metadata only, off until configured.
+
+### 13.0 Storage and sync foundation
+Do this first: games, rewards, caffeine and rankings all write here.
+- [ ] [O] 13.0.1 SQLite schema + migrations: `server/db.ts`; tables `meta, config, teams, board, runs, labels, archive, notes, bots, games, rankings, rewards, caffeine, outbox`; `schemaVersion`; import existing JSON once with a backup; `node:sqlite` (already used by `server/search.ts`); tests for migration and rollback
+- [ ] [S] 13.0.2 Move the JSON stores behind the DB (`config.ts`, `board/`, `notes.ts`, `archive.ts`, `labels.ts`, `botColors.ts`) without changing routes or client contracts; keep JSON read compatibility for one release
+- [ ] [S] 13.0.3 `docs/SYNC.md` + `server/sync/`: `SyncAdapter` interface, outbox rows (`kind, id, op, updatedAt, payload`), tombstones, last-write-wins; no network code runs until an endpoint/key is configured
+- [ ] [H] 13.0.4 Settings > Sync: enable toggle, endpoint, key, last sync, payload preview (allowlist), "Sync now"; searchable
+- [ ] [H] 13.0.5 Update `CLAUDE.md` (§2 storage, §7 privacy, §11 files) and README: SQLite, opt-in sync, exactly what syncs (never message text or search snippets), backup/export
+- [ ] [H] 13.0.6 Tests: JSON -> SQLite fixture, outbox order, sync disabled makes zero requests, allowlist excludes transcript text
+
+### 13.1 Player, camera, interaction
+- [x] [O] 13.1.1 Avatar contract `world/avatar.ts`: `{id, name, parts, clips}`; raptor and spark bot; manager colour tint; no external models; no pixelation — **done:** `Avatar` (parts, glow, clips, build/layout, pure `pose()`), `listAvatars`/`getAvatar`/`validateAvatars`; `test/avatar.test.ts`
+- [x] [S] 13.1.2 Low-poly raptor rig + walk/idle/jump/sprint poses, third-person follow; keep the 150-bot budget — **done:** poses driven by `avatar.pose()` each frame, eased; `World.tsx` renders the selected avatar's parts generically. Three avatars: **developer** (default, cliché dev — jeans, black turtleneck, square glasses, full beard, slightly overweight, ~2.47x agent height; manager colour tints the jeans only), raptor (faceted origami look) and spark bot. Per-part colours + per-avatar camera `focusY`; feet on the ground
+- [ ] [S] 13.1.3 Camera: default distance +15-20%; first visit spawns in walk mode near the plaza; saved/default view still wins afterwards — all through the 13.1.10 `flyTo`
+- [ ] [H] 13.1.4 Raise the walk zoom clamp from 8 to the value that fits the campus (computed from `layout` bounds); show it in the View panel; no auto overview
+- [ ] [S] 13.1.5 Space opens the Map/teleport overlay (click-to-go); ignored while typing; keymap + Settings entry — long hops use the 13.1.10 `flyTo`, never a camera snap
+- [ ] [H] 13.1.6 Nearby agent = nearest live bot position (`roam`), not nearest desk; E and actions work anywhere
+- [ ] [H] 13.1.7 Agent menu: Actions expanded by default; header shows project/team, given name and session title
+- [ ] [S] 13.1.8 Laptop closeup: fly from the current camera to a pair-programming spot beside the agent; Esc/Back flies back; no jump-behind, no walk→overview detour
+- [ ] [H] 13.1.9 Settings: avatar picker, start mode, zoom max readout; searchable keywords — **partly:** "Character" picker (`ao.avatar`) + full developer customisation done — top style (turtleneck / t-shirt / hoodie / squared-lines plaid), top colour + pants colour, back-logo emoji, glasses / beard / overweight toggles (`src/world/devLook.ts`, store `devLook`/`setDevLook`, `avatarTextures.ts` for the plaid + emoji textures); start mode + zoom max readout still open
+- [x] [O] 13.1.10 Camera continuity contract: one `flyTo({ position, target, duration? })` helper (distance-based duration, ease-in-out, capped speed); every camera change goes through it. Cover overview `frame()`, reset/clear default, zoom/pan/angle, walk↔overview, Go there/warp, project focus/double-click, dock links and laptop close-up. No direct `camera.position.set/copy` outside the initial mount
+- [x] [S] 13.1.11 Remove the walk→overview→closeup jump (`World.tsx:659-661`): do not call `frame()` first; fly from the current pose into the close-up and fly back to the stored pose. Same for the `jump`/`enterTeam` path, which currently teleports the player
+- [x] [S] 13.1.12 Walk/overview switch and teleports: animate the player and camera together (or fly the camera first and move the player on arrival) so the camera never starts from a discontinuous position; spawn at the nearest valid point — **done:** walk spawn, Go there/warp move the player on arrival (`done` callback); no snap
+- [x] [H] 13.1.13 Continuity tests: `flyTo` is monotonic with no overshoot; no per-frame camera delta above the configured cap; a grep/unit test rejects new direct `camera.position.set/copy` calls in `World.tsx` — **done:** math extracted to `world/camera.ts`; `test/camera.test.ts` (7 tests) also greps `World.tsx` for direct position snaps
+- [x] [H] 13.1.14 Settings: camera fly speed (fast/normal) and reduced motion (short fades instead of long flights); 3D view stays mounted across panels and panel open/close never reframes — **done:** Settings > 3D office "Camera fly speed" + "Reduced motion" (`ao.flySpeed`, `ao.reducedMotion`); `flyDurationFor` applies them; 3D view already stays mounted (`dock.ts`)
+
+### 13.2 Data center
+- [ ] [O] 13.2.1 Design: one rack per project, deterministic layout, growth and caps, instanced LEDs/tapes/cables; no per-frame React
+- [ ] [S] 13.2.2 `world/datacenter.tsx`: racks, project-colour labels, LEDs = active chats (VU style), tape units, hydra cables, forcefield walls
+- [ ] [H] 13.2.3 Rename the room and each rack alias (SQLite); labels survive reloads
+- [ ] [H] 13.2.4 Inspector service robots between racks (reuse `servicebots.tsx`; cosmetic)
+- [ ] [S] 13.2.5 Click a rack -> Data room search filtered to that project; deep link from Map/Teams
+- [ ] [H] 13.2.6 Rename UI strings: Data center (3D), Data room (search), Server room (processes); update menus, keymap, docs
+
+### 13.3 Board and backlog track
+- [ ] [S] 13.3.1 Board redesign: columns, cards, spacing, drop targets, header/filters; world palette; keep the narrow one-column mode
+- [ ] [H] 13.3.2 Board CSS tokens from the 3D palette
+- [ ] [S] 13.3.3 `server/backlog.ts`: parse headings, `-` items, `[DONE]`, `[question ...]`, status; `/api/backlog`; tests
+- [ ] [S] 13.3.4 "Backlog.md" track in the Board: visible only when one project is selected; toggle persisted; read-only
+- [ ] [H] 13.3.5 "Create backlog.md" template with the instructions; confirm; never overwrite
+- [ ] [H] 13.3.6 Optional explicit item <-> card links; no automatic matching
+
+### 13.4 Cubicles, identity, caffeine, rate limit
+- [ ] [O] 13.4.1 Cubicle model: wrap the existing desk with two ghost walls, a work shelf and a rewards shelf; overflow goes to the archive; collision/click rules
+- [ ] [S] 13.4.2 Render cubicles/shelves; keep laptop and status screen; walls stay click-through
+- [ ] [S] 13.4.3 Rewards/trophies: SQLite rewards, wall slots, archive overflow; claw items can be given to an agent
+- [ ] [S] 13.4.4 Project-colour hat/visor accent (after 9.3); project badge in Teams, agent menu and chat header
+- [ ] [H] 13.4.5 Caffeine: SQLite value per agent, decay, coffee/food bump, shown in the agent menu; jitter/yawn clip modifiers only
+- [ ] [S] 13.4.6 Rate limit: detect 429/usage-limit from run events and transcripts + manual override; global store flag; Settings row
+- [ ] [H] 13.4.7 Nervous mode: red blink, rage clips, bubbles for everyone; purely cosmetic, working bots keep working
+- [ ] [H] 13.4.8 "Play while limited" entries in the agent menu (delegate to 13.7)
+
+### 13.5 Simulated chat
+- [ ] [O] 13.5.1 Schema + offline generator: threads/nodes/options/transitions; 100+ bundled PG-13 threads; validation; no model calls at runtime
+- [ ] [S] 13.5.2 Chat UI: white bubbles, fast typewriter, option buttons, thread chaining, per-agent history, unread
+- [ ] [H] 13.5.3 Curate/generate the 100+ threads (games, cars, life, work); no slurs/sexual content; every node reachable
+- [ ] [S] 13.5.4 Idle initiation + rate-limit mode; close/reopen; no external requests
+- [ ] [H] 13.5.5 Settings: enable, speed, content filter; docs
+- [ ] [H] 13.5.6 Tests: schema, unique option ids, reachability, no network
+
+### 13.6 Restaurant and drones
+- [ ] [O] 13.6.1 Convert Veranda into the restaurant; move the BBQ grill/picnic to the yard; zone layout + menu data
+- [ ] [S] 13.6.2 Kitchen + chef NPC + ordering UI on click; chef look variants; order state machine
+- [ ] [H] 13.6.3 Chef looks as data (italian/chinese/american/...); revert after the meal
+- [ ] [S] 13.6.4 Occasional fire + firefighter drone response; cooldown; cosmetic; off by default
+- [ ] [H] 13.6.5 Drone food delivery when an agent starts work (reuse the coffee path); food raises caffeine a little
+- [ ] [S] 13.6.6 Cosmetic straight-line agent carry: attach, fly over the campus, drop near the manager; no pathfinding
+- [ ] [H] 13.6.7 Menu copy, room labels, tests for the order state machine
+
+### 13.7 Games
+- [ ] [O] 13.7.1 Framework: game registry, instances, seats, state machine, score above the table, exit via header, cleanup, per-agent rankings (SQLite)
+- [ ] [S] 13.7.2 Instances: create a new table if taken, remove idle ones, invite/bring an agent; seat reservations
+- [ ] [S] 13.7.3 Idle agents pair up (behavior intent); local simulation only
+- [ ] [S] 13.7.4 Pong/table tennis (proximity hit, distance = strength)
+- [ ] [H] 13.7.5 Rock-paper-scissors + dice
+- [ ] [S] 13.7.6 Air hockey (reuse pong physics, edge bounces, centre target)
+- [ ] [S] 13.7.7 Billiards (aim/strength 1-9 or hold E; table colour by variant)
+- [ ] [S] 13.7.8 Basketball timing game (angle -> strength -> shot, speed-up, drone ball)
+- [ ] [S] 13.7.9 Claw machine + item inventory -> rewards
+- [ ] [O] 13.7.10 Race track (last): track from layout, car physics, powerups, traps, carmageddon
+- [ ] [H] 13.7.11 Scoreboard/ranking UI + persistence tests
+
+### 13.8 Gym, anger room, sponsor
+- [ ] [H] 13.8.1 Gym: mirror wall, over-pump blow-up fx, treadmill boredom bubbles
+- [ ] [S] 13.8.2 Anger room: weapon pick, 60 s reset, destructible props, points
+- [ ] [H] 13.8.3 Sponsor room: hardcoded `#` placeholders in `src/shared/sponsor.ts`; Patreon/USDT cards disabled until filled; copy address; open links only on click
+- [ ] [H] 13.8.4 Idle "sponsor" bubbles, frequency-capped, off by default
+- [ ] [H] 13.8.5 Tests: no background requests, no invented addresses, placeholders never clickable
+
+### Suggested order
+13.0 (Opus/Sonnet) -> 13.1 (Opus/Sonnet) -> in parallel 13.2, 13.3, 13.5 content -> 13.4 (after 9.3) -> 13.6 -> 13.7 framework then games -> 13.8. Haiku tasks can start as soon as their epic's contract exists.
+Count: ~9 Opus, 30 Sonnet, 30 Haiku. Camera continuity (13.1.10-13.1.14) is part of 13.1 and should land before any feature that moves the camera.
 
 ## Notes
 - Haiku returned `model_not_found` in this environment (default model alias there is `beam-free`); delegated tasks ran on Sonnet. Re-tag Haiku when available. Office runs inherit the user's default model, so they fail the same way if that alias is broken.

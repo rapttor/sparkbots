@@ -5,6 +5,8 @@ import { useWidth } from "../dock/useLayout";
 import { runProblem } from "../world/runStatus";
 import { useStore } from "../state/store";
 import { KEYMAP } from "../world/keymap";
+import { listAvatars } from "../world/avatar";
+import { LOGO_EMOJIS, TOP_STYLES, type TopStyle } from "../world/devLook";
 import { DEFAULT_FILTERS } from "./teamFilters";
 
 type NumKey = "historyDays" | "idleThresholdSec" | "asleepAfterMin" | "doneWaveSec" | "errorSec";
@@ -16,8 +18,9 @@ const NUMS: { key: NumKey; label: string; desc: string; words: string }[] = [
   { key: "errorSec", label: "Error display (sec)", desc: "How long a worker stays in the error state before returning to idle.", words: "error red failure display" },
 ];
 
-/** One searchable option. `words` are hidden keywords so a search finds it by related terms, not only its label. */
-interface Opt { id: string; section: string; label: string; desc: string; words: string; body: ReactNode; wide?: boolean }
+/** One searchable option. `words` are hidden keywords so a search finds it by related terms, not only its label.
+ *  `form` renders it compactly (label left, control right, description behind an (i) toggle, no row lines). */
+interface Opt { id: string; section: string; label: string; desc: string; words: string; body: ReactNode; wide?: boolean; form?: boolean }
 const norm = (s: string) => s.toLowerCase();
 const matches = (o: Opt, q: string) => {
   const hay = norm(`${o.section} ${o.label} ${o.desc} ${o.words}`);
@@ -35,6 +38,21 @@ function Field({ o }: { o: Opt }) {
         <div className="muted small">{o.desc}</div>
       </div>
       <div className="opt-body">{o.body}</div>
+    </div>
+  );
+}
+
+/** Compact form row: label + (i) on the left, control on the right; the description opens below the whole row. */
+function FormField({ o }: { o: Opt }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="opt form" id={`opt-${o.id}`}>
+      <div className="form-left">
+        <span className="opt-label">{o.label}</span>
+        <button type="button" className="form-info" aria-label="More information" aria-expanded={open} onClick={() => setOpen((v) => !v)}>i</button>
+      </div>
+      <div className="opt-body form-control">{o.body}</div>
+      {open && <div className="form-desc muted small">{o.desc}</div>}
     </div>
   );
 }
@@ -134,6 +152,10 @@ function ArchiveList() {
 export function Settings() {
   const managerColor = useStore((s) => s.managerColor);
   const setManagerColor = useStore((s) => s.setManagerColor);
+  const avatar = useStore((s) => s.avatar);
+  const setAvatar = useStore((s) => s.setAvatar);
+  const devLook = useStore((s) => s.devLook);
+  const setDevLook = useStore((s) => s.setDevLook);
   const snapshot = useStore((s) => s.snapshot);
   const markAllSeen = useStore((s) => s.markAllSeen);
   const showKeymap = useStore((s) => s.showKeymap);
@@ -181,12 +203,47 @@ export function Settings() {
   const cfgSaved = <Status m={cfgMsg} />;
 
   const opts: Opt[] = [
-    { id: "manager-color", section: "3D office", label: "Manager color", words: "player robot walk avatar colour",
-      desc: "The robot you walk around the 3D office with. Saved in this browser.",
+    { id: "avatar", section: "Owner", form: true, label: "Character", words: "owner player avatar character look choose raptor dinosaur spark robot manager",
+      desc: "The character you walk the 3D office with. Saved in this browser.",
+      body: <select value={avatar} onChange={(e) => setAvatar(e.target.value)}>
+        {listAvatars().map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+      </select> },
+    { id: "manager-color", section: "Owner", form: true, label: "Pants color", words: "player robot walk avatar colour character tint jeans pants trousers bottom",
+      desc: "The colour of your character's jeans (developer) or body (raptor/spark bot). Saved in this browser.",
       body: <input type="color" value={managerColor} onChange={(e) => setManagerColor(e.target.value)} /> },
+    { id: "dev-top-color", section: "Owner", form: true, label: "Top color", words: "developer shirt hoodie tshirt turtleneck plaid clothes colour top",
+      desc: "The colour of the developer's top (hoodie, t-shirt, turtleneck or squared-lines shirt).",
+      body: <input type="color" value={devLook.topColor} onChange={(e) => setDevLook({ topColor: e.target.value })} /> },
+    { id: "dev-top-style", section: "Owner", form: true, label: "Top style", words: "developer clothes hoodie tshirt turtleneck plaid squared lines shirt",
+      desc: "What the developer wears. The squared-lines shirt weaves the top and pants colours together.",
+      body: <select value={devLook.top} onChange={(e) => setDevLook({ top: e.target.value as TopStyle })}>
+        {TOP_STYLES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+      </select> },
+    { id: "dev-logo", section: "Owner", form: true, label: "Shirt logo", words: "developer emoji badge patch front back chest shirt print",
+      desc: "An emoji printed on the front of the developer's top, plus a bigger one (2x) on the back that you see from the follow camera.",
+      body: <select value={devLook.logo} onChange={(e) => setDevLook({ logo: e.target.value })}>
+        {LOGO_EMOJIS.map((e) => <option key={e || "none"} value={e}>{e || "(none)"}</option>)}
+      </select> },
+    { id: "dev-glasses", section: "Owner", form: true, label: "Glasses", words: "developer square glasses spectacles eyewear",
+      desc: "Square glasses for the developer.",
+      body: <input type="checkbox" checked={devLook.glasses} onChange={(e) => setDevLook({ glasses: e.target.checked })} /> },
+    { id: "dev-beard", section: "Owner", form: true, label: "Beard", words: "developer full beard facial hair",
+      desc: "A full beard for the developer.",
+      body: <input type="checkbox" checked={devLook.beard} onChange={(e) => setDevLook({ beard: e.target.checked })} /> },
+    { id: "dev-overweight", section: "Owner", form: true, label: "Overweight", words: "developer belly chubby overweight",
+      desc: "A bit of a belly for the developer.",
+      body: <input type="checkbox" checked={devLook.overweight} onChange={(e) => setDevLook({ overweight: e.target.checked })} /> },
     { id: "zoom-lock", section: "3D office", label: "Lock zoom", words: "camera wheel scroll distance freeze",
       desc: "Start with the zoom locked: the mouse wheel and the zoom buttons stop changing the camera distance. Also in the header.",
       body: <label><input type="checkbox" checked={flag("ao.zoomLock")} onChange={(e) => setFlag("ao.zoomLock", e.target.checked)} /> Zoom locked</label> },
+    { id: "fly-speed", section: "3D office", label: "Camera fly speed", words: "camera move transition flight smooth animated go there reset close-up fast normal",
+      desc: "How fast the camera flies to its next spot (Go there, reset, close-up). Fast is fine; it never jumps.",
+      body: <select value={ls.get("ao.flySpeed") ?? "normal"} onChange={(e) => { ls.set("ao.flySpeed", e.target.value); bump((n) => n + 1); }}>
+        <option value="normal">Normal</option><option value="fast">Fast</option>
+      </select> },
+    { id: "reduced-motion", section: "3D office", label: "Reduced motion", words: "accessibility animation camera flight fade short motion sickness",
+      desc: "Use short fades instead of long camera flights, for less motion.",
+      body: <label><input type="checkbox" checked={flag("ao.reducedMotion")} onChange={(e) => setFlag("ao.reducedMotion", e.target.checked)} /> Reduce camera motion</label> },
     { id: "show-all-map", section: "3D office", label: "Show finished / abandoned projects", words: "labels hidden map archive onMap",
       desc: "Projects labelled Finished or Abandoned are left off the map unless this is on.",
       body: <label><input type="checkbox" checked={flag("ao.map.showAll")} onChange={(e) => setFlag("ao.map.showAll", e.target.checked)} /> Show them</label> },
@@ -287,14 +344,18 @@ export function Settings() {
       <div className="settings-main">
         {loadErr && <p className="small" style={{ color: "#e5484d" }}>{loadErr}</p>}
         {shown.length === 0 && <p className="muted">No setting matches “{query}”.</p>}
-        {sections.map((sec) => (
-          <div key={sec} className="settings-group">
-            <h2>{sec}</h2>
-            <div className="settings-card">
-              {shown.filter((o) => o.section === sec).map((o) => <Field key={o.id} o={o} />)}
+        {sections.map((sec) => {
+          const secOpts = shown.filter((o) => o.section === sec);
+          const allForm = secOpts.length > 0 && secOpts.every((o) => o.form);
+          return (
+            <div key={sec} className="settings-group">
+              <h2>{sec}</h2>
+              <div className={`settings-card ${allForm ? "form-card" : ""}`}>
+                {secOpts.map((o) => (o.form ? <FormField key={o.id} o={o} /> : <Field key={o.id} o={o} />))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

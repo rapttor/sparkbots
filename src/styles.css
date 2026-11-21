@@ -159,6 +159,19 @@ th,td{text-align:left;padding:5px 10px;border-bottom:1px solid var(--line)}th{co
 .settings-card .opt-wide{flex-direction:column;align-items:stretch;gap:10px}
 .settings-card .opt-wide .opt-body{display:block}
 .settings.compact{flex-direction:column;padding:12px 14px;gap:12px}.settings.compact .settings-nav{width:auto;position:static}.settings.compact .settings-card .opt{flex-direction:column;align-items:stretch;gap:8px}
+/* Compact "form" style for the owner look: label left, control right, no lines between rows. */
+.settings-card.form-card{border:0;background:transparent}
+.settings-card .opt.form{padding:7px 0;flex-wrap:wrap;row-gap:6px}
+.settings-card .opt.form+.opt.form{border-top:0}
+.form-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.form-info{width:18px;height:18px;border-radius:50%;border:1px solid var(--line);background:transparent;color:inherit;font:italic 600 11px/1 system-ui,sans-serif;cursor:pointer;padding:0;flex:none;opacity:.7}
+.form-info:hover{opacity:1}
+.form-info[aria-expanded="true"]{background:var(--line);opacity:1}
+.form-desc{flex-basis:100%;margin-top:2px;max-width:640px}
+/* Keep the form layout (label left, control right, desc below) even in the narrow/compact sidebar. */
+.settings.compact .settings-card .opt.form{flex-direction:row;align-items:center;flex-wrap:wrap;gap:8px}
+.settings.compact .form-left{flex:1;min-width:0}
+.settings.compact .form-desc{flex-basis:100%}
 .card-menu{display:flex;flex-direction:column;gap:3px;align-items:stretch;border:1px solid var(--line);border-radius:6px;padding:6px;margin-top:6px;background:var(--panel)}
 .card-menu button{text-align:left}
 .wc-model{width:9em;font-size:12px}
