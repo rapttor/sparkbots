@@ -29,6 +29,8 @@ import { roams, setLook, clearLook, player as playerState, pushPlayerOut, holdAg
 import { tarsParts } from "./tars";
 import { ACTIONS } from "./actions";
 import { Minibots } from "./minibots";
+import { useNarrow } from "../dock/useLayout";
+import { dockVisible } from "../state/dock";
 import { MANAGER_ID, requestCoffee, ServiceBots } from "./servicebots";
 import { CoffeeFactory } from "./coffeefactory";
 import { Cubicles } from "./cubicles";
@@ -112,7 +114,19 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     codexHead: useRef<InstancedMesh>(null), codexBody: useRef<InstancedMesh>(null), codexVisor: useRef<InstancedMesh>(null), codexEyes: useRef<InstancedMesh>(null),
     tarsFrame: useRef<InstancedMesh>(null), tarsSide: useRef<InstancedMesh>(null), tarsFace: useRef<InstancedMesh>(null),
   };
-  const { camera, gl } = useThree();
+  const { camera, gl, size } = useThree();
+  // The dock floats over the scene (it never resizes the view); the camera slides its view window so the scene centre stays in the free area.
+  const dockState = useStore((st) => st.dock);
+  const narrowNow = useNarrow();
+  const viewShift = useRef(0);
+  useFrame((_, dt) => {
+    const cam = camera as PerspectiveCamera;
+    const want = !narrowNow && dockVisible(dockState) ? (dockState.side === "right" ? 1 : -1) * dockState.width / 2 : 0;
+    const cur = viewShift.current + (want - viewShift.current) * (1 - Math.exp(-8 * Math.min(dt, 0.1)));
+    viewShift.current = Math.abs(cur - want) < 0.5 ? want : cur;
+    if (viewShift.current === 0) { if (cam.view?.enabled) cam.clearViewOffset(); }
+    else cam.setViewOffset(size.width, size.height, viewShift.current, 0, size.width, size.height);
+  });
   const pick = (id: string, ev: MouseEvent) => { // popup position relative to the 3D view; shift+click = follow me / stop following
     if (ev.shiftKey) { useStore.getState().toggleFollower(id); return; }
     const r = gl.domElement.getBoundingClientRect();
@@ -1145,7 +1159,7 @@ export default function World({ active = true }: { active?: boolean }) {
         <Scene mode={mode} layout={layout} jump={jump} onNearby={setNearby} onEnter={enterTeam} ctl={{ onScreen: startCloseup, closeup, closeupExit, onCloseup: setInCloseup, onReady, saveView: saveN, clearView: clearN, labels: labelsApi, active, subs, tags, api: sceneApi, onPick, pan, angle, zoom, reset, locked, warp, view, skipFrame, closeupWalk, handZoomCmd: { save: handSave, restore: handRestore }, handMenuOpen: handMenuOpenRef, onOverview: setLabelsOnly }} />
       </Canvas>
       {mode === "walk" && controller === "hand" && !inCloseup && (
-        <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }}>
+        <div style={{ position: "absolute", top: 10, left: "calc(10px + var(--dock-l, 0px))", display: "flex", gap: 6 }}>
           <button onClick={() => setHandSave((n) => n + 1)} style={{ padding: "4px 10px", cursor: "pointer", fontSize: 12 }} title="Remember the current zoom">Save zoom</button>
           <button onClick={() => setHandRestore((n) => n + 1)} style={{ padding: "4px 10px", cursor: "pointer", fontSize: 12 }} title="Go back to the saved zoom">Restore zoom</button>
           <button onClick={openHandMenu} style={{ padding: "4px 10px", cursor: "pointer", fontSize: 12 }} title="Show what you can do here and bring the mouse back (E)">Actions</button>
@@ -1164,7 +1178,7 @@ export default function World({ active = true }: { active?: boolean }) {
           { label: "Restore zoom", run: () => setHandRestore((n) => n + 1) },
         ]} />
       )}
-      <button onClick={clearBubbles} style={{ position: "absolute", top: 10, right: 10, padding: "4px 10px", cursor: "pointer", fontSize: 12 }} title="Mark every speech bubble as read">Clear bubbles</button>
+      <button onClick={clearBubbles} style={{ position: "absolute", top: 10, right: "calc(10px + var(--dock-r, 0px))", padding: "4px 10px", cursor: "pointer", fontSize: 12 }} title="Mark every speech bubble as read">Clear bubbles</button>
       {!ready && <p className="muted" style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", margin: 0, pointerEvents: "none" }}>Building the office…</p>}
       <Labels apiRef={labelsApi} items={shownLabels} onPick={(it, cx, cy) => {
         const r = frame.current?.getBoundingClientRect();
@@ -1188,7 +1202,7 @@ export default function World({ active = true }: { active?: boolean }) {
       <FollowBar />
       <SimChatHost />
       <GamesHud layout={layout} />
-      {meetingOpen && <div style={{ position: "absolute", right: 10, bottom: 10, zIndex: 6 }}><MeetingChat onClose={() => setMeetingOpen(false)} /></div>}
+      {meetingOpen && <div style={{ position: "absolute", right: "calc(10px + var(--dock-r, 0px))", bottom: 10, zIndex: 6 }}><MeetingChat onClose={() => setMeetingOpen(false)} /></div>}
       {showKeymap && <KeymapLegend entries={entries} onHide={() => setShowKeymap(false)} />}
       {menu && menuWorker && (
         <AgentMenu worker={menuWorker} scene={sceneApi.current ?? { talk() {}, act() {}, look() {}, sendTo() {}, archive: (_id, done) => done() }} onClose={() => setMenu(null)} />

@@ -4,6 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import type { Group, Mesh, MeshBasicMaterial } from "three";
 import type { Layout } from "../layout";
 import { newlyWorking } from "../servicebots";
+import { player } from "../roam";
 import { KITCHEN_SETS } from "./kitchenSets";
 import { Glass } from "./Glass";
 import { CHEF_LOOKS, MENU, chefLook, dishById, newOrder, place, tick, type ChefLookId, type Order } from "./menu";
@@ -30,6 +31,7 @@ export function Restaurant({ layout }: { layout: Layout }) {
   const flights = useRef<Flight[]>([]);
   const fGroups = useRef<(Group | null)[]>([]);
   const fBox = useRef<(Mesh | null)[]>([]);
+  const fEmoji = useRef<(HTMLSpanElement | null)[]>([]);
   const fireDrones = useRef<(Group | null)[]>([]);
   const flames = useRef<(Mesh | null)[]>([]);
   const chef = useRef<Group>(null);
@@ -56,7 +58,13 @@ export function Restaurant({ layout }: { layout: Layout }) {
   useFrame((_, delta) => {
     const now = Date.now(), dt = Math.min(delta, 0.1);
     const next = tick(orderRef.current, now);
-    if (next !== orderRef.current) { orderRef.current = next; setOrder(next); }
+    if (next !== orderRef.current) {
+      if (next.state === "ready" && orderRef.current.state === "preparing" && rz && flights.current.length < MAX_FLIGHTS) { // your meal is done: a drone brings it to you, carrying the dish icon
+        const from = { x: rz.x, z: rz.z - 2.6 };
+        flights.current.push({ id: "manager", t: 0, from, to: { x: from.x, z: from.z + 3 }, carry: true, emoji: dishById(next.dish ?? "")?.icon ?? "🍽" });
+      }
+      orderRef.current = next; setOrder(next);
+    }
     if (now - flagAt.current > 4000) { flagAt.current = now; flagOn.current = loadFlag(FIRE_FLAG); }
     const f = tickFire(fire.current, now, flagOn.current);
     if (f !== fire.current) { const was = fire.current.burning; fire.current = f; if (was !== f.burning) setBurning(f.burning); }
@@ -70,9 +78,11 @@ export function Restaurant({ layout }: { layout: Layout }) {
     for (let i = 0; i < MAX_FLIGHTS; i++) {
       const g = fGroups.current[i], fl = flights.current[i];
       if (!g) continue;
-      if (!fl) { g.visible = false; continue; }
-      const p = flight(fl.from, fl.to, fl.t);
-      g.visible = true; g.position.set(p.x, p.y, p.z); g.rotation.y = Math.atan2(fl.to.x - fl.from.x, fl.to.z - fl.from.z);
+      if (!fl) { g.visible = false; const em0 = fEmoji.current[i]; if (em0) em0.textContent = ""; continue; }
+      const to = fl.id === "manager" && player.on ? { x: player.x, z: player.z } : fl.to; // your meal flies to wherever you are now
+      const p = flight(fl.from, to, fl.t);
+      const em = fEmoji.current[i]; if (em) em.textContent = fl.carry && p.carrying ? fl.emoji : "";
+      g.visible = true; g.position.set(p.x, p.y, p.z); g.rotation.y = Math.atan2(to.x - fl.from.x, to.z - fl.from.z);
       const b = fBox.current[i]; if (b) b.visible = fl.carry && p.carrying;
     }
     // fire: flames flicker over the stove; two firefighter drones arrive once `responders` is set
@@ -185,9 +195,6 @@ export function Restaurant({ layout }: { layout: Layout }) {
             </div>
           </Html>
         )}
-        {order.state === "ready" && dish && (
-          <Html position={[1.2, 1.2, 1.0]} center style={{ pointerEvents: "none" }}><span style={{ fontSize: 22 }}>{dish.icon}</span></Html>
-        )}
         {burning && <Html position={[-2.6, 2.6, 0]} center style={{ pointerEvents: "none" }}><div style={bubble}>🔥 Fire in the kitchen!</div></Html>}
       </group>
       {/* fire on the stove + firefighter drones */}
@@ -209,6 +216,7 @@ export function Restaurant({ layout }: { layout: Layout }) {
         <group key={i} ref={(g) => { fGroups.current[i] = g; }} visible={false}>
           <mesh><boxGeometry args={[0.5, 0.1, 0.5]} /><meshStandardMaterial color="#f59e0b" /></mesh>
           <mesh ref={(m) => { fBox.current[i] = m; }} position={[0, -0.25, 0]}><boxGeometry args={[0.25, 0.2, 0.25]} /><meshStandardMaterial color="#fde68a" /></mesh>
+          <Html position={[0, -0.55, 0]} center style={{ pointerEvents: "none" }}><span ref={(el) => { fEmoji.current[i] = el; }} style={{ fontSize: 26, textShadow: "0 1px 4px #000" }} /></Html>
         </group>
       ))}
     </>

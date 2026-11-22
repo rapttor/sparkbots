@@ -5,6 +5,7 @@ import { PanelMenu } from "./dock/PanelMenu";
 import { Dock } from "./dock/Dock";
 import { Dialog } from "./dock/Dialog";
 import { useNarrow } from "./dock/useLayout";
+import { dockVisible } from "./state/dock";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { FilterBar } from "./panels/FilterBar";
 import { api } from "./api";
@@ -13,6 +14,10 @@ import { makeFixtureSnapshot } from "./world/fixture";
 
 const World = lazy(() => import("./world/World"));
 
+
+/** How many px of the 3D view the floating dock covers on a side (0 for the bottom sheet or a hidden dock). */
+const dockInset = (dock: { side: "left" | "right"; width: number } & Parameters<typeof dockVisible>[0], narrow: boolean, side: "left" | "right") =>
+  !narrow && dockVisible(dock) && dock.side === side ? dock.width : 0;
 
 export function App() {
   const { connected, snapshot, dock } = useStore();
@@ -37,7 +42,7 @@ export function App() {
         <span className="spacer" />
         <PanelMenu />
       </header>
-      <div className="body">
+      <div className="body" style={{ "--dock-l": `${dockInset(dock, narrow, "left")}px`, "--dock-r": `${dockInset(dock, narrow, "right")}px` } as React.CSSProperties}>
         <main className="stage">
           <ErrorBoundary label="the 3D office"><Suspense fallback={<p className="muted">Loading the 3D office…</p>}><World active={worldActive} /></Suspense></ErrorBoundary>
         </main>
