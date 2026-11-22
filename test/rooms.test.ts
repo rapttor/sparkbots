@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { COOK_S, MENU, SERVE_S, CHEF_LOOKS, chefLook, newOrder, place, tick } from "../src/world/rooms/menu";
 import { FIRE_MAX_GAP_S, FIRE_MIN_GAP_S, initFire, tickFire } from "../src/world/rooms/fire";
-import { WEAPONS, ITEMS, SESSION_S, MAX_ALIVE, WAVE_GAP_MIN_MS, WAVE_MAX, WAVE_MIN, COLS, ROWS, DEBRIS_CAP, DebrisPool, HIT_AT, isOver, smash, slotPos, startRun, startSession, stopRun, swingPose, tickWaves, timeLeft, hitShake } from "../src/world/rooms/anger";
+import { WEAPONS, ITEMS, SESSION_S, MAX_ALIVE, WAVE_GAP_MIN_MS, WAVE_MAX, WAVE_MIN, COLS, ROWS, DEBRIS_CAP, DebrisPool, HIT_AT, COMBO_MS, REST_PITCH, WAVE_GAP_MAX_MS, clampToRoom, comboMult, comboOf, fxScale, hitRadius, overReception, playerPitch, smashMany, swingTargets, isOver, smash, slotPos, startRun, startSession, stopRun, swingPose, tickWaves, timeLeft, hitShake } from "../src/world/rooms/anger";
 import { BLOW_S, PUMP_LIMIT_S, pumpPhase, pumpScale, boredLine, BORED_LINES } from "../src/world/rooms/gymLogic";
 import { FLIGHT_S, flight } from "../src/world/rooms/drones";
 import { SPONSOR_LINKS, filledLinks, isFilled } from "../src/shared/sponsor";
@@ -86,7 +86,7 @@ describe("anger room", () => {
     expect(isOver(s, SESSION_S * 1000)).toBe(true);
     expect(smash(s, s.targets[0]!.id, SESSION_S * 1000).s).toBe(s);
   });
-  it("wrecking run: waves of 2-4 on schedule, capped, stop gives a fresh clock", () => {
+  it("wrecking run: waves of 3-6 about every second, capped, stop gives a fresh clock", () => {
     let s = startSession("bat", 0, rnd);
     s = startRun(s, 0, rnd);
     expect(s.running).toBe(true);
@@ -118,10 +118,64 @@ describe("anger room", () => {
     expect(swingPose(1, 1).done).toBe(true);
     expect(hitShake(2000, 1000)).toBe(0); expect(Math.abs(hitShake(1010, 1000))).toBeGreaterThan(0);
   });
+  it("respawn is fast and the floor stays busy but capped", () => {
+    expect(WAVE_GAP_MAX_MS).toBeLessThanOrEqual(1200); expect(WAVE_MIN).toBeGreaterThanOrEqual(3); expect(WAVE_MAX).toBeLessThanOrEqual(6);
+    expect(MAX_ALIVE).toBeLessThan(COLS * ROWS);
+  });
+  it("a swing hits everything within reach of the pointer, and only that", () => {
+    const s = startRun(startSession("hammer", 0, rnd), 0, rnd);
+    const t = s.targets[0]!, p = slotPos(t.slot, 9, 6);
+    const near = swingTargets(s, p.x, p.z, 9, 6);
+    expect(near).toContain(t.id);
+    expect(swingTargets(s, p.x + 20, p.z, 9, 6)).toEqual([]);
+    const wide = swingTargets(s, 0, 0, 9, 6);                 // middle of the room: several in reach? never more than alive
+    expect(wide.every((id) => s.targets.some((x) => x.id === id))).toBe(true);
+    expect(swingTargets(startSession(null, 0, rnd), p.x, p.z, 9, 6)).toEqual([]);
+    expect(hitRadius(WEAPONS.find((w) => w.id === "crowbar")!)).toBeGreaterThan(hitRadius(WEAPONS.find((w) => w.id === "wrench")!));
+  });
+  it("smashMany: one blow can hit several; combo builds, multiplies points, and times out", () => {
+    let s = startRun(startSession("crowbar", 0, () => 0.99), 0, () => 0.99); // power 3 breaks all but computers
+    const ids = s.targets.map((t) => t.id);
+    expect(ids.length).toBeGreaterThan(3);
+    const r = smashMany(s, ids, 1000);
+    expect(r.hit.length).toBe(ids.length);
+    expect(r.s.combo).toBe(ids.length); expect(r.s.best).toBe(ids.length);
+    expect(comboOf(r.s, 1000 + COMBO_MS)).toBe(ids.length); expect(comboOf(r.s, 1000 + COMBO_MS + 1)).toBe(0);
+    // multiplier kicks in from 5 hits and is capped
+    expect(comboMult(1)).toBe(1); expect(comboMult(5)).toBe(1.5); expect(comboMult(10)).toBe(2); expect(comboMult(999)).toBe(4);
+    // missing ids / empty blow change nothing
+    expect(smashMany(s, [], 1000).s).toBe(s); expect(smashMany(s, [9999], 1000).s).toBe(s);
+    // combo resets after the window: points back to base
+    s = { ...s, combo: 50, comboAt: 0 };
+    const late = smashMany(s, [s.targets[0]!.id], 100000);
+    expect(late.s.combo).toBe(1);
+  });
+  it("heavier weapons make a bigger mess", () => {
+    const f = (id: string) => fxScale(WEAPONS.find((w) => w.id === id)!);
+    expect(f("crowbar")).toBeGreaterThan(f("hammer")); expect(f("hammer")).toBeGreaterThan(f("bat"));
+    const a = new DebrisPool(), b = new DebrisPool();
+    a.spawnBurst(0, 0.4, 0, ["#fff"], "computer", f("bat"), rnd); b.spawnBurst(0, 0.4, 0, ["#fff"], "computer", f("crowbar"), rnd);
+    expect(b.step(0.001)).toBeGreaterThan(a.step(0.001));
+  });
+  it("items throw their own kind of debris: glass from monitors, confetti from paper", () => {
+    const kinds = (item: "computer" | "mail") => { const p = new DebrisPool(); p.spawnBurst(0, 0.4, 0, ["#fff"], item, 1, rnd); p.step(0.001); return new Set(Array.from(p.kind).filter((_, i) => p.life[i]! > 0)); };
+    expect(kinds("computer").has(4)).toBe(true); expect(kinds("computer").has(3)).toBe(false);
+    expect(kinds("mail").has(3)).toBe(true); expect(kinds("mail").has(4)).toBe(false);
+  });
+  it("the player's swing pitch is continuous with the rest pose and reaches the impact angle", () => {
+    expect(playerPitch(-1, 0.5)).toBe(REST_PITCH); expect(playerPitch(0, 0.5)).toBeCloseTo(REST_PITCH); expect(playerPitch(0.5, 0.5)).toBe(REST_PITCH);
+    expect(playerPitch(HIT_AT * 0.5, 0.5)).toBeGreaterThan(1.1);
+    expect(playerPitch(0.5 * 0.2, 0.5)).toBeLessThan(REST_PITCH - 1); // winds up (head goes high, behind)
+  });
+  it("the weapon is kept in the room; reception clicks are not swings", () => {
+    expect(clampToRoom(99, -99, 9, 6)).toEqual({ x: 4.1, z: -2.6 });
+    expect(clampToRoom(0, 0, 9, 6)).toEqual({ x: 0, z: 0 });
+    expect(overReception(3, 2.3)).toBe(true); expect(overReception(-2, -1)).toBe(false);
+  });
   it("debris pool is capped, allocation-free and goes quiet", () => {
     const p = new DebrisPool();
     expect(p.step(0.016)).toBe(0);
-    for (let i = 0; i < 50; i++) p.spawnBurst(0, 0.4, 0, ["#fff", "#000", "#f00"], () => 0.5);
+    for (let i = 0; i < 50; i++) p.spawnBurst(0, 0.4, 0, ["#fff", "#000", "#f00"], "computer", 2, () => 0.5);
     expect(p.step(0.016)).toBeLessThanOrEqual(DEBRIS_CAP);
     let alive = 1; for (let i = 0; i < 400 && alive; i++) alive = p.step(0.05);
     expect(alive).toBe(0);

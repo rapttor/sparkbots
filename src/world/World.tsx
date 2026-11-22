@@ -33,6 +33,7 @@ import { MANAGER_ID, requestCoffee, ServiceBots } from "./servicebots";
 import { CoffeeFactory } from "./coffeefactory";
 import { Cubicles } from "./cubicles";
 import { RoomsContent } from "./rooms/RoomsContent";
+import { smashCtl } from "./rooms/smashControl";
 import { DataCenter, consoleSpot, openDataRoom } from "./datacenter";
 import { GamesLayer, GamesHud } from "./games/GamesLayer";
 import { ClawLayer } from "./games/ClawLayer";
@@ -124,7 +125,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   fetchedRef.current = chatId;
   const dest = useRef<Vector3 | null>(null); // click-to-move target (walk mode)
   const goTo = (pt: Vector3) => {
-    if (modeRef.current !== "walk") return;
+    if (modeRef.current !== "walk" || smashCtl.active) return; // smashing in the anger room: you are the weapon, floor clicks do nothing
     if (controllerRef.current === "hand") { handPos.current.set(pt.x, 0, pt.z); clampHand(); return; }
     dest.current = new Vector3(pt.x, 0, pt.z);
   };
@@ -384,7 +385,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     const down = (e: PointerEvent) => {
       if (e.pointerType !== "mouse") { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); return; }
       dragged = false;
-      if (e.button !== 0 || modeRef.current !== "walk" || controllerRef.current !== "hand" || ctl.handMenuOpen.current) return;
+      if (e.button !== 0 || modeRef.current !== "walk" || controllerRef.current !== "hand" || ctl.handMenuOpen.current || smashCtl.active) return;
       const cam = (camera as PerspectiveCamera).clone(), at = new Vector3();
       cam.updateMatrixWorld(); cam.projectionMatrixInverse.copy(camera.projectionMatrixInverse);
       if (groundAt(cam, e.clientX, e.clientY, at)) grab = { x: e.clientX, y: e.clientY, cam, at, focus: camFocus.current.clone(), active: false };
@@ -399,7 +400,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     };
     const leave = () => { lastNdc.current = null; }; // stop edge-scrolling when the cursor leaves the scene
     const move = (e: PointerEvent) => {
-      if (modeRef.current !== "walk" || controllerRef.current !== "hand") return;
+      if (modeRef.current !== "walk" || controllerRef.current !== "hand" || smashCtl.active) return;
       if (e.pointerType === "mouse") {
         if (e.buttons & 2) return; // right-drag turns the view
         if (grab && e.buttons & 1) {
@@ -655,6 +656,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       return;
     }
     const p = pos.current;
+    if (player.current) player.current.visible = !smashCtl.active; // anger room smash run: the weapon is you, so the avatar and the hand are parked
     if (frozen.current) { if (handGroup.current) handGroup.current.visible = false; return; } // a laptop close-up owns the camera and the focus; the hand would only cover the screen
     if (controllerRef.current === "hand") {
       // Hand: WASD pans the camera, the hand sits where the mouse points, and the camera follows the hand only when it nears the edge.
@@ -681,9 +683,9 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
         }
       }
       p.copy(handPos.current); p.y = 0;
-      if (handGroup.current) { handGroup.current.visible = true; handGroup.current.position.set(p.x, 0, p.z); }
+      if (handGroup.current) { handGroup.current.visible = !smashCtl.active; handGroup.current.position.set(p.x, 0, p.z); }
     } else {
-      const ks = keys.current;
+      const ks = smashCtl.active ? new Set<string>() : keys.current; // smashing: the parked avatar does not walk (zoom, orbit and the camera keep working)
       let dx = (ks.has("d") || ks.has("arrowright") ? 1 : 0) - (ks.has("a") || ks.has("arrowleft") ? 1 : 0);
       let dz = (ks.has("s") || ks.has("arrowdown") ? 1 : 0) - (ks.has("w") || ks.has("arrowup") ? 1 : 0);
       if (dx !== 0 || dz !== 0) { // keys move relative to the camera: W is always "away from the camera"
