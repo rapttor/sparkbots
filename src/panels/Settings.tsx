@@ -320,7 +320,7 @@ export function Settings() {
       desc: "The model used when you message an agent from SparkBots. Leave empty to use Claude Code's default. You can also choose a model per message in the chat.",
       body: cfg && <><input placeholder="(default)" value={cfg.runModel} maxLength={80} onChange={(e) => setCfg({ ...cfg, runModel: e.target.value.trim() })} onBlur={() => void saveCfg(cfg)} /> {cfgSaved}</> },
     { id: "clean-env", section: "Claude runs", label: "Clean environment", words: "anthropic gateway token base url api key proxy opencode env variables 401",
-      desc: "Start runs without the ANTHROPIC_* variables (gateway URL, tokens) that the shell running SparkBots exported. Turn it on if runs fail with authentication errors because of a leftover variable.",
+      desc: "Start runs without the ANTHROPIC_* variables (gateway URL, tokens) that the shell running SparkBots exported, and without your user-level ~/.claude/settings.json (its env block can set a gateway and model aliases too; project settings still apply). Turn it on if runs fail with authentication or 'model not found' errors.",
       body: cfg && <label><input type="checkbox" checked={cfg.cleanEnv} onChange={(e) => void saveCfg({ ...cfg, cleanEnv: e.target.checked })} /> Drop ANTHROPIC_* variables {cfgSaved}</label> },
     { id: "opencode-model", section: "OpenCode runs", label: "Default model", words: "opencode model provider providerID ollama local big expensive default --model",
       desc: "Model for messages and new hires in OpenCode, in provider/model form (for example opencode/deepseek-v4.1-flash-free). Leave empty to keep each chat's own model, then OpenCode's default. A project can override this in Projects below.",

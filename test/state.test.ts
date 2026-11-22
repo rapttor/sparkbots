@@ -19,6 +19,12 @@ describe("worker state machine", () => {
     tick(rt, 200 + T.doneMs, { alive: true, mtimeMs: 200 }, T);
     expect(rt.state).toBe("idle");
   });
+  it("a finished headless run (no process) does not stay working", () => {
+    const rt = initialRuntime(0);
+    applyEvent(rt, { kind: "tool", session: "s", tool: "Write", at: 100 }, act);
+    tick(rt, 100 + T.idleMs, { alive: false, mtimeMs: 100 }, T);
+    expect(rt.state).toBe("idle");
+  });
   it("permission_wait -> waiting", () => {
     const rt = initialRuntime(0);
     applyEvent(rt, { kind: "permission_wait", session: "s", at: 5 }, act);

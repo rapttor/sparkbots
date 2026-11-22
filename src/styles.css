@@ -437,3 +437,13 @@ button.primary{background:var(--accent);color:#06201d;border-color:var(--accent)
 .am-tile-icon{width:24px;height:24px;display:grid;place-items:center;font-size:13px;border:1px solid var(--line);border-radius:50%;filter:grayscale(1);opacity:.55;transition:filter .15s,opacity .15s,background .15s,border-color .15s}
 .am-tile:hover .am-tile-icon,.am-tile:focus-visible .am-tile-icon,.am-tile:active .am-tile-icon{filter:none;opacity:1;background:color-mix(in srgb,var(--c) 22%,transparent);border-color:var(--c)}
 .am-tile:hover b,.am-tile:focus-visible b{color:var(--c)}
+
+.table-scroll{overflow-x:auto;max-width:100%}
+/* phone width: the top bar must fit the screen (search shrinks instead of pushing the page wider) */
+@media (max-width:600px){
+  .topbar{gap:6px;padding:8px 8px;min-width:0}
+  .filterbar{flex:1;min-width:0;margin-left:0}
+  .fb-search{flex:1;min-width:0;width:auto}
+  .topbar > :first-child{flex:none}
+  .topbar .spacer{flex:0 0 0;min-width:0}
+}

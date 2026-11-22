@@ -65,3 +65,16 @@ describe("cleanEnv", () => {
     expect(out).toEqual({ PATH: "/bin", HOME: "/h" });
   });
 });
+
+describe("extraArgs", () => {
+  it("appends the clean-environment settings flag to a run", async () => {
+    const { CLEAN_SETTINGS_ARGS } = await import("../server/adapters/claude-code/command");
+    const m = new RunManager(() => false, FAKE);
+    m.extraArgs = () => CLEAN_SETTINGS_ARGS;
+    const seen: RunEvent[] = []; m.listeners.add((e) => seen.push(e));
+    m.send("s9", process.cwd(), "hi");
+    await wait(500);
+    const argv = (seen[0].line as { argv: string[] }).argv;
+    expect(argv.slice(-2)).toEqual(["--setting-sources", "project,local"]);
+  });
+});

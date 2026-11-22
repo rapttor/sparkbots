@@ -8,7 +8,7 @@ import { registerBoard } from "./board/routes";
 import { LabelError } from "./labels";
 import { BotColorError } from "./botColors";
 import { ArchiveError } from "./archive";
-import { cleanEnv } from "./adapters/claude-code/command";
+import { cleanEnv, CLEAN_SETTINGS_ARGS } from "./adapters/claude-code/command";
 import { registerNotes } from "./notes";
 import { registerUploads, resolveAttachments, withAttachments } from "./uploads";
 import { registerServices } from "./services/routes";
@@ -58,6 +58,7 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     return { ...(model ? { model } : {}), ...(o.allowedTools ? { allowedTools: o.allowedTools } : {}), ...(o.permissionMode ? { permissionMode: o.permissionMode } : {}) };
   };
   runs.envProvider = () => (c.cfg.cleanEnv ? cleanEnv(process.env) : process.env);
+  runs.extraArgs = () => (c.cfg.cleanEnv ? CLEAN_SETTINGS_ARGS : []);
   const wrap = <T>(fn: () => T) => { try { return fn(); } catch (e) { if (e instanceof CommandError) throw Object.assign(new Error(e.message), { statusCode: e.status }); throw e; } };
 
   app.get("/api/caffeine", async () => ({ start: CAFFEINE_START, levels: c.caffeine.all() }));

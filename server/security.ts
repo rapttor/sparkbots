@@ -17,7 +17,7 @@ export function makeToken(): string {
 
 export type CheckResult = { ok: true } | { ok: false; status: number; reason: string };
 
-const DEV_PORT = 5173;
+const DEV_PORT = Number(process.env.AO_DEV_PORT) || 5173; // AO_DEV_PORT: a second `vite --port` dev client
 
 export function checkRequest(
   req: { host?: string; origin?: string; token?: string },
