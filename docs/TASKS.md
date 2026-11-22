@@ -117,7 +117,7 @@ CLAUDE.md says a second adapter waits until after release; this request replaces
 - [x] [S] 10.3 Settings: services list with scan / add / remove / test connection (searchable like the other settings) — **done:** Services panel (scan, add, test, remove)
 - [x] [S] 10.4 Per-service stats on the manager-room wall and in Stats — **done:** Stats page lists other services (up/down, latency, loaded models)
 - [x] [S] 10.5 First extra adapter (OpenCode or Ollama) to prove the contract — **done:** Ollama / LM Studio / llama.cpp / OpenAI-compatible probes list models and loaded models
-- [ ] [S] 10.6 MCP connection (later): list servers per project, show in the server room
+- [x] [S] 10.6 MCP connection: servers listed per project (read-only; `server/mcp.ts`, `/api/mcp`, Server room section; secrets hidden)
 
 ## Phase 11 — Interactions with agents (beyond Z "zap")
 Terms: *fx* = cosmetic only (no session touched); *real* = sends something to a session or changes app data, always behind a confirmation. Everything plugs into the actions list in `src/world/actions.ts`.

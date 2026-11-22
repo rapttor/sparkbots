@@ -1,0 +1,1 @@
+{"mcpServers":{"db":{"command":"npx","args":["-y","db-mcp","--api-key=SECRET1","--token","SECRET2"],"env":{"DB_PASSWORD":"SECRET3"}},"web":{"type":"http","url":"https://user:pw@example.com/mcp?key=SECRET4","headers":{"Authorization":"Bearer SECRET5"}},"bad":"x"}}
