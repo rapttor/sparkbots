@@ -10,7 +10,7 @@ export function ServerRoom() {
   useLive(async () => { try { setData(await api.processes()); setMcp((await api.mcp()).projects); setErr(""); } catch (e) { setErr((e as Error).message); } }, ["processes", "runs"]);
   return (
     <section className="panel">
-      <h1>Server Room</h1>
+      <h1>Server room</h1>
       {err && <p role="alert" style={{ color: "#c33" }}>{err}</p>}
 
       <h2>Live claude processes</h2>

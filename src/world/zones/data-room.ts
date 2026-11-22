@@ -2,7 +2,7 @@ import type { Zone } from "../zones";
 import { FIELD, RACKS, RACK_SIZE } from "../datacenterSlots";
 /** Data center / data room: a grid of server racks (one per project) inside a force field, plus a console desk. Not an idle spot. */
 const z: Zone = {
-  id: "data-room", name: "Data room", place: "north", size: [10, 8], floor: "#161c28", idle: false,
+  id: "data-room", name: "Data center", place: "north", size: [10, 8], floor: "#161c28", idle: false,
   props: [
     // one solid rack per project slot (world/datacenter.tsx adds LEDs, tapes, cables and labels on top)
     ...RACKS.map((r) => ({ at: [r.x, r.z] as [number, number], size: RACK_SIZE, color: "#1b1f2a" })),

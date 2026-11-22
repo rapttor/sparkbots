@@ -77,6 +77,8 @@ export const api = {
   setTeamBotColor: (team: string, color: string | null) => call<{ color: string | null }>("PUT", `/api/bots/teams/${encodeURIComponent(team)}/color`, { color }),
   search: (q: string, team = "") => call<SearchHit[]>("GET", `/api/search?q=${encodeURIComponent(q)}${team ? `&team=${encodeURIComponent(team)}` : ""}`),
   searchStatus: () => call<{ sessions: number; messages: number; building: boolean }>("GET", "/api/search/status"),
+  rackAliases: () => call<Record<string, string>>("GET", "/api/rack-alias"),
+  setRackAlias: (project: string, alias: string) => call<Record<string, string>>("PUT", "/api/rack-alias", { project, alias }),
   nerd: () => call<NerdInfo>("GET", "/api/nerd"),
   subagents: () => call<Record<string, SubagentInfo[]>>("GET", "/api/subagents"),
   archived: () => call<ArchivedItem[]>("GET", "/api/archive"),

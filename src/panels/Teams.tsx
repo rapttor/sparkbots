@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { LabelDef, Worker, WorkerState } from "../../server/adapters/types";
+import { useDataCenter } from "../state/dataCenter";
 import { useStore } from "../state/store";
 import { relTime, fmtNum, fmtDuration, displayName } from "../util";
 import { StateBadge } from "./Badge";
@@ -199,6 +200,7 @@ export function Teams() {
               {t.name}
               {t.labels.map((id) => defs.find((d) => d.id === id)).filter((d): d is LabelDef => !!d).map((d) => <LabelChip key={d.id} d={d} />)}
               <button className="small" title="Fly the 3D camera to this project" onClick={(e) => { e.stopPropagation(); useStore.getState().focusTeam(t.name); }}>📍</button>
+              <button className="small" title="Search this project's conversations in the Data room" onClick={(e) => { e.stopPropagation(); useDataCenter.getState().openFor(t.name); useStore.getState().setPanel("data"); }}>🗄</button>
               <LabelMenu team={t.name} defs={defs} current={t.labels} />
               <TeamActions team={t.name} />
             </h2>

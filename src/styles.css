@@ -329,7 +329,7 @@ button.kmap-row:disabled{opacity:.45;cursor:not-allowed}
 .seg button.on{background:var(--line);box-shadow:inset 0 -2px 0 var(--accent)}
 .vp-check{display:flex;align-items:center;gap:8px;margin:6px 0}
 .vp-check kbd{font:11px ui-monospace,monospace;padding:0 5px;border:1px solid var(--line);border-radius:4px;color:#aab4c5}
-/* stacked cards (Services, Server Room) */
+/* stacked cards (Services, Server room) */
 .cards{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
 .card{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--panel);display:flex;flex-direction:column;gap:4px;min-width:0}
 .card-warn{border-color:#f5a623;background:#f5a62318}

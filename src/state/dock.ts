@@ -84,5 +84,5 @@ export const panelShowing = (d: DockState, id: PanelId): boolean => (id === "boa
 export const activeChatId = (d: DockState): string | undefined => (d.open && isChat(d.active) ? chatOf(d.active) : undefined);
 
 export const PANEL_TITLES: Record<PanelId, string> = {
-  world: "Office", view: "View", projects: "Projects", map: "Map", chats: "Chats", teams: "Teams", control: "Control Room", stats: "Stats", board: "Board", notes: "Notes", data: "Data room", services: "Services", server: "Server Room", settings: "Settings",
+  world: "Office", view: "View", projects: "Projects", map: "Map", chats: "Chats", teams: "Teams", control: "Control Room", stats: "Stats", board: "Board", notes: "Notes", data: "Data room", services: "Services", server: "Server room", settings: "Settings",
 };

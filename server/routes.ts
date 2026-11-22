@@ -221,6 +221,15 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     }
     return res;
   });
+  /** Data center labels (SQLite): GET all, PUT one. `project` omitted/empty = the room itself. */
+  app.get("/api/rack-alias", async () => c.db.rackAliases());
+  app.put<{ Body: { project?: unknown; alias?: unknown } }>("/api/rack-alias", async (r) => {
+    const project = typeof r.body?.project === "string" ? r.body.project.slice(0, 300) : "";
+    const alias = r.body?.alias;
+    if (alias != null && typeof alias !== "string") throw Object.assign(new Error("alias must be a string"), { statusCode: 400 });
+    c.db.setRackAlias(project, alias as string | null | undefined);
+    return c.db.rackAliases();
+  });
   app.get("/api/search/status", async () => ({ ...c.search.stats(), building: c.search.building, sessions: c.sessions.size }));
   app.get("/api/archive", async () => Object.entries(c.archive.items).map(([id, i]) => {
     const s = c.sessions.get(id);

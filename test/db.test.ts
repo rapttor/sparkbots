@@ -18,3 +18,16 @@ describe("AppDb usage history", () => {
     expect(db.allUsage()).toHaveLength(2);
   });
 });
+
+describe("AppDb rack aliases", () => {
+  it("stores, trims, clears and caps aliases", () => {
+    const db = new AppDb(":memory:");
+    expect(db.rackAliases()).toEqual({});
+    expect(db.setRackAlias("proj", "  My   rack ")).toBe("My rack");
+    expect(db.setRackAlias("", "HQ")).toBe("HQ");
+    expect(db.rackAliases()).toEqual({ proj: "My rack", "": "HQ" });
+    expect(db.setRackAlias("proj", "x".repeat(100))!.length).toBe(40);
+    expect(db.setRackAlias("proj", "  ")).toBeNull();
+    expect(db.rackAliases()).toEqual({ "": "HQ" });
+  });
+});

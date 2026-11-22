@@ -16,7 +16,12 @@ const MIGRATIONS = [
      input INTEGER NOT NULL, output INTEGER NOT NULL, cache_read INTEGER NOT NULL, cache_write INTEGER NOT NULL, n INTEGER NOT NULL,
      PRIMARY KEY (session, hour, model));
    CREATE INDEX usage_hour_hour ON usage_hour(hour);`,
+  // 2: Data center labels. project "" holds the name of the room itself.
+  `CREATE TABLE rack_alias (project TEXT PRIMARY KEY, alias TEXT NOT NULL);`,
 ];
+
+export const ROOM_KEY = "";
+export const MAX_ALIAS = 40;
 
 /** SparkBots' own database (`~/.agent-office/app.db`): data we generate and want to keep for good (analytics, later games/rewards). */
 export class AppDb {
@@ -54,6 +59,21 @@ export class AppDb {
 
   allUsage(): UsageHour[] {
     return (this.db.prepare("SELECT session, hour, model, source, project, input, output, cache_read AS cacheRead, cache_write AS cacheWrite, n FROM usage_hour").all() as unknown) as UsageHour[];
+  }
+
+  /** Data center labels: project name -> alias; ROOM_KEY ("") is the room's own name. */
+  rackAliases(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const r of this.db.prepare("SELECT project, alias FROM rack_alias").all() as { project: string; alias: string }[]) out[r.project] = r.alias;
+    return out;
+  }
+
+  /** Set (or clear, with an empty/null alias) one label. Returns the stored alias or null. */
+  setRackAlias(project: string, alias: string | null | undefined): string | null {
+    const a = (alias ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_ALIAS);
+    if (!a) { this.db.prepare("DELETE FROM rack_alias WHERE project = ?").run(project); return null; }
+    this.db.prepare("INSERT OR REPLACE INTO rack_alias (project, alias) VALUES (?, ?)").run(project, a);
+    return a;
   }
 
   close() { this.db.close(); }
