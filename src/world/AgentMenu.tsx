@@ -12,6 +12,7 @@ import { requestCoffee } from "./servicebots";
 import { SimChatUnread } from "../simchat/SimChat";
 import { useSimChat } from "../simchat/store";
 import { getSettings } from "../simchat/settings";
+import { RewardsSection } from "./rewards/RewardsSection";
 import { bumpCaffeine, caffeineBand, caffeineLevel, refreshCaffeine } from "./caffeine";
 
 /** Caffeine meter (cosmetic: wired agents twitch, sleepy ones yawn). A snack bumps it a little. */
@@ -119,6 +120,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
         <button className="icon-btn" aria-label="Close" onClick={onClose}>×</button>
       </header>
       <CaffeineRow id={w.id} />
+      <RewardsSection id={w.id} />
       {item("💬 Talk", () => { openChat(w.id); onClose(); }, "E")}
       {getSettings().enabled && <button className="am-item" onClick={() => { useSimChat.getState().open(w.id); onClose(); }}><span>🫧 Water cooler chat<SimChatUnread id={w.id} /></span></button>}
       {item("☕ Bring a coffee", () => { requestCoffee(w.id); onClose(); })}

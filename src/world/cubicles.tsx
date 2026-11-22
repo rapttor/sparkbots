@@ -2,13 +2,15 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import { BoxGeometry, Color, DoubleSide, Matrix4, Object3D, type InstancedMesh } from "three";
 import { MAX_DESKS, type Layout } from "./layout";
 import { MoodDriver } from "./mood";
+import { SHELF_SLOTS, itemDef, shelfSplit } from "../shared/rewards";
+import { useRewards } from "./rewards/store";
 
 /** Cubicles (13.4.1 / 13.4.2, simplified): around each existing desk two see-through wall boxes (back and right side) plus a small
  *  shelf with three slots (later: trophies, 13.4.3). Instanced, ghost walls, and none of it can be clicked or collided with:
  *  `raycast` is disabled so clicks reach the desk, laptop and robot behind. The laptop and status screen are untouched.
  *  Also mounts the mood driver (caffeine refresh, nervous mode) so World needs just this one line. */
 const WALL_H = 1.25, WALL_T = 0.05;
-const SLOTS = 3;
+const SLOTS = SHELF_SLOTS;
 const noRaycast = () => null;
 
 /** Pure placement of the pieces for one desk centre (tested). Boxes as { x, y, z, sx, sy, sz }. */
@@ -24,6 +26,7 @@ export function cubiclePieces(x: number, z: number): { walls: Piece[]; shelf: Pi
 export function Cubicles({ layout }: { layout: Layout }) {
   const walls = useRef<InstancedMesh>(null);
   const props = useRef<InstancedMesh>(null);
+  const rewards = useRewards();
   const box = useMemo(() => new BoxGeometry(1, 1, 1), []);
   useLayoutEffect(() => {
     const w = walls.current, p = props.current;
@@ -35,12 +38,18 @@ export function Cubicles({ layout }: { layout: Layout }) {
       const { walls: ws, shelf, slots } = cubiclePieces(d.x, d.z);
       for (const b of ws) put(w, wi++, b);
       put(p, pi, shelf); p.setColorAt(pi++, c.set("#6b5b4a"));
-      for (const s of slots) { put(p, pi, s); p.setColorAt(pi++, c.set(d.worker.color).multiplyScalar(0.8)); }
+      // the newest rewards stand in the slots (their item colour, taller); empty slots stay a dim team colour
+      const { shelf: got } = shelfSplit(rewards.get(d.worker.id) ?? [], SLOTS);
+      slots.forEach((s, k) => {
+        const def = got[k] ? itemDef(got[k]!.item) : null;
+        put(p, pi, def ? { ...s, sy: s.sy * 1.5, y: s.y + s.sy * 0.25 } : s);
+        p.setColorAt(pi++, def ? c.set(def.color) : c.set(d.worker.color).multiplyScalar(0.5));
+      });
     }
     w.count = wi; p.count = pi;
     w.instanceMatrix.needsUpdate = true; p.instanceMatrix.needsUpdate = true;
     if (p.instanceColor) p.instanceColor.needsUpdate = true;
-  }, [layout]);
+  }, [layout, rewards]);
   return (
     <>
       <instancedMesh ref={walls} args={[box, undefined, MAX_DESKS * 2]} frustumCulled={false} raycast={noRaycast}>

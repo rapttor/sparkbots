@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { AppDb, GameResult } from "./db";
+import { awardTrophy } from "./rewards";
 
 const GAMES = new Set(["pong", "hockey", "rps", "dice"]);
 const id = (v: unknown): string | null => (typeof v === "string" && v.length > 0 && v.length <= 200 ? v : null);
@@ -26,6 +27,8 @@ export function registerGames(app: FastifyInstance, db: () => AppDb): void {
   app.post<{ Body: Record<string, unknown> }>("/api/games/result", async (r) => {
     const res = parseGameResult(r.body);
     if (!res) throw Object.assign(new Error("bad result"), { statusCode: 400 });
-    return { stored: db().recordGame(res) };
+    const stored = db().recordGame(res);
+    if (stored) awardTrophy(db(), res.uuid, res.game, res.winner);
+    return { stored };
   });
 }
