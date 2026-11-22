@@ -79,3 +79,18 @@ describe("fmtShare", () => {
     expect(fmtShare(1, 0)).toBe("0%");
   });
 });
+
+describe("StatsAggregator hourly (Today view)", () => {
+  it("keeps hourly buckets per service for recent events only", () => {
+    const a = new StatsAggregator();
+    const now = new Date(); now.setHours(14, 30, 0, 0);
+    a.add(ev({ at: now.getTime(), input: 5 }), "p", "codex");
+    a.add(ev({ at: now.getTime() - 10 * 86_400_000, input: 7 }), "p", "codex"); // too old: day totals only
+    const s = a.snapshot();
+    const hours = Object.keys(s.bySourceHour.codex!);
+    expect(hours).toHaveLength(1);
+    expect(hours[0]!.endsWith("T14")).toBe(true);
+    expect(s.bySourceHour.codex![hours[0]!]!.input).toBe(5);
+    expect(s.bySource.codex!.input).toBe(12);
+  });
+});

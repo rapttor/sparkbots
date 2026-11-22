@@ -10,6 +10,7 @@ export interface StatsSnapshot {
   sessionsPerDay: Record<string, number>;
   bySource: Record<string, Tokens>;                       // totals per service (claude | codex | opencode)
   bySourceDay: Record<string, Record<string, Tokens>>;    // service -> day -> tokens
+  bySourceHour: Record<string, Record<string, Tokens>>;   // service -> "YYYY-MM-DDTHH" -> tokens (last 3 days only: the "Today" view)
   costBySource: Record<string, number>;                   // only services with known prices (Claude)
   hourHeatmap: number[];
   topProjectsWeek: { project: string; tokens: number }[];
@@ -49,12 +50,14 @@ export class StatsAggregator {
   private cost = 0;
   private bySource: Record<string, Tokens> = {};
   private bySourceDay: Record<string, Record<string, Tokens>> = {};
+  private bySourceHour: Record<string, Record<string, Tokens>> = {};
   private costBySource: Record<string, number> = {};
 
   add(e: UsageEvent, project: string, source = "claude", weight = 1): void {
     bump(this.byDay, dayKey(e.at), e);
     bump(this.bySource, source, e);
     bump((this.bySourceDay[source] ??= {}), dayKey(e.at), e);
+    if (e.at >= Date.now() - 3 * DAY_MS) bump((this.bySourceHour[source] ??= {}), `${dayKey(e.at)}T${pad(new Date(e.at).getHours())}`, e);
     bump(this.byProject, project, e);
     bump(this.byModel, e.model, e);
     this.hours[new Date(e.at).getHours()] += weight;
@@ -92,6 +95,7 @@ export class StatsAggregator {
       byModel: clone(this.byModel),
       sessionsPerDay: { ...this.sessionsPerDay },
       bySource: clone(this.bySource),
+      bySourceHour: Object.fromEntries(Object.entries(this.bySourceHour).map(([k, v]) => [k, clone(v)])),
       bySourceDay: Object.fromEntries(Object.entries(this.bySourceDay).map(([k, v]) => [k, clone(v)])),
       costBySource: { ...this.costBySource },
       hourHeatmap: [...this.hours],
