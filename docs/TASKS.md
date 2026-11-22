@@ -294,8 +294,8 @@ Do this first: games, rewards, caffeine and rankings all write here.
 - [x] [S] 13.7.4 Pong/table tennis (proximity hit, distance = strength) — **done:** `rally.ts` pong: further back = harder hit but smaller reach; AI drifts back/forth
 - [x] [H] 13.7.5 Rock-paper-scissors + dice — **done:** `rounds.ts`: rock-paper-scissors and 2-dice duels, first to 3
 - [x] [S] 13.7.6 Air hockey (reuse pong physics, edge bounces, centre target) — **done:** `rally.ts` hockey mode: edge bounces, goal = centre of the end, accuracy falls with stretch
-- [ ] [S] 13.7.7 Billiards (aim/strength 1-9 or hold E; table colour by variant)
-- [ ] [S] 13.7.8 Basketball timing game (angle -> strength -> shot, speed-up, drone ball)
+- [x] [S] 13.7.7 Billiards (aim/strength 1-9 or hold E; table colour by variant) — **done:** `billiards.ts` (pure: ball physics, pockets, `judgeShot` rules, ghost-ball AI, strength 1-9 / `strengthFromHold`), variants eight (green) / quick (blue); cue stick + balls in `GameScenes.tsx`; **not seen with a live match** (no second idle agent in the check)
+- [x] [S] 13.7.8 Basketball timing game (angle -> strength -> shot, speed-up, drone ball) — **done:** `hoops.ts` (pure: meters, ballistic shot, swish 3 / in 2 / rim, speed-up, drone fetch), mini hoop on a small table slot (`GameScenes.tsx`); tests in `test/billiards-hoops.test.ts`; **not seen with a live match**
 - [ ] [S] 13.7.9 Claw machine + item inventory -> rewards
 - [ ] [O] 13.7.10 Race track (last): track from layout, car physics, powerups, traps, carmageddon
 - [x] [H] 13.7.11 Scoreboard/ranking UI + persistence tests — **done:** 🎮 popover rankings (per game / all) in `GamesOverlay.tsx`; persistence + hub + sim tests in `test/games.test.ts`

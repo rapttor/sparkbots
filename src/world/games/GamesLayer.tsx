@@ -12,6 +12,7 @@ import { RallySim, TABLE } from "./rally";
 import { GAMES } from "./registry";
 import { placeSlots } from "./tables";
 import { GamesOverlay } from "./GamesOverlay";
+import { BilliardsView, HoopsView } from "./GameScenes";
 import { mulberry32, type GameResult } from "./types";
 
 const TOP = 0.76;           // table top height
@@ -91,7 +92,7 @@ function Table({ inst, nameOf, colorOf }: { inst: Instance; nameOf: (id: string 
   const status = inst.phase === "gathering" ? (b ? "Taking seats…" : "Waiting for an opponent") : inst.phase === "over" && inst.winner !== null ? `🏆 ${nameOf(inst.seats[inst.winner].agent)}` : "";
   return (
     <group position={[x, 0, z]}>
-      {rally ? (
+      {inst.game === "billiards" ? <BilliardsView inst={inst} /> : inst.game === "hoops" ? <HoopsView inst={inst} colorOf={colorOf} /> : rally ? (
         <>
           {!inst.slot.builtFor && (
             <>

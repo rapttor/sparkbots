@@ -72,7 +72,7 @@ describe("registry and tables", () => {
   it("picks only allowed games, by weight", () => {
     expect(pickGame(0.5, ["dice"])).toBe("dice");
     expect(pickGame(0.5, [])).toBeNull();
-    expect(Object.keys(GAMES).sort()).toEqual(["dice", "hockey", "pong", "rps"]);
+    expect(Object.keys(GAMES).sort()).toEqual(["billiards", "dice", "hockey", "hoops", "pong", "rps"]);
   });
   it("seats face each other across the table", () => {
     const [a, b] = seatSpots("large", 10, 5);
