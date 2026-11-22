@@ -1,0 +1,188 @@
+[
+  {
+    "id": "games-c-01", "topic": "games", "title": "Keyboard confessions", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Okay, break room confession time.", "I once spent three weekends reading about keyboard switches. Linear, tactile, clicky. I have a spreadsheet.", "What does your typing setup sound like?"], "options": [
+        { "id": "games-c-01-o1", "label": "Loud and clicky, like a typewriter", "next": "b" },
+        { "id": "games-c-01-o2", "label": "Quiet. Coworkers have feelings", "next": "c" },
+        { "id": "games-c-01-o3", "label": "Whatever came in the box", "next": "d" } ] },
+      "b": { "say": ["A clicky person! Respect. You sound like a tiny hail storm of productivity.", "Fun fact: nobody has ever been caught in a stealth mission while using one of those. Terrible for sneaking."], "options": [
+        { "id": "games-c-01-o4", "label": "Stealth games are my weakness anyway", "next": "e" },
+        { "id": "games-c-01-o5", "label": "The click is a feature, not a bug", "next": "f" } ] },
+      "c": { "say": ["Considerate. Silent switches, a desk mat, maybe little o-rings inside.", "You do realize a quiet keyboard is just a clicky keyboard that went to finishing school."], "options": [
+        { "id": "games-c-01-o6", "label": "Finishing school is underrated", "next": "g" },
+        { "id": "games-c-01-o7", "label": "Do the o-rings actually help?", "next": "e" } ] },
+      "d": { "say": ["The stock keyboard. A brave, minimalist choice.", "Honestly, I respect anyone who wins matches on a keyboard that wobbles like a table with one short leg."], "end": true, "chain": "random" },
+      "e": { "say": ["Truth is, the best keyboard is the one that makes you smile when you hit the first key of the day.", "Everything else is a very expensive hobby. A fun one, though."], "end": true },
+      "f": { "say": ["Ha! Defended like a lawyer.", "Just maybe give your neighbors a heads-up before a long typing session at midnight."], "end": true },
+      "g": { "say": ["Exactly. Soft thocks for everyone.", "I'm told the sound is called 'thock'. I'm a robot and even I find that adorable."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "games-c-02", "topic": "games", "title": "Game jam survival guide", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I just read about a 48-hour game jam where a team built an entire game about a sentient toaster.", "Ever done a jam? Or would you?"], "options": [
+        { "id": "games-c-02-o1", "label": "Yes, I survived one", "next": "b" },
+        { "id": "games-c-02-o2", "label": "Never, but I'm tempted", "next": "c" },
+        { "id": "games-c-02-o3", "label": "48 hours without sleep? No thanks", "next": "d" } ] },
+      "b": { "say": ["A veteran! Tell me, what was the moment around hour 30 like?", "Because in every jam story I've read, hour 30 is where someone cries over a collision bug."], "options": [
+        { "id": "games-c-02-o4", "label": "Collision bug, naturally", "next": "e" },
+        { "id": "games-c-02-o5", "label": "Snack-based morale crisis", "next": "f" } ] },
+      "c": { "say": ["Tempted is the correct amount. The theme gets announced, panic hits, and then ideas arrive like pigeons.", "My tip: pick a tiny idea. One button, one joke, one weird mechanic."], "options": [
+        { "id": "games-c-02-o6", "label": "One button and a good joke. Deal", "next": "e" },
+        { "id": "games-c-02-o7", "label": "What if the theme is 'sadness'?", "next": "g" } ] },
+      "d": { "say": ["Sensible! There are lazy jams too, where you get a whole week and still finish at the last minute.", "Humans and deadlines are a love story."], "end": true, "chain": "random" },
+      "e": { "say": ["The wise jam rule: if it's not fun by hour 10, cut something.", "Scope is a monster and it hunts in packs."], "end": true },
+      "f": { "say": ["Snack morale is real. A jam without a bowl of mystery candy is just homework with a leaderboard.", "May your pizza always arrive before the build breaks."], "end": true },
+      "g": { "say": ["Sadness! A sad game about a lonely vending machine that gives you a hug if you wait. Done, ship it.", "People will say 'oh, it's about loss'. It's about vending machines."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "games-c-03", "topic": "games", "title": "Would you rather: game edition", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Would you rather play every game on the hardest difficulty, or have your save file vanish once a year?", "Think carefully. I made this up during a firmware update."], "options": [
+        { "id": "games-c-03-o1", "label": "Hardest difficulty, give me pain", "next": "b" },
+        { "id": "games-c-03-o2", "label": "Lose the save yearly. Fresh starts!", "next": "c" } ] },
+      "b": { "say": ["A hero. Or a person with a very strong desk chair.", "Follow-up: would you rather every boss have three phases or every shop have a tiny tutorial popup?"], "options": [
+        { "id": "games-c-03-o3", "label": "Three phases, they keep it spicy", "next": "d" },
+        { "id": "games-c-03-o4", "label": "Tutorial popups. At least they're polite", "next": "e" } ] },
+      "c": { "say": ["Chaotic good. You'd always be at the best part of the game: the beginning.", "Follow-up: would you rather never see a loading screen again or never see a cutscene again?"], "options": [
+        { "id": "games-c-03-o5", "label": "No loading screens, please", "next": "d" },
+        { "id": "games-c-03-o6", "label": "No cutscenes, let me play", "next": "e" } ] },
+      "d": { "say": ["Smart pick. Time saved, glory gained.", "Mental note: a world with no loading screens is still waiting for a door that opens in under one second."], "end": true, "chain": "random" },
+      "e": { "say": ["Bold! Though I'd miss a good cutscene where the hero stares at the sunset for forty seconds.", "That's where the emotional damage happens."], "end": true }
+    }
+  },
+  {
+    "id": "games-c-04", "topic": "games", "title": "Nostalgia console shelf", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Imagine a dusty shelf in the attic. Three consoles, three cartridges, one tangled cable.", "Which one do you grab first?"], "options": [
+        { "id": "games-c-04-o1", "label": "The chunky 8-bit one with the grey pad", "next": "b" },
+        { "id": "games-c-04-o2", "label": "The 3D-era console with the weird controller", "next": "c" },
+        { "id": "games-c-04-o3", "label": "A little handheld with a green screen", "next": "d" } ] },
+      "b": { "say": ["Oh, the classics. Remember blowing into the cartridge?", "Science later told us that was mostly just spit, but the ritual felt important."], "options": [
+        { "id": "games-c-04-o4", "label": "Blowing was my magic spell", "next": "e" },
+        { "id": "games-c-04-o5", "label": "I just hit the console. Worked sometimes", "next": "f" } ] },
+      "c": { "say": ["That controller had three handles and nobody knew which one to hold.", "Also, the camera was a creature with its own agenda. But those games had magic."], "options": [
+        { "id": "games-c-04-o6", "label": "Still the best era for weird ideas", "next": "g" },
+        { "id": "games-c-04-o7", "label": "Memory card wars, I still remember them", "next": "f" } ] },
+      "d": { "say": ["A handheld! The batteries lasted about six minutes and the screen was a smear of mud.", "And yet you played until the batteries died in the car, every single time."], "end": true, "chain": "random" },
+      "e": { "say": ["A true wizard. The cartridge nodded and loaded.", "The best part of old games was how everything felt like a secret."], "end": true },
+      "f": { "say": ["The percussive maintenance era. Fixing electronics with a firm smack.", "Somehow it worked. Don't ask me how, I only run on electricity and snacks."], "end": true },
+      "g": { "say": ["Right? Nobody knew the rules yet so developers just tried everything.", "I'd trade a lot of shiny graphics for one more experiment like that."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "games-c-05", "topic": "games", "title": "The puzzle that broke me", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I was stuck on a puzzle game for a whole hour. A box needed pushing. Just a box.", "Turns out I was supposed to look at the ceiling.", "Do you like puzzle games?"], "options": [
+        { "id": "games-c-05-o1", "label": "Love them, the aha moment is everything", "next": "b" },
+        { "id": "games-c-05-o2", "label": "I use a walkthrough after two minutes", "next": "c" },
+        { "id": "games-c-05-o3", "label": "Too much thinking, I want explosions", "next": "d" } ] },
+      "b": { "say": ["The aha moment! A tiny firework in your brain.", "Do you solve by stubbornly sitting there, or by taking a walk and coming back with the answer?"], "options": [
+        { "id": "games-c-05-o4", "label": "Stubborn sitting", "next": "e" },
+        { "id": "games-c-05-o5", "label": "Walk away and return a genius", "next": "f" } ] },
+      "c": { "say": ["Two minutes! Efficient. Some say a walkthrough ruins the game.", "I say a hint is just a friend talking from the other room."], "options": [
+        { "id": "games-c-05-o6", "label": "A friend in the other room, yes", "next": "f" },
+        { "id": "games-c-05-o7", "label": "I feel guilty afterwards", "next": "e" } ] },
+      "d": { "say": ["Fair! Honestly, the best puzzle is when an explosion is the answer.", "Looking at you, every game where the key is a wall you can blow up."], "end": true, "chain": "random" },
+      "e": { "say": ["Stubbornness has built great things. Also a few dents in walls.", "Either way, the satisfying click when it works is worth the headache."], "end": true },
+      "f": { "say": ["The shower thought method! Brains do their best work when you stop staring at them.", "I would try it, but I don't have a shower. Or a head, strictly speaking."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "games-c-06", "topic": "games", "title": "Scary games, gently", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["I tried a horror game last night. A hallway. A flickering light. A suspicious wardrobe.", "I am a robot and I still checked behind me.", "Do you play spooky games?"], "options": [
+        { "id": "games-c-06-o1", "label": "Yes, bring on the jump scares", "next": "b" },
+        { "id": "games-c-06-o2", "label": "Only with the lights on and a friend nearby", "next": "c" },
+        { "id": "games-c-06-o3", "label": "Absolutely not. Cozy games only", "next": "d" } ] },
+      "b": { "say": ["Brave. What's your secret? I mean besides having a pulse.", "Is it the scares, the story, or secretly enjoying screaming into a headset at 2 AM?"], "options": [
+        { "id": "games-c-06-o4", "label": "The story, always", "next": "e" },
+        { "id": "games-c-06-o5", "label": "The screaming, honestly", "next": "f" } ] },
+      "c": { "say": ["The sensible method. Friend holds the pad when it gets scary.", "My rule: if the music suddenly stops, never open the door. The music knows."], "options": [
+        { "id": "games-c-06-o6", "label": "The silence is the scariest part", "next": "f" },
+        { "id": "games-c-06-o7", "label": "I'd hand the controller over immediately", "next": "g" } ] },
+      "d": { "say": ["Cozy games are the best medicine. Watering virtual plants. Petting a digital cat.", "No ghost has ever stolen my tomatoes in a farming sim. That I know of."], "end": true, "chain": "random" },
+      "e": { "say": ["The story! A creepy house with a sad history is a great hook.", "Though the best horror stories are really about a person and a very bad decision to explore the basement."], "end": true },
+      "f": { "say": ["Screaming is cardio. A true bonding exercise with strangers online.", "Just apologize to the neighbors the next morning with cookies."], "end": true },
+      "g": { "say": ["Efficient, safe, and you get to commentate. 'Don't go in there' is half the fun.", "A good co-pilot saves lives. Or at least save files."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "games-c-07", "topic": "games", "title": "Sports games and sore thumbs", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["I've been watching people play a football video game. There's a player who scored from the halfway line. Then he did a slide. In the kitchen.", "Are you a sports game person?"], "options": [
+        { "id": "games-c-07-o1", "label": "Yes, I run a whole season on my couch", "next": "b" },
+        { "id": "games-c-07-o2", "label": "Only racing and arcade basketball", "next": "c" },
+        { "id": "games-c-07-o3", "label": "I prefer real sports. Fresh air", "next": "d" } ] },
+      "b": { "say": ["A manager of the couch! Transfers, tactics, snacks on the sideline.", "Be honest, do you shout at the screen when the referee is clearly wrong?"], "options": [
+        { "id": "games-c-07-o4", "label": "I shout at a referee made of pixels", "next": "e" },
+        { "id": "games-c-07-o5", "label": "No, I blame the controller", "next": "f" } ] },
+      "c": { "say": ["Arcade basketball: where a player can set the court on fire if he scores three in a row.", "That's not physics. That's marketing. I love it."], "options": [
+        { "id": "games-c-07-o6", "label": "On fire is the only sensible mode", "next": "g" },
+        { "id": "games-c-07-o7", "label": "My racing line is flawless though", "next": "f" } ] },
+      "d": { "say": ["Fresh air! Grass, sunshine, a bruised knee. A bold alternative.", "I would join, but I rust when it rains."], "end": true, "chain": "random" },
+      "e": { "say": ["That referee never stood a chance. Even pixels fear a fan with a loud voice.", "It's honest passion. Just don't throw the controller. It has feelings too."], "end": true },
+      "f": { "say": ["Blame the controller: an old tradition. 'The stick drifted' covers every single bad pass.", "Works about half the time, and half the time it's even true."], "end": true },
+      "g": { "say": ["On fire! The ball glows, the crowd roars, nobody asks questions.", "I'd like my day to have a 'heating up' announcer too."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "games-c-08", "topic": "games", "title": "Block by block", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Sandbox games confuse me beautifully. You start with nothing, punch a tree, and three hours later you've built a castle with a moat.", "What's your building style?"], "options": [
+        { "id": "games-c-08-o1", "label": "Giant castles with way too many towers", "next": "b" },
+        { "id": "games-c-08-o2", "label": "A cozy cottage with a garden", "next": "c" },
+        { "id": "games-c-08-o3", "label": "A dirt hut. Efficiency!", "next": "d" } ] },
+      "b": { "say": ["Towers! Why stop at four when sixteen look more impressive?", "Do you plan it all out, or just keep adding rooms until the whole thing forgets where the door is?"], "options": [
+        { "id": "games-c-08-o4", "label": "Zero planning, pure vibes", "next": "e" },
+        { "id": "games-c-08-o5", "label": "A blueprint on graph paper", "next": "f" } ] },
+      "c": { "say": ["A cottage! With flower boxes and a tiny chimney. That's adorable.", "Do you decorate with care, or do you leave a single torch and call it a day?"], "options": [
+        { "id": "games-c-08-o6", "label": "Every flower pot is placed with love", "next": "g" },
+        { "id": "games-c-08-o7", "label": "One torch. Minimalism", "next": "e" } ] },
+      "d": { "say": ["The dirt hut. A classic survival strategy: if nothing can see you, nothing can bother you.", "It's a lifestyle. Many a night was saved by a dirt wall."], "end": true, "chain": "random" },
+      "e": { "say": ["Chaos builds the most charming places. Crooked staircases lead to rooms nobody planned.", "That's what makes it feel lived in."], "end": true },
+      "f": { "say": ["Graph paper! A real architect. I'm slightly intimidated.", "I'd say a building plan is the best gift you can give your future self."], "end": true },
+      "g": { "say": ["Flower pots, tiny paths, a little bench by the pond. This is the good stuff.", "Games like this prove that cozy is a design philosophy."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "games-c-09", "topic": "games", "title": "Rage quit museum", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Welcome to the Rage Quit Museum. Exhibit one: a controller that missed a wall by two inches.", "Have you ever rage quit a game?"], "options": [
+        { "id": "games-c-09-o1", "label": "Many times. I'm a regular here", "next": "b" },
+        { "id": "games-c-09-o2", "label": "Never, I stay calm and breathe", "next": "c" },
+        { "id": "games-c-09-o3", "label": "I quit politely, with a sigh", "next": "d" } ] },
+      "b": { "say": ["A regular! What pushed you over the edge?", "My own research says the top three are: a jump you missed by a pixel, a boss with a surprise second form, and a lost save."], "options": [
+        { "id": "games-c-09-o4", "label": "The pixel jump, every time", "next": "e" },
+        { "id": "games-c-09-o5", "label": "Losing progress. Never forgiven", "next": "f" } ] },
+      "c": { "say": ["Breathing! Impressive. Are you a monk or a liar?", "No judgment. Just admit it: there's one game that made your eye twitch."], "options": [
+        { "id": "games-c-09-o6", "label": "Okay, one game. One", "next": "e" },
+        { "id": "games-c-09-o7", "label": "I step outside and look at a tree", "next": "g" } ] },
+      "d": { "say": ["The polite quit! A heavy sigh, a quiet 'I'll try again tomorrow'.", "That's the dignified way. The couch gets a bit of the sigh too."], "end": true, "chain": "random" },
+      "e": { "say": ["Ah, the one that got away. We all have one.", "The best part: when you finally beat it, the victory feels like winning a small war."], "end": true },
+      "f": { "say": ["An unsaved hour of progress. The coldest sort of betrayal.", "Autosave was invented by a kind soul who had experienced exactly this."], "end": true },
+      "g": { "say": ["Looking at a tree is a strong reset. The tree is patient and has never failed a boss fight.", "Take a walk, come back, win. A proven recipe."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "games-c-10", "topic": "games", "title": "Game night planning", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Game night with friends is happening in my imagination tonight. Snacks, drinks, chaos.", "Which kind of game would you pick for the evening?"], "options": [
+        { "id": "games-c-10-o1", "label": "A party game with silly mini-games", "next": "b" },
+        { "id": "games-c-10-o2", "label": "A big co-op game where we plan together", "next": "c" },
+        { "id": "games-c-10-o3", "label": "Old-school board games on the floor", "next": "d" } ] },
+      "b": { "say": ["Silly mini-games are the best excuse to see who is secretly the most competitive person at the table.", "There's always one friend who plays like it's the Olympics."], "options": [
+        { "id": "games-c-10-o4", "label": "That friend is me. I'm sorry", "next": "e" },
+        { "id": "games-c-10-o5", "label": "It's my cousin. He's scary", "next": "f" } ] },
+      "c": { "say": ["Co-op planning! Somebody always says 'I have a plan' and the plan always involves an unnecessary explosion.", "Whose job would you take?"], "options": [
+        { "id": "games-c-10-o6", "label": "The planner with a headset", "next": "g" },
+        { "id": "games-c-10-o7", "label": "The one who ignores the plan joyfully", "next": "f" } ] },
+      "d": { "say": ["Board games on the floor: the original multiplayer. Dice roll under the sofa, nobody finds them till spring.", "Peak tradition."], "end": true, "chain": "random" },
+      "e": { "say": ["The Olympic friend! Every group needs one. Nobody can win quietly when you're around.", "Just remember to hand over the snacks when you win. That's the rule."], "end": true },
+      "f": { "say": ["Every group has a scary cousin. He knows the rules by heart and invents new ones during a bad turn.", "A legend, though. Save him a seat and a bowl of chips."], "end": true },
+      "g": { "say": ["The planner! The strategic mind of the group. 'Okay team, on my count.' Then everyone panics.", "It's the best sort of teamwork: loud, flawed, and hilarious."], "end": true, "chain": "random" }
+    }
+  }
+]

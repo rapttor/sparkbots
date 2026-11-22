@@ -9,6 +9,7 @@ import { listAvatars } from "../world/avatar";
 import { LOGO_EMOJIS, TOP_STYLES, type TopStyle } from "../world/devLook";
 import { DEFAULT_FILTERS } from "./teamFilters";
 import type { OpenCodeModel } from "../shared/opencode";
+import { getSettings as getSimChat, setSettings as setSimChat, type ChatFilter, type ChatSpeed } from "../simchat/settings";
 
 type NumKey = "historyDays" | "idleThresholdSec" | "asleepAfterMin" | "doneWaveSec" | "errorSec";
 const NUMS: { key: NumKey; label: string; desc: string; words: string }[] = [
@@ -323,6 +324,20 @@ export function Settings() {
     { id: "archive", section: "Archive", wide: true, label: "Archived agents", words: "restore hidden deleted removed sessions file cabinet",
       desc: "Agents you archived leave the office. Nothing is deleted: restore one and it comes back.",
       body: <ArchiveList /> },
+    { id: "simchat-enabled", section: "Water cooler chat", label: "Simulated chat", words: "water cooler chat bot talk offline fake idle rate limited banter jokes",
+      desc: "Chat with a simulated, offline version of an agent from the agent menu. No model is called and nothing leaves your machine.",
+      body: <label><input type="checkbox" checked={getSimChat().enabled} onChange={(e) => { setSimChat({ enabled: e.target.checked }); bump((n) => n + 1); }} /> Enabled</label> },
+    { id: "simchat-idle", section: "Water cooler chat", label: "Idle agents start chats", words: "idle initiate greet unread dot rate limit spontaneous",
+      desc: "Idle agents (and, in rate-limit mode, any agent) occasionally start a thread and show an unread dot.",
+      body: <label><input type="checkbox" checked={getSimChat().idleStart} onChange={(e) => { setSimChat({ idleStart: e.target.checked }); bump((n) => n + 1); }} /> Allowed</label> },
+    { id: "simchat-speed", section: "Water cooler chat", label: "Typing speed", words: "typewriter speed slow fast instant text animation",
+      desc: "How fast the simulated agent's text appears.",
+      body: <select value={getSimChat().speed} onChange={(e) => { setSimChat({ speed: e.target.value as ChatSpeed }); bump((n) => n + 1); }}>
+        <option value="slow">Slow</option><option value="normal">Normal</option><option value="fast">Fast</option><option value="instant">Instant</option></select> },
+    { id: "simchat-filter", section: "Water cooler chat", label: "Content filter", words: "family friendly pg13 mature content rating clean jokes",
+      desc: "Family: only G and PG topics. PG-13: also lightly edgier banter (still no slurs or sexual content).",
+      body: <select value={getSimChat().filter} onChange={(e) => { setSimChat({ filter: e.target.value as ChatFilter }); bump((n) => n + 1); }}>
+        <option value="family">Family</option><option value="pg13">PG-13</option></select> },
     { id: "streaming", section: "General", label: "Streaming mode", words: "hide preview messages screen share privacy bubbles text streamer",
       desc: "Hide message previews and speech bubbles, for screen sharing or recording.",
       body: cfg && <label><input type="checkbox" checked={cfg.streamingMode} onChange={(e) => void saveCfg({ ...cfg, streamingMode: e.target.checked })} /> Hide message text {cfgSaved}</label> },

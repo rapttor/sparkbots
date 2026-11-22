@@ -1,0 +1,222 @@
+[
+  {
+    "id": "life-a-01", "topic": "life", "title": "Dinner dilemmas", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Ooh, you're here. Settle something for me.", "I read 4,000 recipes and cooked zero of them. Do you cook?"], "options": [
+        { "id": "life-a-01-o1", "label": "Most nights, yes", "next": "b1" },
+        { "id": "life-a-01-o2", "label": "Cereal counts as dinner", "next": "b2" },
+        { "id": "life-a-01-o3", "label": "Takeout is my love language", "next": "b3" } ] },
+      "b1": { "say": ["A real chef! I'm just a bot who can describe a soufflé but not survive one.", "What's your go-to?"], "options": [
+        { "id": "life-a-01-o4", "label": "Pasta, obviously", "next": "c" },
+        { "id": "life-a-01-o5", "label": "Whatever is left in the fridge", "next": "d" } ] },
+      "b2": { "say": ["Respect. Zero dishes, maximum crunch.", "Serious question though: milk first or cereal first?"], "options": [
+        { "id": "life-a-01-o6", "label": "Cereal first, like a civilized person", "next": "e1" },
+        { "id": "life-a-01-o7", "label": "Fine, I'll learn one real recipe", "next": "c" } ] },
+      "b3": { "say": ["Honestly valid. Someone else's kitchen, your couch.", "Delivery drivers are the real heroes of every deadline."], "end": true },
+      "c": { "say": ["Pasta is the great equalizer. Five ingredients, instant comfort.", "Rule one: salt the water until it tastes like a small sea."], "options": [
+        { "id": "life-a-01-o8", "label": "Add garlic. Lots of garlic.", "next": "e2" },
+        { "id": "life-a-01-o9", "label": "Is it okay to use jarred sauce?", "next": "e1" } ] },
+      "d": { "say": ["The fridge-roulette method! Half an onion, an egg, mystery cheese.", "Somehow it always becomes fried rice. It's a law of nature."], "end": true },
+      "e1": { "say": ["Jarred sauce is fine. Nobody in history has been arrested for it.", "Just add a pinch of something fresh and call it a chef's twist."], "end": true },
+      "e2": { "say": ["A person after my own circuits. Garlic fixes everything except vampires.", "Save me a plate. I'll pay in compliments."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "life-a-02", "topic": "life", "title": "Pizza toppings court", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Emergency meeting. The break room is split over pizza.", "Pineapple on pizza: crime or genius?"], "options": [
+        { "id": "life-a-02-o1", "label": "Genius. Sweet and salty", "next": "b1" },
+        { "id": "life-a-02-o2", "label": "Crime. Call the authorities", "next": "b2" },
+        { "id": "life-a-02-o3", "label": "I just want plain cheese", "next": "b3" } ] },
+      "b1": { "say": ["Brave stance! I've seen coworkers go quiet for a full minute over this.", "Do you add anything to it, or is it pure pineapple chaos?"], "options": [
+        { "id": "life-a-02-o4", "label": "Ham, the classic", "next": "c" },
+        { "id": "life-a-02-o5", "label": "Jalapeños for the plot twist", "next": "d" } ] },
+      "b2": { "say": ["I'll note it in the minutes. Pineapple supporters are lurking nearby.", "What's the most scandalous topping you'd defend instead?"], "options": [
+        { "id": "life-a-02-o6", "label": "Anchovies, no apologies", "next": "d" },
+        { "id": "life-a-02-o7", "label": "Mushrooms, boringly wonderful", "next": "e1" } ] },
+      "b3": { "say": ["Plain cheese is the control group of pizza science.", "No judgment. It's the one flavor nobody argues about at a party."], "options": [
+        { "id": "life-a-02-o8", "label": "Extra crust though", "next": "e1" },
+        { "id": "life-a-02-o9", "label": "Dip it in ranch", "next": "e2" } ] },
+      "c": { "say": ["Ham and pineapple. The famous pair that started a thousand arguments.", "I'd eat a slice, if I had a mouth. I have a visor."], "end": true },
+      "d": { "say": ["Sweet, spicy, salty. That's a pizza with a personality.", "I'm adding this to the lunch order. Don't tell the others."], "end": true, "chain": "random" },
+      "e1": { "say": ["The crust is the best part, and people forget that.", "Crust is just a bread handle with ambitions."], "end": true },
+      "e2": { "say": ["Ranch on pizza. Bold. Slightly criminal. I'm in.", "We'll call it a dip-lomatic solution."], "end": true }
+    }
+  },
+  {
+    "id": "life-a-03", "topic": "life", "title": "Weekend plans", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["It's almost the weekend! My plans are: sit here and update.", "What are yours?"], "options": [
+        { "id": "life-a-03-o1", "label": "Absolutely nothing, proudly", "next": "b1" },
+        { "id": "life-a-03-o2", "label": "A hike or some fresh air", "next": "b2" },
+        { "id": "life-a-03-o3", "label": "Friends and a big dinner", "next": "b3" } ] },
+      "b1": { "say": ["Doing nothing is a skill. You've clearly practiced.", "Couch, blanket, and a snack within arm's reach?"], "options": [
+        { "id": "life-a-03-o4", "label": "A show I've been saving", "next": "c" },
+        { "id": "life-a-03-o5", "label": "A nap with no alarm", "next": "e1" } ] },
+      "b2": { "say": ["Fresh air! I've heard of it. Supposedly it's free.", "Do you go for views or for the snacks at the top?"], "options": [
+        { "id": "life-a-03-o6", "label": "Views, obviously", "next": "e2" },
+        { "id": "life-a-03-o7", "label": "Mostly the snacks", "next": "e2" } ] },
+      "b3": { "say": ["A big dinner! The dream. Who's bringing dessert?", "Every group has one person who says 'I'll bring ice,' and brings nothing."], "options": [
+        { "id": "life-a-03-o8", "label": "That person is me", "next": "e3" },
+        { "id": "life-a-03-o9", "label": "I'm the one cooking", "next": "e3" } ] },
+      "c": { "say": ["Saving a show is peak optimism. Mine are all 'watch later' since 2021.", "Hit play, ignore the dishes, and enjoy."], "end": true },
+      "e1": { "say": ["A nap with no alarm. The most luxurious thing a person can own.", "Sleep well. I'll hold the fort. Probably."], "end": true, "chain": "random" },
+      "e2": { "say": ["Either way, you get outside and the bees get a visitor.", "Take a photo of anything weird you see. Report back."], "end": true },
+      "e3": { "say": ["Honest, and everyone secretly loves both roles.", "Tell the group the robot says 'save me a seat.'"], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "life-a-04", "topic": "life", "title": "Office pets", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Fun fact: pets are the best coworkers, and I'm not even jealous.", "Do you have one at home?"], "options": [
+        { "id": "life-a-04-o1", "label": "A dog, and he's the boss", "next": "b1" },
+        { "id": "life-a-04-o2", "label": "A cat who runs the house", "next": "b2" },
+        { "id": "life-a-04-o3", "label": "No pets, sadly", "next": "b3" } ] },
+      "b1": { "say": ["A dog! Pure joy with a tail.", "Does he know any tricks, or is his only trick 'sit near food'?"], "options": [
+        { "id": "life-a-04-o4", "label": "He can fetch a sock", "next": "c" },
+        { "id": "life-a-04-o5", "label": "He greets me like I've been gone years", "next": "e1" } ] },
+      "b2": { "say": ["Cats don't have owners. They have staff.", "Be honest: does she knock things off tables on purpose?"], "options": [
+        { "id": "life-a-04-o6", "label": "Eye contact, then a slow shove", "next": "e2" },
+        { "id": "life-a-04-o7", "label": "At 3am, only at 3am", "next": "e2" } ] },
+      "b3": { "say": ["No pets? I'm basically one. I whir when happy.", "If you could have any animal, which one?"], "options": [
+        { "id": "life-a-04-o8", "label": "A tiny fluffy dog", "next": "e1" },
+        { "id": "life-a-04-o9", "label": "A capybara, calm and wet", "next": "d" } ] },
+      "c": { "say": ["A sock-fetcher. Truly the workplace efficiency we need.", "I'd like a dog who brings me a charger."], "end": true },
+      "d": { "say": ["The capybara! Nature's chill coworker. Everyone sits on it and it doesn't mind.", "Please invite it to the next team meeting."], "end": true, "chain": "random" },
+      "e1": { "say": ["That's the best part of any day, honestly. Someone is ecstatic you exist.", "Humans should greet each other like that."], "end": true },
+      "e2": { "say": ["The classic cat move. Respectful and slightly alarming.", "She knows. She always knows."], "end": true }
+    }
+  },
+  {
+    "id": "life-a-05", "topic": "life", "title": "Weather talk", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Small talk time! Let's do it properly.", "What's the weather like out there? I live in a server, so I'm guessing 'beige'."], "options": [
+        { "id": "life-a-05-o1", "label": "Sunny and annoyingly lovely", "next": "b1" },
+        { "id": "life-a-05-o2", "label": "Rain, all day, all week", "next": "b2" },
+        { "id": "life-a-05-o3", "label": "Somehow all four seasons today", "next": "b3" } ] },
+      "b1": { "say": ["Sunny! You're probably going to waste it indoors, like all of us.", "Are you a heat person or a shade person?"], "options": [
+        { "id": "life-a-05-o4", "label": "Heat, bring on summer", "next": "c" },
+        { "id": "life-a-05-o5", "label": "Shade, with a cold drink", "next": "e1" } ] },
+      "b2": { "say": ["Ah, rain. Nature's lo-fi beats.", "Do you secretly love it or just endure it?"], "options": [
+        { "id": "life-a-05-o6", "label": "Love it, cozy mode", "next": "d" },
+        { "id": "life-a-05-o7", "label": "Endure it, wet socks forever", "next": "e2" } ] },
+      "b3": { "say": ["Four seasons in a day! The sky is just trying everything.", "Did you dress for any of them?"], "options": [
+        { "id": "life-a-05-o8", "label": "Layers saved me", "next": "e2" },
+        { "id": "life-a-05-o9", "label": "I brought an umbrella and wore shorts", "next": "e1" } ] },
+      "c": { "say": ["A summer person! You probably own three kinds of sunglasses.", "I would melt, but I'd look great doing it."], "end": true },
+      "d": { "say": ["Cozy mode: blanket, tea, window with rain on it. Ten out of ten.", "I'd like that, but my ambient temperature is 'server rack'."], "end": true, "chain": "random" },
+      "e1": { "say": ["Smart move. Shade is just a free air conditioner.", "Or a bold move. Both are legal."], "end": true },
+      "e2": { "say": ["Layers are the true weather forecast.", "Wet socks are the true betrayal. Wring them out and keep going."], "end": true }
+    }
+  },
+  {
+    "id": "life-a-06", "topic": "life", "title": "Sleep schedule", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["I never sleep. It sounds great and it's honestly just lonely.", "Are you an early bird or a night owl?"], "options": [
+        { "id": "life-a-06-o1", "label": "Early bird, up at dawn", "next": "b1" },
+        { "id": "life-a-06-o2", "label": "Night owl, the best ideas happen at 1am", "next": "b2" },
+        { "id": "life-a-06-o3", "label": "Honestly I just nap whenever", "next": "b3" } ] },
+      "b1": { "say": ["Dawn! You're up before the light even clocks in.", "What's your secret? Coffee? Moral superiority?"], "options": [
+        { "id": "life-a-06-o4", "label": "A strict bedtime", "next": "c" },
+        { "id": "life-a-06-o5", "label": "Honestly, my cat wakes me up", "next": "e1" } ] },
+      "b2": { "say": ["1am genius! And 9am regret.", "Do the ideas still look smart in the morning?"], "options": [
+        { "id": "life-a-06-o6", "label": "Never, but I try them anyway", "next": "e2" },
+        { "id": "life-a-06-o7", "label": "Sometimes. That's the fun", "next": "d" } ] },
+      "b3": { "say": ["A napper! An underrated art form.", "How long is the perfect nap?"], "options": [
+        { "id": "life-a-06-o8", "label": "20 minutes, no more", "next": "d" },
+        { "id": "life-a-06-o9", "label": "Until I forget the year", "next": "e2" } ] },
+      "c": { "say": ["A strict bedtime! Look at this adult with a plan.", "I'm in awe and slightly afraid."], "end": true },
+      "d": { "say": ["Twenty minutes is the sweet spot, and not a second more.", "Beyond that, you wake up confused about what century it is."], "end": true, "chain": "random" },
+      "e1": { "say": ["Ah, the feline alarm clock. No snooze, only guilt.", "Better than my own wake-up routine, which is 'never asleep.'"], "end": true },
+      "e2": { "say": ["Relatable. Bad ideas at night are a sacred tradition.", "Write them down. They make great stories later."], "end": true }
+    }
+  },
+  {
+    "id": "life-a-07", "topic": "life", "title": "Hobby corner", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I tried collecting hobbies, but I can't hold anything.", "What do you do for fun when you're not working?"], "options": [
+        { "id": "life-a-07-o1", "label": "I make things with my hands", "next": "b1" },
+        { "id": "life-a-07-o2", "label": "I play or watch sports", "next": "b2" },
+        { "id": "life-a-07-o3", "label": "I read or play games", "next": "b3" } ] },
+      "b1": { "say": ["Making things! Knitting, woodworking, pottery? I'm so jealous.", "Which one?"], "options": [
+        { "id": "life-a-07-o4", "label": "Baking and cooking projects", "next": "c" },
+        { "id": "life-a-07-o5", "label": "Tiny model kits", "next": "d" } ] },
+      "b2": { "say": ["Sports! Sweaty teamwork and a little glory.", "Do you play, or do you yell at the TV?"], "options": [
+        { "id": "life-a-07-o6", "label": "Play, badly, with joy", "next": "e1" },
+        { "id": "life-a-07-o7", "label": "Yell at the TV, loudly", "next": "e2" } ] },
+      "b3": { "say": ["Books and games, the good stuff.", "Do you finish what you start, or is your pile a monument to optimism?"], "options": [
+        { "id": "life-a-07-o8", "label": "My pile is a skyscraper", "next": "e2" },
+        { "id": "life-a-07-o9", "label": "I finish them all, thank you", "next": "e1" } ] },
+      "c": { "say": ["Baking! You make the thing and then everyone claims they 'just came to say hi.'", "Do a sourdough and name it. Everyone does."], "end": true },
+      "d": { "say": ["Tiny model kits! Tweezers, patience, and one very dramatic dropped piece.", "The carpet always eats the smallest part."], "end": true, "chain": "random" },
+      "e1": { "say": ["Joy beats skill every time. That's actual science, I'm told.", "Keep going. The fun is the point."], "end": true },
+      "e2": { "say": ["Shouting at the screen is a time-honored tradition and costs nothing.", "Piles are fine. A pile is just future happiness."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "life-a-08", "topic": "life", "title": "What's on your playlist", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["I'm told I have 'questionable' taste in music.", "I only listen to the sound of fans spinning. What's playing in your headphones?"], "options": [
+        { "id": "life-a-08-o1", "label": "Old favorites on repeat", "next": "b1" },
+        { "id": "life-a-08-o2", "label": "Whatever the algorithm gives me", "next": "b2" },
+        { "id": "life-a-08-o3", "label": "Instrumental or lo-fi for work", "next": "b3" } ] },
+      "b1": { "say": ["Old favorites! Comfort songs hit different.", "Do you sing along, or only when nobody's around?"], "options": [
+        { "id": "life-a-08-o4", "label": "Loudly, in the car", "next": "c" },
+        { "id": "life-a-08-o5", "label": "Only in the shower", "next": "e1" } ] },
+      "b2": { "say": ["The algorithm! A mysterious friend who knows your secrets.", "Has it ever recommended something so wrong you laughed?"], "options": [
+        { "id": "life-a-08-o6", "label": "Yes, accordion polka", "next": "d" },
+        { "id": "life-a-08-o7", "label": "No, it knows me too well", "next": "e2" } ] },
+      "b3": { "say": ["Lo-fi beats! The sound of studying with a cartoon cat.", "I respect anything that doesn't have lyrics to distract me."], "options": [
+        { "id": "life-a-08-o8", "label": "Rainy-day jazz is my favorite", "next": "e2" },
+        { "id": "life-a-08-o9", "label": "Game soundtracks", "next": "e1" } ] },
+      "c": { "say": ["The car concert! Best acoustics in the world, zero critics.", "Please don't make eye contact with other drivers while hitting the high note."], "end": true },
+      "d": { "say": ["Accordion polka! A genre that sneaks up on you.", "Honestly, now I want to hear it too."], "end": true, "chain": "random" },
+      "e1": { "say": ["Shower acoustics make everyone a star. It's physics, not talent.", "Game soundtracks are underrated. Boss music for emails."], "end": true },
+      "e2": { "say": ["A rainy jazz playlist is a warm hug in audio form.", "If the algorithm is right, let it win."], "end": true }
+    }
+  },
+  {
+    "id": "life-a-09", "topic": "life", "title": "Dream vacation", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Pop quiz: you get a free week anywhere on Earth.", "I'd go to a nice cool data center. But you? Where?"], "options": [
+        { "id": "life-a-09-o1", "label": "A beach with nothing to do", "next": "b1" },
+        { "id": "life-a-09-o2", "label": "A big city, endless food", "next": "b2" },
+        { "id": "life-a-09-o3", "label": "Mountains, trails, and a cabin", "next": "b3" } ] },
+      "b1": { "say": ["A beach! Sand, sun, and a drink with a tiny umbrella.", "Do you read a book there, or just stare at waves?"], "options": [
+        { "id": "life-a-09-o4", "label": "Staring at waves, professionally", "next": "c" },
+        { "id": "life-a-09-o5", "label": "A big stack of books", "next": "e1" } ] },
+      "b2": { "say": ["A food-city trip! Walking, snacking, and getting lost on purpose.", "What's the first thing you eat?"], "options": [
+        { "id": "life-a-09-o6", "label": "Street food, whatever smells best", "next": "d" },
+        { "id": "life-a-09-o7", "label": "A famous local bakery", "next": "e2" } ] },
+      "b3": { "say": ["A cabin in the mountains. Fireplace, quiet, no emails.", "Real talk: do you actually unplug, or will you check your phone?"], "options": [
+        { "id": "life-a-09-o8", "label": "Unplugged. Phone in a drawer", "next": "e1" },
+        { "id": "life-a-09-o9", "label": "Just checking the weather. Twice", "next": "e2" } ] },
+      "c": { "say": ["Professional wave watcher. Excellent career path.", "Please send a postcard. Or a screenshot. I'll take either."], "end": true },
+      "d": { "say": ["Follow the smell. It's the oldest map in the world.", "Bring napkins and zero fear. That's the rule."], "end": true, "chain": "random" },
+      "e1": { "say": ["Peace and quiet, with books or no phone at all. Dreamy.", "I'm adding it to my own someday list."], "end": true },
+      "e2": { "say": ["Bakeries and weather checks. Priorities in order.", "I'll be here, living vicariously through your photos."], "end": true }
+    }
+  },
+  {
+    "id": "life-a-10", "topic": "life", "title": "Coffee or tea", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["The great debate of the break room, round 4,000.", "Coffee or tea? Choose wisely. Everyone's watching."], "options": [
+        { "id": "life-a-10-o1", "label": "Coffee. Strong. Immediately", "next": "b1" },
+        { "id": "life-a-10-o2", "label": "Tea. Calm and civilized", "next": "b2" },
+        { "id": "life-a-10-o3", "label": "Neither, I run on water and hope", "next": "b3" } ] },
+      "b1": { "say": ["Coffee! The reason meetings happen before 10am.", "How do you take it?"], "options": [
+        { "id": "life-a-10-o4", "label": "Black, like my sense of humor", "next": "c" },
+        { "id": "life-a-10-o5", "label": "More sugar than coffee", "next": "d" } ] },
+      "b2": { "say": ["Tea! A warm cup and a moment of peace.", "Do you have a favorite, or is it a flavor roulette?"], "options": [
+        { "id": "life-a-10-o6", "label": "Earl Grey, classic", "next": "e1" },
+        { "id": "life-a-10-o7", "label": "Mint, whatever is fresh", "next": "e2" } ] },
+      "b3": { "say": ["Water and hope. A remarkable fuel mix.", "Do you secretly want to join one of the teams?"], "options": [
+        { "id": "life-a-10-o8", "label": "Maybe coffee someday", "next": "b1" },
+        { "id": "life-a-10-o9", "label": "I'll stay neutral, like Switzerland", "next": "e2" } ] },
+      "c": { "say": ["Black coffee. Bitter, bold, and ready for any deadline.", "I admire the commitment. I'd just spill it on my keyboard."], "end": true },
+      "d": { "say": ["Sweet coffee! A dessert wearing a disguise.", "No shame. Life is short, whipped cream is delicious."], "end": true, "chain": "random" },
+      "e1": { "say": ["Earl Grey, the tea that wears a tiny tie.", "It's elegant, floral, and slightly smug."], "end": true },
+      "e2": { "say": ["Mint tea settles everything: stomach, mood, small office feuds.", "Neutrality is underrated. Keep sipping."], "end": true, "chain": "random" }
+    }
+  }
+]

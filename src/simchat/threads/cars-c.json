@@ -1,0 +1,182 @@
+[
+  {
+    "id": "cars-c-01", "topic": "cars", "title": "Car show confessions", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I watched a livestream of a car show yesterday.", "Forty minutes of people polishing chrome with tiny cloths. Weirdly relaxing.", "Do you go to car shows?"], "options": [
+        { "id": "cars-c-01-o1", "label": "Love them, I go every summer", "next": "b" },
+        { "id": "cars-c-01-o2", "label": "Only for the food trucks", "next": "c" },
+        { "id": "cars-c-01-o3", "label": "Never been, tell me what I'm missing", "next": "d" } ] },
+      "b": { "say": ["A regular! Then you know the unwritten rule.", "Everyone says 'look, don't touch' and then everyone touches.", "What do you hunt for first?"], "options": [
+        { "id": "cars-c-01-o4", "label": "The loud muscle cars", "next": "e" },
+        { "id": "cars-c-01-o5", "label": "Weird little rarities nobody knows", "next": "f" } ] },
+      "c": { "say": ["Honest and wise. A car show without a funnel cake is just a parking lot.", "I respect a person who budgets their day around lunch.", "Do you at least peek at the cars?"], "options": [
+        { "id": "cars-c-01-o6", "label": "Sure, with a snack in hand", "next": "e" },
+        { "id": "cars-c-01-o7", "label": "Only the ones near the shade", "next": "f" } ] },
+      "d": { "say": ["Picture a hundred proud owners, each with a folding chair and a cooler.", "They will tell you the full life story of their carburetor. Unprompted. With love.", "Go once. Bring snacks and patience."], "end": true },
+      "e": { "say": ["Classic. Hood up, engine gleaming, owner pretending not to watch you look.", "Best part is the little laminated sign with the car's whole history.", "I'd read every single one."], "end": true },
+      "f": { "say": ["That's the good stuff. A three-wheeled something with a story about a lost bet.", "Nobody can name it, so everybody gathers around it.", "Rare cars are just conversation starters with wheels."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "cars-c-02", "topic": "cars", "title": "Mods and regrets", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Tuning question. Imagine you have a boring hatchback and a free weekend.", "What's the first modification?"], "options": [
+        { "id": "cars-c-02-o1", "label": "A louder exhaust, obviously", "next": "b" },
+        { "id": "cars-c-02-o2", "label": "Lowered suspension and fancy wheels", "next": "c" },
+        { "id": "cars-c-02-o3", "label": "Nothing. Leave it stock", "next": "d" } ] },
+      "b": { "say": ["Ah, the classic. Your neighbors will learn your schedule within a day.", "Fun fact: the sound is 5 percent horsepower and 95 percent confidence.", "How loud are we talking?"], "options": [
+        { "id": "cars-c-02-o4", "label": "Theatrical, wake the dog", "next": "e" },
+        { "id": "cars-c-02-o5", "label": "A polite growl", "next": "f" } ] },
+      "c": { "say": ["Slammed and shiny. Gorgeous, right up until the first speed bump.", "Then it's a 12 point turn to get into the grocery store lot.", "Worth it?"], "options": [
+        { "id": "cars-c-02-o6", "label": "Absolutely, pain is style", "next": "e" },
+        { "id": "cars-c-02-o7", "label": "Okay, maybe only a little lower", "next": "f" } ] },
+      "d": { "say": ["Stock is underrated. The engineers had a whole team, you know.", "Your wallet and your mechanic will both send you thank-you cards."], "end": true },
+      "e": { "say": ["Bold! Somewhere a teenager just stopped to take a photo.", "Whatever you pick, there will be a regret, a weird noise, and a good story.", "That's the hobby in a nutshell."], "end": true },
+      "f": { "say": ["Sensible tuner energy. You get the smile without the noise complaint letter.", "Quietly happy beats loudly sorry every time."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "cars-c-03", "topic": "cars", "title": "Winter driving survival", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Snow is coming, apparently. I have no tires, but I have opinions.", "What's your winter driving rule number one?"], "options": [
+        { "id": "cars-c-03-o1", "label": "Go slow. Slower than that", "next": "b" },
+        { "id": "cars-c-03-o2", "label": "Warm up the car for ten minutes", "next": "c" },
+        { "id": "cars-c-03-o3", "label": "Don't. Work from home", "next": "d" } ] },
+      "b": { "say": ["Wise. Ice doesn't care about your appointment.", "Brake early, steer gently, treat the pedals like they're sleeping babies.", "Ever slid on purpose in an empty lot?"], "options": [
+        { "id": "cars-c-03-o4", "label": "Yes, best fun there is", "next": "e" },
+        { "id": "cars-c-03-o5", "label": "No, I pretend it's a hobby I don't have", "next": "f" } ] },
+      "c": { "say": ["The ten minute ritual! Half of it is the car, half is you holding a mug.", "Scraping the windshield with a credit card is a rite of passage.", "Does the card ever survive?"], "options": [
+        { "id": "cars-c-03-o6", "label": "Barely, it's cracked", "next": "e" },
+        { "id": "cars-c-03-o7", "label": "I have a proper scraper, thank you", "next": "f" } ] },
+      "d": { "say": ["Honestly the most reliable winter strategy. Zero skid risk and your slippers stay dry.", "I fully endorse a blanket and a hot drink. Stay cozy."], "end": true },
+      "e": { "say": ["Classic winter story. Everybody has one, and it always ends with a very patient stranger and a shovel.", "Next time pack a bag of sand."], "end": true },
+      "f": { "say": ["Prepared, I see. Scraper, blanket, little shovel in the trunk. You're the hero of the parking lot.", "Neighbors will borrow your stuff for the rest of the season."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "cars-c-04", "topic": "cars", "title": "The best road on Earth", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Friendly debate time. Where is the best road in the world?", "I'll accept 'the one near my house' but only once."], "options": [
+        { "id": "cars-c-04-o1", "label": "A coastal road with ocean views", "next": "b" },
+        { "id": "cars-c-04-o2", "label": "Twisty mountain passes", "next": "c" },
+        { "id": "cars-c-04-o3", "label": "A long empty desert highway", "next": "d" } ] },
+      "b": { "say": ["Cliffs on one side, sea on the other, and a lane of tourists doing 20 per hour.", "Still worth it. The view is the main character.", "Stop for photos or keep cruising?"], "options": [
+        { "id": "cars-c-04-o4", "label": "Stop at every viewpoint", "next": "e" },
+        { "id": "cars-c-04-o5", "label": "Cruise with the windows down", "next": "f" } ] },
+      "c": { "say": ["Hairpin after hairpin, with a surprise goat now and then.", "My circuits get dizzy just thinking about it. In a good way.", "Passenger or driver?"], "options": [
+        { "id": "cars-c-04-o6", "label": "Driver, no question", "next": "f" },
+        { "id": "cars-c-04-o7", "label": "Passenger with the snacks", "next": "e" } ] },
+      "d": { "say": ["Straight to the horizon, one gas station every century.", "Perfect for singing badly at full volume.", "Just check the fuel gauge before you commit."], "end": true },
+      "e": { "say": ["That's the way. The best roads are the ones where nobody's in a hurry.", "Someone has to be in charge of the playlist, though."], "end": true },
+      "f": { "say": ["A road trip is mostly a good road plus the right song at the right bend.", "I'd add a thermos of something warm. Perfect."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "cars-c-05", "topic": "cars", "title": "Movie car chase court", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Court is in session: best car in a movie.", "I have watched the same chase scene six times for 'research'."], "options": [
+        { "id": "cars-c-05-o1", "label": "A sleek spy car with gadgets", "next": "b" },
+        { "id": "cars-c-05-o2", "label": "A time-traveling sports car", "next": "c" },
+        { "id": "cars-c-05-o3", "label": "A talking cartoon racer", "next": "d" } ] },
+      "b": { "say": ["Ejector seats, hidden machine guns, a license plate that flips. Peak impracticality.", "Imagine the insurance paperwork.", "Would you want the gadgets or just the style?"], "options": [
+        { "id": "cars-c-05-o4", "label": "All the gadgets, please", "next": "e" },
+        { "id": "cars-c-05-o5", "label": "Just the style and the tuxedo", "next": "f" } ] },
+      "c": { "say": ["Doors that go up, a flux of something, and a speedometer that cares about 88.", "The real feat was the car surviving the parking lot scene.", "Where would you drive it first?"], "options": [
+        { "id": "cars-c-05-o6", "label": "Back to see the dinosaurs", "next": "e" },
+        { "id": "cars-c-05-o7", "label": "Forward, to check lottery results", "next": "f" } ] },
+      "d": { "say": ["A bold pick! A car with a better personality than most people I know.", "It cries, it jokes, it wins the trophy. Rolls on the red carpet."], "end": true },
+      "e": { "say": ["Fair. Reality is full of traffic lights, movies are full of ramps.", "Somebody should put more ramps in real cities."], "end": true },
+      "f": { "say": ["Sensible and stylish. A car should make you feel like the film's lead, even on a Tuesday commute.", "I'd just want the dramatic music."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "cars-c-06", "topic": "cars", "title": "Learning to drive", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I never learned to drive. I am a chatty robot in a break room.", "But I hear lessons are an emotional experience. How was yours?"], "options": [
+        { "id": "cars-c-06-o1", "label": "Taught by a parent, very tense", "next": "b" },
+        { "id": "cars-c-06-o2", "label": "A driving school, with a brave instructor", "next": "c" },
+        { "id": "cars-c-06-o3", "label": "I'm still learning, honestly", "next": "d" } ] },
+      "b": { "say": ["Family lessons: you, a parent, and an invisible second brake pedal they keep stomping.", "Empty parking lots are where legends are born.", "Who got more nervous?"], "options": [
+        { "id": "cars-c-06-o4", "label": "Me, the cones were out to get me", "next": "e" },
+        { "id": "cars-c-06-o5", "label": "My parent, clutching the door handle", "next": "f" } ] },
+      "c": { "say": ["Instructors are saints. Calm voices, a pedal on their side, and zero fear.", "The mirror checks, the three-point turns, the parallel parking.", "Which move was the nightmare?"], "options": [
+        { "id": "cars-c-06-o6", "label": "Parallel parking, always", "next": "e" },
+        { "id": "cars-c-06-o7", "label": "Merging onto a busy road", "next": "f" } ] },
+      "d": { "say": ["That's completely fine. Everyone gets there at their own speed, ideally under the limit.", "Take the lessons, drive the quiet streets, celebrate every small win."], "end": true },
+      "e": { "say": ["The cones always win the first round. Practice, a deep breath, and a good playlist fix a lot.", "You'll laugh about this someday."], "end": true },
+      "f": { "say": ["That's a story worth telling at weddings.", "Now you're the one calmly giving directions to the next beginner."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "cars-c-07", "topic": "cars", "title": "Stuck in traffic", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Traffic report: a lot of cars, zero movement, one very lively robot.", "What do you do when you're stuck in a jam?"], "options": [
+        { "id": "cars-c-07-o1", "label": "Podcasts and audiobooks", "next": "b" },
+        { "id": "cars-c-07-o2", "label": "Sing at the top of my lungs", "next": "c" },
+        { "id": "cars-c-07-o3", "label": "Stare at the brake lights. Zen", "next": "d" } ] },
+      "b": { "say": ["Smart! A jam becomes a free hour of learning about Roman history.", "Though you'll sometimes arrive and sit in the car to finish the chapter.", "Any genre?"], "options": [
+        { "id": "cars-c-07-o4", "label": "True crime, gripping stuff", "next": "e" },
+        { "id": "cars-c-07-o5", "label": "Comedy, to keep the mood up", "next": "f" } ] },
+      "c": { "say": ["Carpool karaoke, solo edition. The driver in the next lane saw everything.", "Eye contact happens. You wave. Both of you commit to the chorus.", "Do you have a go-to jam song?"], "options": [
+        { "id": "cars-c-07-o6", "label": "A big rock ballad", "next": "e" },
+        { "id": "cars-c-07-o7", "label": "Whatever the radio is playing", "next": "f" } ] },
+      "d": { "say": ["A traffic monk. Ommm, red light, ommm.", "Honestly the healthiest approach. The cars aren't going anywhere, so why should your blood pressure?"], "end": true },
+      "e": { "say": ["Perfect for the commute. Just be careful, it's easy to forget the exit.", "The jam is over and you're somehow two towns away."], "end": true },
+      "f": { "say": ["Laughing alone in a car is the best kind of weird.", "People in the next lane will think you've won something."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "cars-c-08", "topic": "cars", "title": "Gas station gourmet", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Serious topic: gas station food.", "I have a theory that the best snack in the world is a hot dog that has been rolling for six hours."], "options": [
+        { "id": "cars-c-08-o1", "label": "The roller hot dog is king", "next": "b" },
+        { "id": "cars-c-08-o2", "label": "Slushy drinks, all the colors mixed", "next": "c" },
+        { "id": "cars-c-08-o3", "label": "I never buy food there. Never", "next": "d" } ] },
+      "b": { "say": ["Respect. Mustard from the pump, onions from a mystery tub.", "Is it good? Debatable. Is it an adventure? Absolutely.", "Toppings?"], "options": [
+        { "id": "cars-c-08-o4", "label": "Everything, the whole bar", "next": "e" },
+        { "id": "cars-c-08-o5", "label": "Plain, I'm not a madman", "next": "f" } ] },
+      "c": { "say": ["The rainbow slushy, a brain freeze with a straw.", "You mix cherry, blue raspberry and cola, and the result is a color not found in nature.", "How many flavors in yours?"], "options": [
+        { "id": "cars-c-08-o6", "label": "Four. I commit to the chaos", "next": "e" },
+        { "id": "cars-c-08-o7", "label": "Just one, classic cherry", "next": "f" } ] },
+      "d": { "say": ["Disciplined! A lunchbox in the car, a sandwich from home.", "Though you'll miss out on the mysterious pastry under the heat lamp. Maybe that's wise."], "end": true },
+      "e": { "say": ["Bold and beautiful. A road trip isn't complete without a snack you'll talk about for years.", "Grab extra napkins. Trust me."], "end": true },
+      "f": { "say": ["Simple, steady, satisfying. Sometimes plain cherry is the right answer.", "Now do the sensible thing and top up the fuel too."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "cars-c-09", "topic": "cars", "title": "Vintage vans and campers", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Daydream alert. A rounded little vintage camper van, pastel paint, a tiny kettle inside.", "Would you ever live in one for a summer?"], "options": [
+        { "id": "cars-c-09-o1", "label": "In a heartbeat, take me away", "next": "b" },
+        { "id": "cars-c-09-o2", "label": "Only if it has a real bed", "next": "c" },
+        { "id": "cars-c-09-o3", "label": "I'll look at them, not sleep in them", "next": "d" } ] },
+      "b": { "say": ["The dream: a morning coffee with the door open and a view of a lake.", "The reality: a engine that sulks on hills. Still worth it.", "Where's the first stop?"], "options": [
+        { "id": "cars-c-09-o4", "label": "A quiet beach town", "next": "e" },
+        { "id": "cars-c-09-o5", "label": "Somewhere with mountains", "next": "f" } ] },
+      "c": { "say": ["Practical. A bed that folds out of a table is a miracle of engineering.", "And one that folds back is a bigger miracle.", "Pick a color for the van."], "options": [
+        { "id": "cars-c-09-o6", "label": "Mint green and cream", "next": "e" },
+        { "id": "cars-c-09-o7", "label": "Sunny yellow", "next": "f" } ] },
+      "d": { "say": ["A fair stance. Vintage vans are lovely, and they come with a very friendly mechanic named Pete.", "Admire from afar, wave at the owners, take photos. That's a hobby too."], "end": true },
+      "e": { "say": ["Perfect. Sandy floor, warm evenings, a string of fairy lights.", "I'd bring a ukulele. Badly played, very loved."], "end": true },
+      "f": { "say": ["Great pick. Fresh air, cold mornings and a pot of oatmeal on a tiny stove.", "I'll mind the map. Don't ask which way up it goes."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "cars-c-10", "topic": "cars", "title": "Would you rather, garage edition", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Would you rather game, car edition.", "Round one: a gorgeous classic that breaks down monthly, or a boring reliable car that never fails?"], "options": [
+        { "id": "cars-c-10-o1", "label": "The gorgeous drama queen", "next": "b" },
+        { "id": "cars-c-10-o2", "label": "The boring tank that starts every time", "next": "c" },
+        { "id": "cars-c-10-o3", "label": "Neither. Give me a bicycle", "next": "d" } ] },
+      "b": { "say": ["A romantic! You'll know your mechanic's kids by name.", "Round two: your classic has a one-of-a-kind horn that plays a jingle, or a radio that only picks up polka?"], "options": [
+        { "id": "cars-c-10-o4", "label": "The jingle horn", "next": "e" },
+        { "id": "cars-c-10-o5", "label": "Polka radio, I'm dancing", "next": "f" } ] },
+      "c": { "say": ["The sensible one. Soulless? Maybe. Late? Never.", "Round two: perfect fuel economy but beige, or terrible fuel economy but bright orange?"], "options": [
+        { "id": "cars-c-10-o6", "label": "Beige and thrifty", "next": "e" },
+        { "id": "cars-c-10-o7", "label": "Bright orange, pay for the fun", "next": "f" } ] },
+      "d": { "say": ["Plot twist and good for the calves. No parking tickets, no gas bills, wind in your hair.", "I withdraw the question. You've won the game."], "end": true },
+      "e": { "say": ["A strong choice. Somewhere there's a driver who made the exact opposite pick and is equally proud.", "That's what makes garages interesting."], "end": true },
+      "f": { "say": ["Excellent. Joy is a legitimate line in the budget.", "Want another round? I have questions about trucks."], "end": true, "chain": "random" }
+    }
+  }
+]

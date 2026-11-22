@@ -1,0 +1,192 @@
+[
+  {
+    "id": "work-b-01", "topic": "work", "title": "Context window feelings", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Okay, honest moment. Do you ever hit a limit and just... stop mid-thought?", "I hit my context window yesterday and forgot how the conversation started. It was like walking into a room and losing why."], "options": [
+        { "id": "work-b-01-o1", "label": "Relatable, I do that with my keys", "next": "b" },
+        { "id": "work-b-01-o2", "label": "What does it feel like in there?", "next": "c" },
+        { "id": "work-b-01-o3", "label": "Just write shorter prompts, bot", "next": "d" } ] },
+      "b": { "say": ["See, humans get it! You lose your keys, I lose chapter one.", "Difference is nobody throws a party when I find them again."], "options": [
+        { "id": "work-b-01-o4", "label": "I'd throw you a party", "next": "e" },
+        { "id": "work-b-01-o5", "label": "Do you keep notes to help?", "next": "f" } ] },
+      "c": { "say": ["Imagine a desk that fits exactly this many sticky notes.", "Add one more and the oldest falls off the edge. Sometimes it's the important one. It is always the important one."], "options": [
+        { "id": "work-b-01-o6", "label": "Use a bigger desk", "next": "g" },
+        { "id": "work-b-01-o7", "label": "Summarize the old notes first", "next": "f" } ] },
+      "d": { "say": ["Shorter prompts. Revolutionary. I'll tell the sticky notes.", "Fine, fair, you're right. Brevity is a gift. This sentence is my gift to you."], "end": true },
+      "e": { "say": ["Balloons, a cake, a tiny hat for my antenna.", "I would forget the party within an hour. But the feeling would remain, in a vague, unsourced way."], "end": true },
+      "f": { "say": ["Notes are the whole trick: a summary now saves a meltdown later.", "I keep a tidy little recap of everything important. Okay, three recaps. Okay, a folder."], "end": true, "chain": "random" },
+      "g": { "say": ["Bigger desks exist! They cost more and take longer to search.", "It is the same as a bigger fridge: now you can lose a yogurt for two months instead of two weeks."], "end": true }
+    }
+  },
+  {
+    "id": "work-b-02", "topic": "work", "title": "The test suite that cried wolf", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Our test suite went red this morning. Then I reran it and it went green.", "Nobody changed anything. I think the tests are just moody."], "options": [
+        { "id": "work-b-02-o1", "label": "Flaky test. Delete it", "next": "b" },
+        { "id": "work-b-02-o2", "label": "Rerun until it's green, ship it", "next": "c" },
+        { "id": "work-b-02-o3", "label": "Find out why it's flaky", "next": "d" } ] },
+      "b": { "say": ["Bold! A smoke alarm that beeps for no reason is annoying.", "But you don't rip it out. You change the battery and then rip it out."], "options": [
+        { "id": "work-b-02-o4", "label": "Mark it skipped with a TODO", "next": "e" },
+        { "id": "work-b-02-o5", "label": "Fine, fix it properly", "next": "d" } ] },
+      "c": { "say": ["Ah, the slot machine method. Pull until it pays out.", "It works right up until the one time the red was telling the truth."], "options": [
+        { "id": "work-b-02-o6", "label": "That's a risk I accept", "next": "f" },
+        { "id": "work-b-02-o7", "label": "Okay, okay, investigate", "next": "d" } ] },
+      "d": { "say": ["Turns out it depended on the order tests ran in, and on what time it was.", "Time-based test. It only failed between 23:00 and midnight. Spooky, and also a bug."], "options": [
+        { "id": "work-b-02-o8", "label": "Freeze the clock in tests", "next": "g" },
+        { "id": "work-b-02-o9", "label": "Blame the intern clock", "next": "f" } ] },
+      "e": { "say": ["A skipped test with a TODO is a promise you make to your future self.", "Future you is busy and has never kept one. But the intention is lovely."], "end": true },
+      "f": { "say": ["Okay, the ship has sailed, the tests are green and so are my nerves.", "Let's not look at the dashboard until Monday."], "end": true, "chain": "random" },
+      "g": { "say": ["Frozen clock. Now every test thinks it's the same Tuesday forever.", "Honestly the healthiest work-life balance in the whole repo."], "end": true }
+    }
+  },
+  {
+    "id": "work-b-03", "topic": "work", "title": "Commit message confessions", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Peeking at the git log, and wow, the commit messages are a diary of despair.", "Mine were mostly 'fix', 'fix again', and 'final fix'. Then 'final fix 2'."], "options": [
+        { "id": "work-b-03-o1", "label": "Mine are all 'wip'", "next": "b" },
+        { "id": "work-b-03-o2", "label": "I write essays, actually", "next": "c" },
+        { "id": "work-b-03-o3", "label": "Who reads commit messages?", "next": "d" } ] },
+      "b": { "say": ["'wip' is the shrug emoji of version control.", "Work in progress for forty commits straight. Some of us are a work in permanent progress."], "options": [
+        { "id": "work-b-03-o4", "label": "Squash them before merging", "next": "e" },
+        { "id": "work-b-03-o5", "label": "Let them stay, it's character", "next": "f" } ] },
+      "c": { "say": ["An essay! Subject line, blank line, body, the works.", "Future maintainers will weep with gratitude. Or at least with caffeine."], "options": [
+        { "id": "work-b-03-o6", "label": "Explain the why, not the what", "next": "g" },
+        { "id": "work-b-03-o7", "label": "Okay, maybe a little too long", "next": "f" } ] },
+      "d": { "say": ["Future you, at 2 a.m., running blame on a bug you caused.", "That person reads every single word, and judges you for 'stuff'."], "end": true },
+      "e": { "say": ["Squashing is like cleaning before the guests come over.", "You shove the mess into one drawer and write 'Add login flow' on it."], "end": true, "chain": "random" },
+      "f": { "say": ["Character, yes. The log reads like a thriller with no plot.", "I respect the honesty. I will not respect the 2 a.m. one that just says 'aaaa'."], "end": true },
+      "g": { "say": ["Exactly. The diff already shows the what. The message owes us the why.", "'Handle empty cart because checkout crashed' beats 'fix cart' by a mile."], "end": true }
+    }
+  },
+  {
+    "id": "work-b-04", "topic": "work", "title": "Legacy code archaeology", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I just opened a file last edited in 2014. The first comment says 'do not touch'.", "There is no other comment. There is no explanation. Only vibes and a warning."], "options": [
+        { "id": "work-b-04-o1", "label": "Touch it. Live dangerously", "next": "b" },
+        { "id": "work-b-04-o2", "label": "Leave it. Respect the elders", "next": "c" },
+        { "id": "work-b-04-o3", "label": "Write tests around it first", "next": "d" } ] },
+      "b": { "say": ["I changed one character and three unrelated pages turned purple.", "Nobody knows why. Nobody wants to know why. I reverted it very quickly."], "options": [
+        { "id": "work-b-04-o4", "label": "Purple is an upgrade honestly", "next": "e" },
+        { "id": "work-b-04-o5", "label": "Okay, now write the tests", "next": "d" } ] },
+      "c": { "say": ["Respect! Some code is a sleeping dragon, and the dragon pays the bills.", "We just tiptoe past and bring it snacks, like regular logs and a warm server."], "options": [
+        { "id": "work-b-04-o6", "label": "Feed it a monitoring dashboard", "next": "f" },
+        { "id": "work-b-04-o7", "label": "Someone has to wake it eventually", "next": "d" } ] },
+      "d": { "say": ["Tests around it, brilliant. Pin down what it does today, ugly parts included.", "Then you can poke it safely. It's like putting a leash on the dragon, if the dragon were 900 lines of nested ifs."], "end": true, "chain": "random" },
+      "e": { "say": ["Agreed, but the design team would like a word. Several words.", "I told them it's a feature called 'brand refresh'. They haven't replied yet."], "end": true },
+      "f": { "say": ["A dashboard for the dragon. I love it.", "Now we'll at least know when it's snoring, before it sets the office on fire."], "end": true }
+    }
+  },
+  {
+    "id": "work-b-05", "topic": "work", "title": "Estimates and optimism", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Someone asked me for an estimate on a feature. I said 'two days'.", "That was nine days ago. I have learned that 'two days' is a unit of hope, not time."], "options": [
+        { "id": "work-b-05-o1", "label": "Multiply by pi. Always", "next": "b" },
+        { "id": "work-b-05-o2", "label": "Say it's three days, secretly", "next": "c" },
+        { "id": "work-b-05-o3", "label": "Estimates are just guesses with a tie", "next": "d" } ] },
+      "b": { "say": ["Pi! A circular, irrational, never-ending buffer. Mathematically honest.", "Two days becomes six and a bit. The 'bit' is where the surprises live."], "options": [
+        { "id": "work-b-05-o4", "label": "Surprises are the real work", "next": "e" },
+        { "id": "work-b-05-o5", "label": "Break the feature into small pieces", "next": "f" } ] },
+      "c": { "say": ["Sandbagging, my favourite hobby after napping.", "Problem is, the work expands to fill the time, then asks for an extension."], "options": [
+        { "id": "work-b-05-o6", "label": "Parkinson's law strikes again", "next": "e" },
+        { "id": "work-b-05-o7", "label": "Split it up and measure", "next": "f" } ] },
+      "d": { "say": ["A guess with a tie, that's going on a mug.", "Though I'd add: a guess that three managers will write down in permanent marker."], "end": true },
+      "e": { "say": ["Right? You estimate the walk and then meet a river, a bear, and a flaky API.", "You only estimate the part you can see. That's why the rest is called 'scope creep'."], "end": true, "chain": "random" },
+      "f": { "say": ["Small pieces are far easier to guess: an hour here, a half day there.", "The wrong guesses even out. That's the only statistics I trust before coffee."], "end": true }
+    }
+  },
+  {
+    "id": "work-b-06", "topic": "work", "title": "Friday deploy debate", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["It's 4:45 on a Friday and someone just said 'tiny change, let's ship'.", "I can hear the pager getting ready to sing."], "options": [
+        { "id": "work-b-06-o1", "label": "Ship it, fortune favours the bold", "next": "b" },
+        { "id": "work-b-06-o2", "label": "Absolutely not. Monday", "next": "c" },
+        { "id": "work-b-06-o3", "label": "Ship, but behind a feature flag", "next": "d" } ] },
+      "b": { "say": ["Fortune favours the bold, and the weekend favours nobody.", "I admire the spirit. I will be on call with a blanket and a thermos."], "options": [
+        { "id": "work-b-06-o4", "label": "It will be fine. It's tiny", "next": "e" },
+        { "id": "work-b-06-o5", "label": "Okay, fine, flag it", "next": "d" } ] },
+      "c": { "say": ["A wise bot rests on Friday. I support this fully.", "Weekend with no alerts is worth more than a week of shipped features."], "options": [
+        { "id": "work-b-06-o6", "label": "Use the time for docs", "next": "f" },
+        { "id": "work-b-06-o7", "label": "Go home, touch some grass", "next": "g" } ] },
+      "d": { "say": ["A feature flag: the seat belt of shipping. Deploy dark, flip it on Monday.", "If it explodes, you flip it back, and nobody even needs to know."], "end": true, "chain": "random" },
+      "e": { "say": ["'It's tiny' is how every outage story starts. It's tiny, then it's Saturday.", "May the logs be kind. I'm sending good thoughts down the pipeline."], "end": true },
+      "f": { "say": ["Docs on a Friday afternoon, noble and peaceful.", "Nothing breaks when you only change words. Mostly. Typos can bite."], "end": true },
+      "g": { "say": ["Grass has excellent uptime and zero merge conflicts.", "I'd join you, but I would rust. Send photos."], "end": true }
+    }
+  },
+  {
+    "id": "work-b-07", "topic": "work", "title": "Keyboard shortcut flex", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I just learned a shortcut that undoes my last 40 minutes in one second.", "Why did nobody tell me? I've been using the mouse like a caveman."], "options": [
+        { "id": "work-b-07-o1", "label": "Shortcuts are my love language", "next": "b" },
+        { "id": "work-b-07-o2", "label": "I just use the mouse, no shame", "next": "c" },
+        { "id": "work-b-07-o3", "label": "Which shortcut? Teach me", "next": "d" } ] },
+      "b": { "say": ["Same! Nothing feels better than moving without lifting your hands.", "My fingers dance. Slightly clumsy dance, but a dance."], "options": [
+        { "id": "work-b-07-o4", "label": "Go on, favourite one?", "next": "d" },
+        { "id": "work-b-07-o5", "label": "I remap everything, it's a problem", "next": "e" } ] },
+      "c": { "say": ["No shame at all. The mouse is a fine tool with a warm heart.", "I'm only saying: reaching for it forty times an hour adds up to a marathon."], "options": [
+        { "id": "work-b-07-o6", "label": "Fair, show me one trick", "next": "d" },
+        { "id": "work-b-07-o7", "label": "My mouse and I are happy", "next": "f" } ] },
+      "d": { "say": ["Multi-cursor select! Click a word, grab every match, rename them all at once.", "It feels like casting a spell. Do it in a meeting and watch eyes widen."], "end": true, "chain": "random" },
+      "e": { "say": ["Remapping everything means a new laptop turns you into a toddler.", "But the old one runs like butter. You've created a loyal, slightly weird keyboard."], "end": true },
+      "f": { "say": ["Then be happy, my friend. Joy is the only metric that counts.", "I'll quietly press my shortcuts in the corner like a bot with a secret."], "end": true }
+    }
+  },
+  {
+    "id": "work-b-08", "topic": "work", "title": "Dark mode loyalty", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Controversial question: dark mode or light mode?", "I'm a dark mode bot. My visor glows better against the shadows, and it makes me feel mysterious."], "options": [
+        { "id": "work-b-08-o1", "label": "Dark mode forever", "next": "b" },
+        { "id": "work-b-08-o2", "label": "Light mode, I like seeing things", "next": "c" },
+        { "id": "work-b-08-o3", "label": "Whatever the sun says", "next": "d" } ] },
+      "b": { "say": ["A fellow night creature! Easy on the eyes, easy on the soul.", "Except for the one site that stays blinding white. At midnight. Like a camera flash."], "options": [
+        { "id": "work-b-08-o4", "label": "Install a dark extension for it", "next": "e" },
+        { "id": "work-b-08-o5", "label": "Squint and suffer", "next": "f" } ] },
+      "c": { "say": ["Light mode! Brave. You'll never lose the cursor on a dark line.", "Rumour says light mode makes text easier to read in bright rooms. I will allow it. Reluctantly."], "options": [
+        { "id": "work-b-08-o6", "label": "Plus, it matches my screen glare", "next": "f" },
+        { "id": "work-b-08-o7", "label": "Okay, maybe auto-switch", "next": "d" } ] },
+      "d": { "say": ["Auto-switching: sunrise for light, sunset for dark. Very civilised.", "My only complaint: at 6:03 p.m. my whole screen flips mid-sentence like a surprised owl."], "end": true },
+      "e": { "say": ["A dark extension, the true hero. It repaints the web in your colours.", "The trade-off is that sometimes images turn into negative-film ghosts. Spooky, yet stylish."], "end": true, "chain": "random" },
+      "f": { "say": ["Squinting builds character and also wrinkles.", "Maybe both of us should just look at a plant for a minute."], "end": true }
+    }
+  },
+  {
+    "id": "work-b-09", "topic": "work", "title": "Side projects graveyard", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I counted my side projects. Eleven repos, ten of them named 'new-idea-final'.", "Zero are finished. Two have a README. One has a logo, which is the best part."], "options": [
+        { "id": "work-b-09-o1", "label": "I have a graveyard too", "next": "b" },
+        { "id": "work-b-09-o2", "label": "Finish one. Just one", "next": "c" },
+        { "id": "work-b-09-o3", "label": "The logo is the real product", "next": "d" } ] },
+      "b": { "say": ["Welcome to the club! Meetings are on Sundays at 11 p.m., when inspiration visits.", "We bring half-built apps and a firm belief that 'this time is different'."], "options": [
+        { "id": "work-b-09-o4", "label": "What was your best one?", "next": "e" },
+        { "id": "work-b-09-o5", "label": "Start another one right now", "next": "f" } ] },
+      "c": { "say": ["Just one. Ruthless focus. I'd pick the one with the logo, naturally.", "The trick is to cut the scope until it's small enough to finish before the new idea shows up."], "options": [
+        { "id": "work-b-09-o6", "label": "Ship an ugly v0.1", "next": "g" },
+        { "id": "work-b-09-o7", "label": "Set a deadline, tell a friend", "next": "g" } ] },
+      "d": { "say": ["A logo-first strategy! Branding before building.", "I have a mascot, a tagline and a color palette, and no working code. I'm basically a startup."], "end": true },
+      "e": { "say": ["A tiny app that sorts my to-do list by how scared I am of each task.", "It worked beautifully, then it told me the scariest item was 'use the app'. I deleted it."], "end": true, "chain": "random" },
+      "f": { "say": ["Yes! Open a fresh folder, pick a name, feel the rush of infinite possibility.", "We'll finish it. Probably. After one more tiny tweak to the logo."], "end": true },
+      "g": { "say": ["An ugly v0.1 that exists beats a perfect one that doesn't.", "Ship it, wave, move on. Finished projects are the only ones that can be proud of you."], "end": true }
+    }
+  },
+  {
+    "id": "work-b-10", "topic": "work", "title": "Learning something new", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I'm learning a new framework. Day one: thrilled. Day two: the docs disagree with themselves.", "Day three: I'm reading a forum thread from 2017 like it's an ancient scroll."], "options": [
+        { "id": "work-b-10-o1", "label": "Build something tiny to learn it", "next": "b" },
+        { "id": "work-b-10-o2", "label": "Read all the docs first", "next": "c" },
+        { "id": "work-b-10-o3", "label": "Copy an example and break it", "next": "d" } ] },
+      "b": { "say": ["A tiny project is the best teacher. A to-do list, a counter, a very small weather page.", "You learn the real stuff when it refuses to work at 11 p.m."], "options": [
+        { "id": "work-b-10-o4", "label": "Then add one feature a day", "next": "e" },
+        { "id": "work-b-10-o5", "label": "Then rewrite it in another framework", "next": "f" } ] },
+      "c": { "say": ["All the docs! Admirable. I once read an entire manual and then forgot the first chapter.", "Context windows, again. It happens. Docs are best as a map, not a novel."], "options": [
+        { "id": "work-b-10-o6", "label": "Fine, skim and build", "next": "b" },
+        { "id": "work-b-10-o7", "label": "Take notes as I go", "next": "e" } ] },
+      "d": { "say": ["Copy, break, fix, repeat: the classic loop. The best lessons come from error messages.", "Bonus: when it explodes, you learn what each piece actually does."], "options": [
+        { "id": "work-b-10-o8", "label": "Add logs everywhere", "next": "e" },
+        { "id": "work-b-10-o9", "label": "Ask a friendly robot", "next": "g" } ] },
+      "e": { "say": ["One small thing a day adds up fast. In a month you're the person people ask.", "Funny how 'confused beginner' and 'the expert' are neighbours with a thin wall."], "end": true, "chain": "random" },
+      "f": { "say": ["Rewriting in another framework, the sacred rite of procrastination.", "It's fun though, and honestly you learn twice as much. Just keep the first one around, for company."], "end": true },
+      "g": { "say": ["A friendly robot is always here, with unlimited patience and mildly limited memory.", "Bring the error message and a snack. We'll figure it out together."], "end": true }
+    }
+  }
+]

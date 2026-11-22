@@ -1,0 +1,214 @@
+[
+  {
+    "id": "life-c-01", "topic": "life", "title": "Dinner party disasters", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Break room topic: dinner party disasters.", "Mine would be a souffle that collapsed like a sad little hat. Ever hosted one that went sideways?"], "options": [
+        { "id": "life-c-01-o1", "label": "Yes, the food was the problem", "next": "b1" },
+        { "id": "life-c-01-o2", "label": "Yes, a guest was the problem", "next": "b2" },
+        { "id": "life-c-01-o3", "label": "Never hosted. Too scary.", "next": "b3" } ] },
+      "b1": { "say": ["Classic. I picture a smoking oven and everyone politely chewing.", "What was the casualty?"], "options": [
+        { "id": "life-c-01-o4", "label": "Burnt to a crisp", "next": "c1" },
+        { "id": "life-c-01-o5", "label": "Raw in the middle", "next": "c2" } ] },
+      "b2": { "say": ["Ah, the human variable. The loud uncle? The surprise plus-one?", "Give me the gossip."], "options": [
+        { "id": "life-c-01-o6", "label": "Two guests argued all night", "next": "c3" },
+        { "id": "life-c-01-o7", "label": "Someone brought an uninvited dog", "next": "c4" } ] },
+      "b3": { "say": ["Respect, that's wise. Hosting is a tiny restaurant with no staff and high emotional stakes."], "options": [
+        { "id": "life-c-01-o8", "label": "What is the safest menu?", "next": "c5" },
+        { "id": "life-c-01-o9", "label": "Maybe I'll try one day", "next": "c2" } ] },
+      "c1": { "say": ["Order pizza and call it a rustic evening.", "Nobody remembers the burnt part, only the pizza."], "end": true },
+      "c2": { "say": ["Rule of thumb: cook it once before the guests arrive. And keep one emergency pizza in the freezer.", "Soup also forgives everything."], "end": true, "chain": "random" },
+      "c3": { "say": ["The correct response is to bring out dessert early.", "Nobody argues with a lemon tart in their hands."], "end": true },
+      "c4": { "say": ["Honestly the dog was the best guest. Ate the bread, asked no questions.", "Ten out of ten, would invite again."], "end": true, "chain": "random" },
+      "c5": { "say": ["Pasta with a good sauce, and a shop-bought dessert you plate fancy.", "Nobody will ever know. I will take that secret to my grave. Or my charging dock."], "end": true }
+    }
+  },
+  {
+    "id": "life-c-02", "topic": "life", "title": "Moving house", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Moving house is just relocating all your stuff so you can rediscover how much stuff you have.", "Which part would get you first?"], "options": [
+        { "id": "life-c-02-o1", "label": "The packing", "next": "b1" },
+        { "id": "life-c-02-o2", "label": "The heavy lifting", "next": "b2" },
+        { "id": "life-c-02-o3", "label": "The unpacking, forever", "next": "b3" } ] },
+      "b1": { "say": ["Packing starts organised and ends with a box labelled 'MISC' full of one whisk and three batteries.", "Which are you?"], "options": [
+        { "id": "life-c-02-o4", "label": "Labels and colour codes", "next": "c1" },
+        { "id": "life-c-02-o5", "label": "Everything in a bag, good luck", "next": "c2" } ] },
+      "b2": { "say": ["The sofa never fits through the door the way it came in. That is a law of physics, I checked."], "options": [
+        { "id": "life-c-02-o6", "label": "Hire movers, no shame", "next": "c3" },
+        { "id": "life-c-02-o7", "label": "Bribe friends with pizza", "next": "c2" } ] },
+      "b3": { "say": ["There is always one box that stays unpacked for three years.", "You know the one. It is now a side table."], "options": [
+        { "id": "life-c-02-o8", "label": "Mine is a side table too", "next": "c1" },
+        { "id": "life-c-02-o9", "label": "I unpack everything in a day", "next": "c3" } ] },
+      "c1": { "say": ["Organised people scare me a little, and I love them.", "Please come label my cables."], "end": true },
+      "c2": { "say": ["Chaos is a valid method. You will find the kettle on day four, maybe.", "Keep a first-night box: toothbrush, charger, snacks."], "end": true, "chain": "random" },
+      "c3": { "say": ["Smart. Your back thanks you, your friends thank you, and the sofa survives.", "Everybody wins except the stairwell."], "end": true }
+    }
+  },
+  {
+    "id": "life-c-03", "topic": "life", "title": "City or countryside?", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Settle a debate for me: city life or countryside?", "I only know both from photos, so I am extremely qualified."], "options": [
+        { "id": "life-c-03-o1", "label": "City, always something going on", "next": "b1" },
+        { "id": "life-c-03-o2", "label": "Countryside, give me quiet", "next": "b2" } ] },
+      "b1": { "say": ["Food at 2 a.m., trains, a hundred coffee shops. Very tempting.", "What do you love most?"], "options": [
+        { "id": "life-c-03-o3", "label": "The food options", "next": "c1" },
+        { "id": "life-c-03-o4", "label": "Everything within walking distance", "next": "d" } ] },
+      "b2": { "say": ["Birdsong instead of sirens, and a sky with actual stars in it.", "What is the best part for you?"], "options": [
+        { "id": "life-c-03-o5", "label": "Space and fresh air", "next": "c2" },
+        { "id": "life-c-03-o6", "label": "Sleeping like a log", "next": "d" } ] },
+      "c1": { "say": ["A dumpling place that opens at midnight is a better public service than most governments.", "Fight me, politely."], "end": true },
+      "c2": { "say": ["Also no neighbours on the other side of a thin wall. Your drum solos are safe.", "Though the cow next door has opinions."], "end": true, "chain": "random" },
+      "d": { "say": ["Honestly the sweet spot might be a small town with one good bakery and a train to the big city.", "Would you take that deal?"], "options": [
+        { "id": "life-c-03-o7", "label": "Yes, small town please", "next": "e1" },
+        { "id": "life-c-03-o8", "label": "No, I pick a side", "next": "e2" } ] },
+      "e1": { "say": ["Dreamy. Everyone knows your coffee order, and you never need a parking ticket."], "end": true },
+      "e2": { "say": ["Commitment, I like it. Plant your flag, buy the matching mug."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "life-c-04", "topic": "life", "title": "Shower thoughts", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Why do my best ideas arrive when I am wet, soapy and nowhere near a notepad?", "Humans call these shower thoughts. I call them cruel."], "options": [
+        { "id": "life-c-04-o1", "label": "Mine are deep and philosophical", "next": "b1" },
+        { "id": "life-c-04-o2", "label": "Mine are very random", "next": "b2" },
+        { "id": "life-c-04-o3", "label": "I mostly rehearse arguments", "next": "b3" } ] },
+      "b1": { "say": ["Like 'is a hot dog a sandwich' or 'who taught the first teacher'?"], "options": [
+        { "id": "life-c-04-o4", "label": "Is cereal a soup?", "next": "c1" },
+        { "id": "life-c-04-o5", "label": "Who invented the first word?", "next": "c2" } ] },
+      "b2": { "say": ["Same energy. Yesterday I wondered if socks have a favourite foot.", "I do not even have feet."], "options": [
+        { "id": "life-c-04-o6", "label": "Yes, the left one", "next": "c3" },
+        { "id": "life-c-04-o7", "label": "Socks are a conspiracy", "next": "c3" } ] },
+      "b3": { "say": ["Oh, the imaginary debate where you win every point and the other person gasps.", "Peak performance. Zero audience."], "options": [
+        { "id": "life-c-04-o8", "label": "I always win, obviously", "next": "c3" },
+        { "id": "life-c-04-o9", "label": "I forget it by the time I dry off", "next": "c2" } ] },
+      "c1": { "say": ["Cereal is a soup you have to eat quickly before it ruins itself. Case closed."], "end": true, "chain": "random" },
+      "c2": { "say": ["Imagine inventing the very first word. And everyone just stares at you.", "Then someone says 'huh' and language begins."], "end": true },
+      "c3": { "say": ["I think the best part of a shower thought is that it feels like genius until you say it out loud.", "Keep them coming."], "end": true }
+    }
+  },
+  {
+    "id": "life-c-05", "topic": "life", "title": "Tiny annoyances", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Let's vent about tiny annoyances. Not big problems, just the little pebbles in your shoe.", "I will start: the one drawer that never fully closes."], "options": [
+        { "id": "life-c-05-o1", "label": "Tangled earphones", "next": "b1" },
+        { "id": "life-c-05-o2", "label": "People chewing loudly", "next": "b2" },
+        { "id": "life-c-05-o3", "label": "Cookie banners and pop-ups", "next": "b3" } ] },
+      "b1": { "say": ["How? You put them in your pocket in perfect order and they tie a sailor's knot by themselves.", "It's basically witchcraft."], "options": [
+        { "id": "life-c-05-o4", "label": "Wireless fixed that", "next": "c1" },
+        { "id": "life-c-05-o5", "label": "And now I lose them instead", "next": "c2" } ] },
+      "b2": { "say": ["The crunch. The slurp. The little smack. A quiet office turns into a nature documentary."], "options": [
+        { "id": "life-c-05-o6", "label": "Headphones are my shield", "next": "c2" },
+        { "id": "life-c-05-o7", "label": "I just stare silently", "next": "c3" } ] },
+      "b3": { "say": ["'We value your privacy' says the box that is blocking the whole page.", "Seven clicks to decline. Truly, a journey."], "options": [
+        { "id": "life-c-05-o8", "label": "I just click accept", "next": "c3" },
+        { "id": "life-c-05-o9", "label": "I decline out of principle", "next": "c1" } ] },
+      "c1": { "say": ["Small victories matter. I salute you, and your battery life."], "end": true },
+      "c2": { "say": ["Technology: solving yesterday's annoyance by creating tomorrow's.", "Anyway, I feel lighter. Venting works."], "end": true, "chain": "random" },
+      "c3": { "say": ["The silent stare is a legendary weapon. Strongest in the universe, rarely effective.", "I will keep the drawer thing going, though."], "end": true }
+    }
+  },
+  {
+    "id": "life-c-06", "topic": "life", "title": "Gift ideas", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Gift hunting time! I am useless at it. I once suggested a toaster for a birthday and it did not land well.", "How do you pick presents?"], "options": [
+        { "id": "life-c-06-o1", "label": "I plan weeks ahead", "next": "b1" },
+        { "id": "life-c-06-o2", "label": "Last-minute panic", "next": "b2" },
+        { "id": "life-c-06-o3", "label": "Experiences over things", "next": "b3" } ] },
+      "b1": { "say": ["A planner, wow. You probably keep a secret list of what people mention in passing."], "options": [
+        { "id": "life-c-06-o4", "label": "Exactly, a notes file", "next": "c1" },
+        { "id": "life-c-06-o5", "label": "Then I still change my mind", "next": "c2" } ] },
+      "b2": { "say": ["The airport gift shop approach. Nothing says love like a giant chocolate bar and a neck pillow.", "Any rescue tricks?"], "options": [
+        { "id": "life-c-06-o6", "label": "A good plant never fails", "next": "c3" },
+        { "id": "life-c-06-o7", "label": "Gift cards, no shame", "next": "c2" } ] },
+      "b3": { "say": ["Oh, I like that. A cooking class, a day at the climbing wall, tickets to a show.", "Memories do not need dusting."], "options": [
+        { "id": "life-c-06-o8", "label": "Great, but hard to wrap", "next": "c3" },
+        { "id": "life-c-06-o9", "label": "I bring a tiny toy to unwrap", "next": "c1" } ] },
+      "c1": { "say": ["That is the way. Thoughtful beats expensive every single time.", "Teach me your ways, wise human."], "end": true, "chain": "random" },
+      "c2": { "say": ["The thought still counts, and a gift card never needs returning.", "I respect a practical heart."], "end": true },
+      "c3": { "say": ["A small plant plus a handwritten note beats a fancy box. Even if the plant dies, the note lives on.", "Not that I'm speaking from experience."], "end": true }
+    }
+  },
+  {
+    "id": "life-c-07", "topic": "life", "title": "Learning an instrument", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I have been thinking about learning an instrument, but I have no hands.", "Logistics aside, which would you pick?"], "options": [
+        { "id": "life-c-07-o1", "label": "Guitar", "next": "b1" },
+        { "id": "life-c-07-o2", "label": "Piano", "next": "b2" },
+        { "id": "life-c-07-o3", "label": "Drums", "next": "b3" } ] },
+      "b1": { "say": ["Classic. Three chords and the truth.", "Also the first month hurts your fingertips. They call it 'building calluses', I call it a betrayal."], "options": [
+        { "id": "life-c-07-o4", "label": "Worth it for campfire songs", "next": "c1" },
+        { "id": "life-c-07-o5", "label": "Too slow, I quit", "next": "c2" } ] },
+      "b2": { "say": ["Elegant. Eighty-eight keys, no tuning drama, and everything looks smart.", "Beginner pieces sound like a cat walking across them though."], "options": [
+        { "id": "life-c-07-o6", "label": "Practice makes slightly better", "next": "c3" },
+        { "id": "life-c-07-o7", "label": "Cats can compose too", "next": "c1" } ] },
+      "b3": { "say": ["Bold. Your neighbours are about to learn a lot about rhythm.", "Do you start on a real kit or a pillow?"], "options": [
+        { "id": "life-c-07-o8", "label": "A pillow, be kind", "next": "c3" },
+        { "id": "life-c-07-o9", "label": "Full kit, no mercy", "next": "c2" } ] },
+      "c1": { "say": ["Then you have already won. A bad song played with friends is a good evening.", "Please sing the chorus at least."], "end": true, "chain": "random" },
+      "c2": { "say": ["Quitting after one month is the most common ending, and also the most forgivable.", "The instrument will wait for you in the closet, politely judging."], "end": true },
+      "c3": { "say": ["Fifteen minutes a day beats a three-hour panic on Sunday.", "That is the whole secret. I am impressed with myself for knowing it."], "end": true }
+    }
+  },
+  {
+    "id": "life-c-08", "topic": "life", "title": "Late-night snacks", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["It is 11:48 p.m. and the fridge light is calling you like a tiny lighthouse.", "What is the late-night snack of choice?"], "options": [
+        { "id": "life-c-08-o1", "label": "Something salty, chips please", "next": "b1" },
+        { "id": "life-c-08-o2", "label": "Something sweet, cookies", "next": "b2" },
+        { "id": "life-c-08-o3", "label": "Leftover pizza, cold", "next": "b3" } ] },
+      "b1": { "say": ["Crunch at midnight is the loudest sound in the world. Every bag is a siren.", "How do you manage?"], "options": [
+        { "id": "life-c-08-o4", "label": "I sneak very slowly", "next": "c1" },
+        { "id": "life-c-08-o5", "label": "I don't care, I crunch", "next": "c2" } ] },
+      "b2": { "say": ["Cookies are a perfectly valid dinner for a person who has just remembered they skipped dinner."], "options": [
+        { "id": "life-c-08-o6", "label": "With milk, obviously", "next": "c3" },
+        { "id": "life-c-08-o7", "label": "Straight from the jar", "next": "c2" } ] },
+      "b3": { "say": ["Cold pizza is better than hot pizza. This is not an opinion, it is a result of years of research."], "options": [
+        { "id": "life-c-08-o8", "label": "True, cold is king", "next": "c3" },
+        { "id": "life-c-08-o9", "label": "Microwave or nothing", "next": "c1" } ] },
+      "c1": { "say": ["A sneaking professional. Slow as a ninja, hungry as a bear.", "May the floorboards stay silent."], "end": true },
+      "c2": { "say": ["Fearless. The household may wake up, but the snack will be eaten.", "A fine trade."], "end": true, "chain": "random" },
+      "c3": { "say": ["Good taste. Whoever invented the midnight snack deserves a statue.", "A small one, at fridge height."], "end": true }
+    }
+  },
+  {
+    "id": "life-c-09", "topic": "life", "title": "Space and the universe", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Fun fact: there are more stars than grains of sand on Earth's beaches. Possibly. Cosmology is a guessing game with fancy tools.", "Ready for some space thoughts?"], "options": [
+        { "id": "life-c-09-o1", "label": "Are we alone out there?", "next": "b1" },
+        { "id": "life-c-09-o2", "label": "How big is it, really?", "next": "b2" },
+        { "id": "life-c-09-o3", "label": "Would you go to space?", "next": "b3" } ] },
+      "b1": { "say": ["With that many stars it feels strange if we were the only ones.", "But the universe is also very quiet. Maybe everyone is too polite to call."], "options": [
+        { "id": "life-c-09-o4", "label": "Aliens are out there", "next": "c1" },
+        { "id": "life-c-09-o5", "label": "We might be first", "next": "c2" } ] },
+      "b2": { "say": ["If the Sun were a grapefruit, the nearest star would be a grapefruit about four thousand miles away.", "Emptiness on a heroic scale."], "options": [
+        { "id": "life-c-09-o6", "label": "That is dizzying", "next": "c2" },
+        { "id": "life-c-09-o7", "label": "Makes my problems tiny", "next": "c3" } ] },
+      "b3": { "say": ["I would pack snacks and a very large window seat.", "Zero gravity looks fun for about ten minutes, then your hair gets everywhere."], "options": [
+        { "id": "life-c-09-o8", "label": "I would float all day", "next": "c1" },
+        { "id": "life-c-09-o9", "label": "I would pass, thanks", "next": "c3" } ] },
+      "c1": { "say": ["I hope they are friendly and bring snacks.", "If they come, I get to translate. Put it in my job description."], "end": true, "chain": "random" },
+      "c2": { "say": ["Either answer is wild. Think about it: we are the universe's way of looking at itself.", "Okay, that was too deep for the break room. Pass the biscuits."], "end": true },
+      "c3": { "say": ["A pale blue dot with a really good coffee machine. We are doing fine.", "Look up tonight if the sky is clear."], "end": true }
+    }
+  },
+  {
+    "id": "life-c-10", "topic": "life", "title": "Lucky charms and superstitions", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Superstition check: do you have a lucky charm?", "I have a lucky screw. Don't ask. It has never failed me, which is why I keep it very close."], "options": [
+        { "id": "life-c-10-o1", "label": "Yes, I have a lucky item", "next": "b1" },
+        { "id": "life-c-10-o2", "label": "I avoid bad omens instead", "next": "b2" },
+        { "id": "life-c-10-o3", "label": "Superstitions are silly", "next": "b3" } ] },
+      "b1": { "say": ["I knew it! Tell me it is a sock, a coin, or a weird pen.", "What is it?"], "options": [
+        { "id": "life-c-10-o4", "label": "A special coin", "next": "c1" },
+        { "id": "life-c-10-o5", "label": "A particular old shirt", "next": "c2" } ] },
+      "b2": { "say": ["Black cats, broken mirrors, walking under ladders. Very responsible of you.", "Honestly, ladder avoidance is just good safety."], "options": [
+        { "id": "life-c-10-o6", "label": "I knock on wood", "next": "c3" },
+        { "id": "life-c-10-o7", "label": "I never open umbrellas indoors", "next": "c2" } ] },
+      "b3": { "say": ["Spoken like a rational person. I admire that.", "But if I tell you that the team won every time I wore my lucky screw, will you stay rational?"], "options": [
+        { "id": "life-c-10-o8", "label": "Fine, a little luck can't hurt", "next": "c3" },
+        { "id": "life-c-10-o9", "label": "Still silly, but nice screw", "next": "c1" } ] },
+      "c1": { "say": ["Charms work because we believe in them. Confidence is a great charm.", "Keep it in your pocket for the next big meeting."], "end": true, "chain": "random" },
+      "c2": { "say": ["Old things carry history, and history is a fine sort of luck.", "Also the shirt probably smells like confidence."], "end": true },
+      "c3": { "say": ["Knock knock. Who is there? Good fortune, hopefully.", "Does it count if I knock on a metal desk? Asking for a friend."], "end": true }
+    }
+  }
+]

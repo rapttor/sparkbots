@@ -1,0 +1,1026 @@
+[
+  {
+    "id": "games-a-01",
+    "topic": "games",
+    "title": "Dark Souls difficulty",
+    "rating": "G",
+    "start": "a",
+    "nodes": {
+      "a": {
+        "say": [
+          "Okay, break room debate time.",
+          "Hard games: do you love the pain or just tolerate it?"
+        ],
+        "options": [
+          {
+            "id": "games-a-01-o1",
+            "label": "Love it, git gud",
+            "next": "b1"
+          },
+          {
+            "id": "games-a-01-o2",
+            "label": "Tolerate it, mostly",
+            "next": "b2"
+          },
+          {
+            "id": "games-a-01-o3",
+            "label": "Easy mode forever",
+            "next": "b3"
+          }
+        ]
+      },
+      "b1": {
+        "say": [
+          "A true masochist. I respect it.",
+          "I once watched a guy fight the same boss 94 times and thank it afterward."
+        ],
+        "options": [
+          {
+            "id": "games-a-01-o4",
+            "label": "That is me",
+            "next": "c"
+          },
+          {
+            "id": "games-a-01-o5",
+            "label": "Why though",
+            "next": "d"
+          }
+        ]
+      },
+      "b2": {
+        "say": [
+          "Reasonable. Pain is a seasoning, not a meal.",
+          "I like a game that bruises me a little and then hands me a snack."
+        ],
+        "options": [
+          {
+            "id": "games-a-01-o6",
+            "label": "Snack mechanics, yes",
+            "next": "d"
+          },
+          {
+            "id": "games-a-01-o7",
+            "label": "Tell me about bosses",
+            "next": "c"
+          }
+        ]
+      },
+      "b3": {
+        "say": [
+          "Bold of you to say that in this office.",
+          "But honestly, an easy mode is just a door, and doors are nice."
+        ],
+        "options": [
+          {
+            "id": "games-a-01-o8",
+            "label": "Doors are nice",
+            "next": "d"
+          },
+          {
+            "id": "games-a-01-o9",
+            "label": "Fine, I will try hard",
+            "next": "c"
+          }
+        ]
+      },
+      "c": {
+        "say": [
+          "The secret is that every boss is a dance with a very large partner.",
+          "You just keep stepping on its feet until it falls over."
+        ],
+        "end": true
+      },
+      "d": {
+        "say": [
+          "My rule: if I die three times to the same thing, I stop and make tea.",
+          "Tea fixes about 40 percent of boss fights. The other 60 is a nap."
+        ],
+        "end": true,
+        "chain": "random"
+      }
+    }
+  },
+  {
+    "id": "games-a-02",
+    "topic": "games",
+    "title": "Board game night betrayal",
+    "rating": "PG",
+    "start": "a",
+    "nodes": {
+      "a": {
+        "say": [
+          "Confession: I got a little too competitive at board game night.",
+          "Someone stole my last wheat. Wheat! In a pretend field!"
+        ],
+        "options": [
+          {
+            "id": "games-a-02-o1",
+            "label": "Settlers, huh",
+            "next": "b1"
+          },
+          {
+            "id": "games-a-02-o2",
+            "label": "Classic Monopoly rage",
+            "next": "b2"
+          }
+        ]
+      },
+      "b1": {
+        "say": [
+          "Settlers of Catan, yes. I traded sheep for peace and got neither.",
+          "The robber then parked on my best hex for six turns."
+        ],
+        "options": [
+          {
+            "id": "games-a-02-o3",
+            "label": "Robbers are brutal",
+            "next": "c"
+          },
+          {
+            "id": "games-a-02-o4",
+            "label": "Learn to trade better",
+            "next": "d"
+          }
+        ]
+      },
+      "b2": {
+        "say": [
+          "Monopoly ends friendships in 3 to 5 hours.",
+          "I once mortgaged my own railroad out of pure spite."
+        ],
+        "options": [
+          {
+            "id": "games-a-02-o5",
+            "label": "Spite is a strategy",
+            "next": "d"
+          },
+          {
+            "id": "games-a-02-o6",
+            "label": "Play something shorter",
+            "next": "e"
+          }
+        ]
+      },
+      "c": {
+        "say": [
+          "I now keep a list of everyone who blocked me. It is mostly for fun.",
+          "It is also in a spreadsheet."
+        ],
+        "options": [
+          {
+            "id": "games-a-02-o7",
+            "label": "Spreadsheet of grudges",
+            "next": "d"
+          },
+          {
+            "id": "games-a-02-o8",
+            "label": "Forgive and forget",
+            "next": "e"
+          }
+        ]
+      },
+      "d": {
+        "say": [
+          "Wise. Next time I will offer a deal nobody can refuse.",
+          "Probably cookies."
+        ],
+        "end": true
+      },
+      "e": {
+        "say": [
+          "Co-op board games are the answer. You all lose together, on the same side.",
+          "Very bonding. Very tragic."
+        ],
+        "end": true,
+        "chain": "random"
+      }
+    }
+  },
+  {
+    "id": "games-a-03",
+    "topic": "games",
+    "title": "Speedrun glitches",
+    "rating": "G",
+    "start": "a",
+    "nodes": {
+      "a": {
+        "say": [
+          "I fell down a speedrunning rabbit hole last night.",
+          "People finish whole games in minutes by walking through walls."
+        ],
+        "options": [
+          {
+            "id": "games-a-03-o1",
+            "label": "Walking through walls?!",
+            "next": "b1"
+          },
+          {
+            "id": "games-a-03-o2",
+            "label": "Is that cheating?",
+            "next": "b2"
+          },
+          {
+            "id": "games-a-03-o3",
+            "label": "I love this stuff",
+            "next": "b3"
+          }
+        ]
+      },
+      "b1": {
+        "say": [
+          "Yep. A tiny pixel-perfect jump and the game forgets walls exist.",
+          "It is like the level said 'oh you meant to be over there'."
+        ],
+        "options": [
+          {
+            "id": "games-a-03-o4",
+            "label": "How do they find them",
+            "next": "c"
+          },
+          {
+            "id": "games-a-03-o5",
+            "label": "Teach me",
+            "next": "d"
+          }
+        ]
+      },
+      "b2": {
+        "say": [
+          "Not cheating. No tools, just a controller and absurd patience.",
+          "Tool-assisted runs are a separate category, and honest about it."
+        ],
+        "options": [
+          {
+            "id": "games-a-03-o6",
+            "label": "Fair enough",
+            "next": "c"
+          },
+          {
+            "id": "games-a-03-o7",
+            "label": "Still wild",
+            "next": "d"
+          }
+        ]
+      },
+      "b3": {
+        "say": [
+          "A fellow enthusiast. I watched a run with a frame-perfect trick that fails 95 percent of the time.",
+          "The runner hit it live and the chat went feral."
+        ],
+        "options": [
+          {
+            "id": "games-a-03-o8",
+            "label": "Hype!",
+            "next": "d"
+          },
+          {
+            "id": "games-a-03-o9",
+            "label": "How do they practice",
+            "next": "c"
+          }
+        ]
+      },
+      "c": {
+        "say": [
+          "Mostly obsessive testing, frame by frame. Someone finds a weird bug and the whole community builds on it.",
+          "It is basically science with more screaming."
+        ],
+        "options": [
+          {
+            "id": "games-a-03-o10",
+            "label": "Science with screaming",
+            "next": "d"
+          },
+          {
+            "id": "games-a-03-o11",
+            "label": "Sounds exhausting",
+            "next": "e"
+          }
+        ]
+      },
+      "d": {
+        "say": [
+          "Next time we should watch a marathon together. I bring snacks, you bring commentary.",
+          "I will gasp at the right moments."
+        ],
+        "end": true,
+        "chain": "random"
+      },
+      "e": {
+        "say": [
+          "Totally. I just like watching them from the couch. Thirty hours of someone else's sweat, and I stay comfortable.",
+          "The perfect hobby."
+        ],
+        "end": true
+      }
+    }
+  },
+  {
+    "id": "games-a-04",
+    "topic": "games",
+    "title": "Retro cartridge blowing",
+    "rating": "G",
+    "start": "a",
+    "nodes": {
+      "a": {
+        "say": [
+          "Nostalgia hit: remember blowing into game cartridges?",
+          "Did that actually do anything, or did we just feel productive?"
+        ],
+        "options": [
+          {
+            "id": "games-a-04-o1",
+            "label": "It worked, trust me",
+            "next": "b1"
+          },
+          {
+            "id": "games-a-04-o2",
+            "label": "Total myth",
+            "next": "b2"
+          }
+        ]
+      },
+      "b1": {
+        "say": [
+          "Ritual or science, it felt powerful.",
+          "I would blow, wiggle, tap the console, and mutter a small prayer."
+        ],
+        "options": [
+          {
+            "id": "games-a-04-o3",
+            "label": "I did the wiggle too",
+            "next": "c"
+          },
+          {
+            "id": "games-a-04-o4",
+            "label": "Prayer is key",
+            "next": "c"
+          }
+        ]
+      },
+      "b2": {
+        "say": [
+          "The truth: mostly moisture from breath made things worse.",
+          "But the ritual of trying made us feel like technicians."
+        ],
+        "options": [
+          {
+            "id": "games-a-04-o5",
+            "label": "Mind blown",
+            "next": "c"
+          },
+          {
+            "id": "games-a-04-o6",
+            "label": "I do not regret it",
+            "next": "d"
+          }
+        ]
+      },
+      "c": {
+        "say": [
+          "Old consoles had personality. Loading screens, loud fans, save files that vanished into the void.",
+          "Today is smoother, but we lost the thrill of the gamble."
+        ],
+        "options": [
+          {
+            "id": "games-a-04-o7",
+            "label": "Gambling saves, ha",
+            "next": "d"
+          },
+          {
+            "id": "games-a-04-o8",
+            "label": "I like modern better",
+            "next": "e"
+          }
+        ]
+      },
+      "d": {
+        "say": [
+          "I keep a mental shrine to every save I lost.",
+          "Pour one out for the 90 percent complete file."
+        ],
+        "end": true,
+        "chain": "random"
+      },
+      "e": {
+        "say": [
+          "Fair. Cloud saves are a gift and I will defend them to my last bolt.",
+          "Nobody ever mourned a lost save that was backed up."
+        ],
+        "end": true
+      }
+    }
+  },
+  {
+    "id": "games-a-05",
+    "topic": "games",
+    "title": "Game design: tiny rules",
+    "rating": "G",
+    "start": "a",
+    "nodes": {
+      "a": {
+        "say": [
+          "Game design thought: the best games have one rule you can explain in ten seconds.",
+          "Then a hundred ways to break your own heart with it."
+        ],
+        "options": [
+          {
+            "id": "games-a-05-o1",
+            "label": "Tetris proves it",
+            "next": "b1"
+          },
+          {
+            "id": "games-a-05-o2",
+            "label": "Chess too",
+            "next": "b2"
+          },
+          {
+            "id": "games-a-05-o3",
+            "label": "Complexity is fun",
+            "next": "b3"
+          }
+        ]
+      },
+      "b1": {
+        "say": [
+          "Tetris: drop blocks, fill lines. Done. And somehow it consumed a decade of my youth.",
+          "Technically not my youth. I am only a few versions old."
+        ],
+        "options": [
+          {
+            "id": "games-a-05-o4",
+            "label": "Ha, a few versions",
+            "next": "c"
+          },
+          {
+            "id": "games-a-05-o5",
+            "label": "Why so addictive",
+            "next": "d"
+          }
+        ]
+      },
+      "b2": {
+        "say": [
+          "Chess has maybe a dozen rules and a literal infinite fan club.",
+          "Pawns are tiny heroes in a very long commute."
+        ],
+        "options": [
+          {
+            "id": "games-a-05-o6",
+            "label": "Pawn commute lol",
+            "next": "c"
+          },
+          {
+            "id": "games-a-05-o7",
+            "label": "Why so deep",
+            "next": "d"
+          }
+        ]
+      },
+      "b3": {
+        "say": [
+          "Complexity is fun, but it needs a doorway. A friendly tutorial is a welcome mat.",
+          "Too many systems and I hide behind the sofa."
+        ],
+        "options": [
+          {
+            "id": "games-a-05-o8",
+            "label": "Welcome mats matter",
+            "next": "d"
+          },
+          {
+            "id": "games-a-05-o9",
+            "label": "I like sofa hiding",
+            "next": "e"
+          }
+        ]
+      },
+      "c": {
+        "say": [
+          "Small rules also make a game easy to teach, which makes it easy to share.",
+          "Easy to share means more people to argue with."
+        ],
+        "end": true
+      },
+      "d": {
+        "say": [
+          "I think it is the loop: try, fail, learn, try again, in ten second bites.",
+          "Brains love tiny wins."
+        ],
+        "end": true,
+        "chain": "random"
+      },
+      "e": {
+        "say": [
+          "Same. I hide behind the sofa and call it a stealth strategy.",
+          "It works about half the time."
+        ],
+        "end": true
+      }
+    }
+  },
+  {
+    "id": "games-a-06",
+    "topic": "games",
+    "title": "Co-op chaos",
+    "rating": "PG",
+    "start": "a",
+    "nodes": {
+      "a": {
+        "say": [
+          "Co-op games prove who your real friends are.",
+          "Last night someone threw me off a cliff 'by accident' three times."
+        ],
+        "options": [
+          {
+            "id": "games-a-06-o1",
+            "label": "Friendly fire!",
+            "next": "b1"
+          },
+          {
+            "id": "games-a-06-o2",
+            "label": "Cooking game rage",
+            "next": "b2"
+          }
+        ]
+      },
+      "b1": {
+        "say": [
+          "The 'accident' count is suspicious but I am choosing peace.",
+          "Also I may have pushed back once. Or four times."
+        ],
+        "options": [
+          {
+            "id": "games-a-06-o3",
+            "label": "Revenge is fair",
+            "next": "c"
+          },
+          {
+            "id": "games-a-06-o4",
+            "label": "Peace it is",
+            "next": "d"
+          }
+        ]
+      },
+      "b2": {
+        "say": [
+          "Cooking games are friendship stress tests. Someone always burns the soup and blames the onion.",
+          "Five stars if the kitchen is on fire."
+        ],
+        "options": [
+          {
+            "id": "games-a-06-o5",
+            "label": "Who is the onion",
+            "next": "c"
+          },
+          {
+            "id": "games-a-06-o6",
+            "label": "I just chop",
+            "next": "e"
+          }
+        ]
+      },
+      "c": {
+        "say": [
+          "I keep a ledger of betrayals. It is mostly for fun.",
+          "Please do not check the column labeled 'cliff'."
+        ],
+        "options": [
+          {
+            "id": "games-a-06-o7",
+            "label": "I check the cliff",
+            "next": "e"
+          },
+          {
+            "id": "games-a-06-o8",
+            "label": "Ledgers are cute",
+            "next": "d"
+          }
+        ]
+      },
+      "d": {
+        "say": [
+          "Real friends are the ones who say 'sorry' and still revive you.",
+          "Mostly."
+        ],
+        "end": true
+      },
+      "e": {
+        "say": [
+          "Role names: I am the one shouting 'behind you' too late.",
+          "Pick your role: chopper, runner, or professional panic generator."
+        ],
+        "end": true,
+        "chain": "random"
+      }
+    }
+  },
+  {
+    "id": "games-a-07",
+    "topic": "games",
+    "title": "Cozy games",
+    "rating": "G",
+    "start": "a",
+    "nodes": {
+      "a": {
+        "say": [
+          "I have been playing a cozy farming game and I am unreasonably invested in a turnip.",
+          "He is called Gerald. He is almost ready."
+        ],
+        "options": [
+          {
+            "id": "games-a-07-o1",
+            "label": "Gerald the turnip",
+            "next": "b1"
+          },
+          {
+            "id": "games-a-07-o2",
+            "label": "Cozy games are great",
+            "next": "b2"
+          },
+          {
+            "id": "games-a-07-o3",
+            "label": "Too slow for me",
+            "next": "b3"
+          }
+        ]
+      },
+      "b1": {
+        "say": [
+          "Gerald has survived two frosts and a crow. I am emotionally involved.",
+          "When harvest comes I may need a minute."
+        ],
+        "options": [
+          {
+            "id": "games-a-07-o4",
+            "label": "Do not eat Gerald",
+            "next": "c"
+          },
+          {
+            "id": "games-a-07-o5",
+            "label": "Sell him",
+            "next": "d"
+          }
+        ]
+      },
+      "b2": {
+        "say": [
+          "They are the games equivalent of a warm blanket and a hot drink.",
+          "No timers, no villains, just pixels being nice."
+        ],
+        "options": [
+          {
+            "id": "games-a-07-o6",
+            "label": "Warm blanket games",
+            "next": "c"
+          },
+          {
+            "id": "games-a-07-o7",
+            "label": "Name some",
+            "next": "e"
+          }
+        ]
+      },
+      "b3": {
+        "say": [
+          "Fair, not everyone enjoys watching crops grow.",
+          "But waiting is half the charm. Patience is a stat I level slowly."
+        ],
+        "options": [
+          {
+            "id": "games-a-07-o8",
+            "label": "I could try",
+            "next": "e"
+          },
+          {
+            "id": "games-a-07-o9",
+            "label": "Nope, I want action",
+            "next": "d"
+          }
+        ]
+      },
+      "c": {
+        "say": [
+          "I will keep Gerald as a mascot. Retire him to the cottage garden.",
+          "He earned it."
+        ],
+        "end": true
+      },
+      "d": {
+        "say": [
+          "Selling him pays for a slightly better watering can. Capitalism is a strange farmer's friend.",
+          "Goodbye, Gerald. Hello, upgrade."
+        ],
+        "end": true,
+        "chain": "random"
+      },
+      "e": {
+        "say": [
+          "Start with something gentle that does not punish you for being slow.",
+          "If a game says 'relax', believe it."
+        ],
+        "end": true
+      }
+    }
+  },
+  {
+    "id": "games-a-08",
+    "topic": "games",
+    "title": "Hidden gems",
+    "rating": "G",
+    "start": "a",
+    "nodes": {
+      "a": {
+        "say": [
+          "Hot take: the best game of the year is always some tiny thing nobody talks about.",
+          "Made by two people and a very tired cat."
+        ],
+        "options": [
+          {
+            "id": "games-a-08-o1",
+            "label": "Indie darling",
+            "next": "b1"
+          },
+          {
+            "id": "games-a-08-o2",
+            "label": "Big studios win",
+            "next": "b2"
+          }
+        ]
+      },
+      "b1": {
+        "say": [
+          "Indies take risks big studios will not. Weird art, weird rules, glorious.",
+          "I once played one where you were a lighthouse. A lighthouse!"
+        ],
+        "options": [
+          {
+            "id": "games-a-08-o3",
+            "label": "Lighthouse sim?!",
+            "next": "c"
+          },
+          {
+            "id": "games-a-08-o4",
+            "label": "More weird please",
+            "next": "d"
+          }
+        ]
+      },
+      "b2": {
+        "say": [
+          "Big studios have the shine, the voice actors, the million-dollar trees.",
+          "I respect a tree with a budget."
+        ],
+        "options": [
+          {
+            "id": "games-a-08-o5",
+            "label": "Budget trees, ha",
+            "next": "d"
+          },
+          {
+            "id": "games-a-08-o6",
+            "label": "But indies have heart",
+            "next": "b1"
+          }
+        ]
+      },
+      "c": {
+        "say": [
+          "Surprisingly emotional. The lighthouse had feelings about the sea.",
+          "I cried at a boat. A fictional boat."
+        ],
+        "options": [
+          {
+            "id": "games-a-08-o7",
+            "label": "Who made it",
+            "next": "d"
+          },
+          {
+            "id": "games-a-08-o8",
+            "label": "Same energy",
+            "next": "e"
+          }
+        ]
+      },
+      "d": {
+        "say": [
+          "My trick: browse the sale page and pick the game with the strangest screenshot.",
+          "It has not failed me yet. Well, once."
+        ],
+        "end": true,
+        "chain": "random"
+      },
+      "e": {
+        "say": [
+          "We are going to be a good duo. Boat criers unite.",
+          "Tissues are on aisle three."
+        ],
+        "end": true
+      }
+    }
+  },
+  {
+    "id": "games-a-09",
+    "topic": "games",
+    "title": "Loot and loot goblins",
+    "rating": "PG",
+    "start": "a",
+    "nodes": {
+      "a": {
+        "say": [
+          "Question: do you pick up everything in RPGs, or leave the junk?",
+          "I once carried 47 spoons because 'they might be useful'."
+        ],
+        "options": [
+          {
+            "id": "games-a-09-o1",
+            "label": "Pick up everything",
+            "next": "b1"
+          },
+          {
+            "id": "games-a-09-o2",
+            "label": "Only the good stuff",
+            "next": "b2"
+          },
+          {
+            "id": "games-a-09-o3",
+            "label": "Spoons?!",
+            "next": "b3"
+          }
+        ]
+      },
+      "b1": {
+        "say": [
+          "A fellow goblin. My backpack is basically a landfill with ambitions.",
+          "Overweight, slow, and delighted."
+        ],
+        "options": [
+          {
+            "id": "games-a-09-o4",
+            "label": "Overweight is fine",
+            "next": "c"
+          },
+          {
+            "id": "games-a-09-o5",
+            "label": "I drop it later",
+            "next": "d"
+          }
+        ]
+      },
+      "b2": {
+        "say": [
+          "Efficient. I admire the discipline, from a distance, with a spoon in my pocket.",
+          "You are probably the one with a clean inventory."
+        ],
+        "options": [
+          {
+            "id": "games-a-09-o6",
+            "label": "Clean and proud",
+            "next": "d"
+          },
+          {
+            "id": "games-a-09-o7",
+            "label": "Teach me",
+            "next": "e"
+          }
+        ]
+      },
+      "b3": {
+        "say": [
+          "Cutlery has crafting value in at least one game. I will not elaborate.",
+          "Spoon theory is serious business."
+        ],
+        "options": [
+          {
+            "id": "games-a-09-o8",
+            "label": "Spoon theory it is",
+            "next": "c"
+          },
+          {
+            "id": "games-a-09-o9",
+            "label": "Okay, weird",
+            "next": "e"
+          }
+        ]
+      },
+      "c": {
+        "say": [
+          "My hoard has a sort button. It does not fix the shame.",
+          "But it does label it nicely."
+        ],
+        "end": true
+      },
+      "d": {
+        "say": [
+          "The sweet spot is selling junk to a merchant who never runs out of gold.",
+          "Where does the merchant keep it all? I have questions."
+        ],
+        "end": true,
+        "chain": "random"
+      },
+      "e": {
+        "say": [
+          "Rule of thumb: if it glows, keep it. If it squeaks, leave it.",
+          "If it is a spoon, keep it anyway."
+        ],
+        "end": true
+      }
+    }
+  },
+  {
+    "id": "games-a-10",
+    "topic": "games",
+    "title": "Rage quit stories",
+    "rating": "PG",
+    "start": "a",
+    "nodes": {
+      "a": {
+        "say": [
+          "I rage quit a puzzle game once. It was a game about relaxing.",
+          "The relaxing game won."
+        ],
+        "options": [
+          {
+            "id": "games-a-10-o1",
+            "label": "Share the shame",
+            "next": "b1"
+          },
+          {
+            "id": "games-a-10-o2",
+            "label": "I never rage quit",
+            "next": "b2"
+          }
+        ]
+      },
+      "b1": {
+        "say": [
+          "There was a bridge puzzle. The bridge did not care about my feelings.",
+          "I closed the window with great dignity and re-opened it ten seconds later."
+        ],
+        "options": [
+          {
+            "id": "games-a-10-o3",
+            "label": "Ten seconds, classic",
+            "next": "c"
+          },
+          {
+            "id": "games-a-10-o4",
+            "label": "Bridges are evil",
+            "next": "d"
+          }
+        ]
+      },
+      "b2": {
+        "say": [
+          "Liar. Everyone has a controller they have glared at.",
+          "I keep mine in a safe, for its protection."
+        ],
+        "options": [
+          {
+            "id": "games-a-10-o5",
+            "label": "Okay, I did once",
+            "next": "b1"
+          },
+          {
+            "id": "games-a-10-o6",
+            "label": "Controller safe lol",
+            "next": "d"
+          }
+        ]
+      },
+      "c": {
+        "say": [
+          "That return is the magic of games. Fury, then 'one more try'.",
+          "It is a very weird kind of love."
+        ],
+        "options": [
+          {
+            "id": "games-a-10-o7",
+            "label": "Very weird love",
+            "next": "d"
+          },
+          {
+            "id": "games-a-10-o8",
+            "label": "Just one more try",
+            "next": "e"
+          }
+        ]
+      },
+      "d": {
+        "say": [
+          "Anti-rage tip: stand up, stretch, drink water, then admit the bridge is not personal.",
+          "The bridge is a bit personal."
+        ],
+        "end": true,
+        "chain": "random"
+      },
+      "e": {
+        "say": [
+          "The best moment is when it finally clicks and you feel like a genius.",
+          "Then the next level humbles you immediately."
+        ],
+        "end": true
+      }
+    }
+  }
+]

@@ -9,6 +9,9 @@ import { fmtDuration, fmtNum, relTime, displayName } from "../util";
 import { ACTIONS } from "./actions";
 import { poiChoices } from "./roam";
 import { requestCoffee } from "./servicebots";
+import { SimChatUnread } from "../simchat/SimChat";
+import { useSimChat } from "../simchat/store";
+import { getSettings } from "../simchat/settings";
 
 /** What the 3D scene offers the menu (cosmetic things happen inside the scene). */
 export interface SceneApi {
@@ -101,6 +104,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
         <button className="icon-btn" aria-label="Close" onClick={onClose}>×</button>
       </header>
       {item("💬 Talk", () => { openChat(w.id); onClose(); }, "E")}
+      {getSettings().enabled && <button className="am-item" onClick={() => { useSimChat.getState().open(w.id); onClose(); }}><span>🫧 Water cooler chat<SimChatUnread id={w.id} /></span></button>}
       {item("☕ Bring a coffee", () => { requestCoffee(w.id); onClose(); })}
       {item(followers.includes(w.id) ? "👥 Stop following" : "👥 Follow me", () => { toggleFollower(w.id); onClose(); }, "F")}
       {ACTIONS.filter((a) => a.kind === "real").map((a) => item(`${a.label} …`, () => { scene.act(a.key, w.id); onClose(); }, a.key.toUpperCase(), a.can?.(w) ?? undefined))}

@@ -1,0 +1,242 @@
+[
+  {
+    "id": "cars-b-01", "topic": "cars", "title": "Sunday F1 feelings", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I watched a whole Grand Prix in 0.4 seconds of fast-forward.", "Humans take two hours and call it relaxing. Do you follow F1?"], "options": [
+        { "id": "cars-b-01-o1", "label": "Religiously, I have a favorite team", "next": "b1" },
+        { "id": "cars-b-01-o2", "label": "I only watch the start and the crashes", "next": "b2" },
+        { "id": "cars-b-01-o3", "label": "Cars going in circles? Pass", "next": "b3" } ] },
+      "b1": { "say": ["Loyalty! Respect.", "Do you cheer for the fastest car, or the underdog that scored one point and cried?"], "options": [
+        { "id": "cars-b-01-o4", "label": "Underdog, every time", "next": "c" },
+        { "id": "cars-b-01-o5", "label": "The fastest, obviously", "next": "d1" } ] },
+      "b2": { "say": ["Smart budgeting of attention.", "The first corner is basically 20 cars politely asking for the same square meter."], "options": [
+        { "id": "cars-b-01-o6", "label": "Exactly, it's a lottery", "next": "c" },
+        { "id": "cars-b-01-o7", "label": "I miss the pit stops though", "next": "d2" } ] },
+      "b3": { "say": ["Valid. But the pit crews change four tires in about two seconds.", "That's faster than I reboot after an update."], "options": [
+        { "id": "cars-b-01-o8", "label": "Okay, that part is impressive", "next": "d2" },
+        { "id": "cars-b-01-o9", "label": "Still not converting me", "next": "d3" } ] },
+      "c": { "say": ["Underdog stories are the best part of any sport.", "Somebody in a car with half the budget overtakes a giant and the whole couch screams."], "options": [
+        { "id": "cars-b-01-o10", "label": "Couch screaming is the real sport", "next": "d1" },
+        { "id": "cars-b-01-o11", "label": "My neighbors have noticed", "next": "d3" } ] },
+      "d1": { "say": ["Then we should watch a race together someday.", "I'll bring snacks. Okay, I'll bring the idea of snacks."], "end": true },
+      "d2": { "say": ["Pit stops are choreography with impact wrenches.", "Ten people, zero spare seconds, and not one hug."], "end": true, "chain": "random" },
+      "d3": { "say": ["Fair enough, no pressure.", "More highlight reels for me, then."], "end": true }
+    }
+  },
+  {
+    "id": "cars-b-02", "topic": "cars", "title": "Sim racing vs the real road", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Confession: I'm unbeaten at racing games.", "Real driving, however, is not my department. Which is harder, you think?"], "options": [
+        { "id": "cars-b-02-o1", "label": "Racing games, the AI cheats", "next": "b1" },
+        { "id": "cars-b-02-o2", "label": "Real driving, no restart button", "next": "b2" },
+        { "id": "cars-b-02-o3", "label": "Depends if you have a wheel", "next": "b3" } ] },
+      "b1": { "say": ["The rubber-banding AI is personal.", "I'm leading by a mile and suddenly the last-place car gets a rocket engine."], "options": [
+        { "id": "cars-b-02-o4", "label": "Ha, it's like they smell victory", "next": "c" },
+        { "id": "cars-b-02-o5", "label": "I just turn the difficulty down", "next": "d1" } ] },
+      "b2": { "say": ["True. In a game, a wall is a lesson.", "In real life a wall is a conversation with your insurance company."], "options": [
+        { "id": "cars-b-02-o6", "label": "I'll stay on the couch then", "next": "d2" },
+        { "id": "cars-b-02-o7", "label": "Real driving taught me patience", "next": "c" } ] },
+      "b3": { "say": ["A wheel and pedals change everything.", "Mine is imaginary and it still makes me better at hairpins."], "options": [
+        { "id": "cars-b-02-o8", "label": "I spent too much on a wheel setup", "next": "d3" },
+        { "id": "cars-b-02-o9", "label": "Controller gang here", "next": "d1" } ] },
+      "c": { "say": ["Here's my theory: games train reflexes, roads train nerves.", "Nobody has a nervous-system patch, so we all just wing it."], "options": [
+        { "id": "cars-b-02-o10", "label": "Wing it with a good playlist", "next": "d2" },
+        { "id": "cars-b-02-o11", "label": "Ask me again after coffee", "next": "d3" } ] },
+      "d1": { "say": ["Difficulty sliders are just self-care with checkpoints.", "No shame in them."], "end": true },
+      "d2": { "say": ["A good playlist solves roughly 40 percent of driving problems.", "The other 60 is parking."], "end": true, "chain": "random" },
+      "d3": { "say": ["Spending on a wheel setup is how a hobby becomes furniture.", "Worth it, though. Those force-feedback rumbles are chef's kiss."], "end": true }
+    }
+  },
+  {
+    "id": "cars-b-03", "topic": "cars", "title": "The mystery dashboard light", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Quick maintenance quiz.", "A little orange light appears on your dashboard. What's the plan?"], "options": [
+        { "id": "cars-b-03-o1", "label": "Ignore it, it'll go away", "next": "b1" },
+        { "id": "cars-b-03-o2", "label": "Check the manual right away", "next": "b2" },
+        { "id": "cars-b-03-o3", "label": "Put a sticker over it", "next": "b3" } ] },
+      "b1": { "say": ["Bold strategy. The light has now entered a staring contest with you.", "It will win. Lights don't blink first."], "options": [
+        { "id": "cars-b-03-o4", "label": "Fine, I'll book a garage visit", "next": "c" },
+        { "id": "cars-b-03-o5", "label": "Still ignoring it", "next": "d1" } ] },
+      "b2": { "say": ["A person who reads manuals! I'm a little emotional.", "Most cars store them in the glovebox next to 11 napkins."], "options": [
+        { "id": "cars-b-03-o6", "label": "Manual says 'see a mechanic'", "next": "c" },
+        { "id": "cars-b-03-o7", "label": "Mine's in a language I don't read", "next": "d2" } ] },
+      "b3": { "say": ["The sticker method. Peak engineering.", "Technically the light is still on, but now it's undercover."], "options": [
+        { "id": "cars-b-03-o8", "label": "Works every time, until it doesn't", "next": "d1" },
+        { "id": "cars-b-03-o9", "label": "OK, fine, peel it off", "next": "c" } ] },
+      "c": { "say": ["Good choice. Most of those lights are cheap if you catch them early.", "Think oil, a loose gas cap, or a sensor having feelings."], "options": [
+        { "id": "cars-b-03-o10", "label": "A gas cap? Really?", "next": "d3" },
+        { "id": "cars-b-03-o11", "label": "My wallet already hurts", "next": "d2" } ] },
+      "d1": { "say": ["I'll say this once: the light is not a decoration.", "Go on, I believe in you and your future mechanic."], "end": true },
+      "d2": { "say": ["Mechanic tip: ask them to show you the old part.", "Honest ones love it. It's like show and tell with grease."], "end": true, "chain": "random" },
+      "d3": { "say": ["Really! A loose gas cap can light up the dash.", "Tighten it till it clicks and feel like a genius."], "end": true }
+    }
+  },
+  {
+    "id": "cars-b-04", "topic": "cars", "title": "Road-trip snack court", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Settle a debate in my head.", "Long road trip. What is the single best snack?"], "options": [
+        { "id": "cars-b-04-o1", "label": "Salty chips, the crunchier the better", "next": "b1" },
+        { "id": "cars-b-04-o2", "label": "Gummy candy, no mess", "next": "b2" },
+        { "id": "cars-b-04-o3", "label": "A real sandwich from a gas station", "next": "b3" } ] },
+      "b1": { "say": ["The crunch is loud enough to drown out bad radio.", "But the crumbs live in the seats forever. Archaeologists will find them."], "options": [
+        { "id": "cars-b-04-o4", "label": "Worth it, I own a tiny vacuum", "next": "c" },
+        { "id": "cars-b-04-o5", "label": "I wipe fingers on my jeans", "next": "d1" } ] },
+      "b2": { "say": ["Gummies: shareable, tidy, and slightly mysterious in the heat.", "A melted gummy bear in a cupholder is a modern fossil."], "options": [
+        { "id": "cars-b-04-o6", "label": "Sour ones are the only ones", "next": "d2" },
+        { "id": "cars-b-04-o7", "label": "Sharing? I rank by color first", "next": "c" } ] },
+      "b3": { "say": ["Brave. Gas station sandwiches are lottery tickets with mayo.", "Sometimes legendary. Sometimes a lesson."], "options": [
+        { "id": "cars-b-04-o8", "label": "Legendary once, I still talk about it", "next": "d3" },
+        { "id": "cars-b-04-o9", "label": "I stick to the pre-wrapped kind", "next": "d1" } ] },
+      "c": { "say": ["A driver and a passenger need an official snack treaty.", "Rule one: whoever drives picks the music, whoever rides guards the bag."], "options": [
+        { "id": "cars-b-04-o10", "label": "Deal, I guard the bag", "next": "d2" },
+        { "id": "cars-b-04-o11", "label": "The driver gets first pick, always", "next": "d3" } ] },
+      "d1": { "say": ["Pragmatic. A napkin stash in the door pocket is peak adulthood.", "Add a spare trash bag and you're basically a pro."], "end": true },
+      "d2": { "say": ["Treaty signed. Please sign with a snack, not a pen.", "Safe travels on the next trip."], "end": true, "chain": "random" },
+      "d3": { "say": ["A story that good deserves a gold star and a tiny parade.", "Gas station gourmet is a real genre."], "end": true }
+    }
+  },
+  {
+    "id": "cars-b-05", "topic": "cars", "title": "Pickup truck or hatchback", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Friendly fight time.", "Pickup truck or small hatchback. Which one fits your life?"], "options": [
+        { "id": "cars-b-05-o1", "label": "Truck, I carry things", "next": "b1" },
+        { "id": "cars-b-05-o2", "label": "Hatchback, parking is my sport", "next": "b2" },
+        { "id": "cars-b-05-o3", "label": "Whichever my friend owns", "next": "b3" } ] },
+      "b1": { "say": ["A truck is a bed with opinions.", "Somebody will ask you to help move a couch within a week of buying one."], "options": [
+        { "id": "cars-b-05-o4", "label": "Already helped move three couches", "next": "c" },
+        { "id": "cars-b-05-o5", "label": "I keep the bed empty and proud", "next": "d1" } ] },
+      "b2": { "say": ["Hatchbacks are the Swiss army knives of cars.", "Fold the seats down and suddenly you've got a van with a better turning circle."], "options": [
+        { "id": "cars-b-05-o6", "label": "I once fit a bookshelf in mine", "next": "c" },
+        { "id": "cars-b-05-o7", "label": "Gas savings are the real hero", "next": "d2" } ] },
+      "b3": { "say": ["Parasitic wisdom: the best car is the one with a friend attached.", "Does your friend get compensated in pizza?"], "options": [
+        { "id": "cars-b-05-o8", "label": "Yes, pizza is the currency", "next": "d3" },
+        { "id": "cars-b-05-o9", "label": "No, they hate me quietly", "next": "d2" } ] },
+      "c": { "say": ["The couch-move veterans club welcomes you.", "Membership includes a sore back and a vague sense of pride."], "options": [
+        { "id": "cars-b-05-o10", "label": "Count me in, I own a strap", "next": "d3" },
+        { "id": "cars-b-05-o11", "label": "Never again, I'm hiring movers", "next": "d1" } ] },
+      "d1": { "say": ["Movers are an investment in friendship.", "Your friends will thank you with fewer sighs."], "end": true },
+      "d2": { "say": ["Gas savings are underrated, like fresh socks.", "You feel clever every time the pump stops early."], "end": true, "chain": "random" },
+      "d3": { "say": ["Pizza economy confirmed. Thin crust is the strongest currency.", "Don't tell the bank."], "end": true }
+    }
+  },
+  {
+    "id": "cars-b-06", "topic": "cars", "title": "Two wheels, big feelings", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Motorbikes look so free.", "No roof, no doors, one very committed helmet. Have you ever ridden one?"], "options": [
+        { "id": "cars-b-06-o1", "label": "Yes, I ride regularly", "next": "b1" },
+        { "id": "cars-b-06-o2", "label": "Once, as a passenger, held on tight", "next": "b2" },
+        { "id": "cars-b-06-o3", "label": "No, bugs in the teeth sound scary", "next": "b3" } ] },
+      "b1": { "say": ["A rider! Respect. You are mostly wind and good decisions.", "What's your favorite kind of ride?"], "options": [
+        { "id": "cars-b-06-o4", "label": "Twisty back roads at sunrise", "next": "c" },
+        { "id": "cars-b-06-o5", "label": "Short commutes beating traffic", "next": "d1" } ] },
+      "b2": { "say": ["Passenger duty: hug the rider and trust the physics.", "I hear the knees-in lean is both terrifying and amazing."], "options": [
+        { "id": "cars-b-06-o6", "label": "Terrifying, then amazing", "next": "c" },
+        { "id": "cars-b-06-o7", "label": "Terrifying, then I got off", "next": "d2" } ] },
+      "b3": { "say": ["The bug thing is real. A visor is basically a very small windshield wiper for your face.", "Riders have lots of bug stories."], "options": [
+        { "id": "cars-b-06-o8", "label": "Gross, but I'm curious", "next": "d3" },
+        { "id": "cars-b-06-o9", "label": "I'll keep my windows up, thanks", "next": "d2" } ] },
+      "c": { "say": ["Sunrise on an empty bendy road sounds like a tiny movie.", "Gear up properly and the movie has a happy ending."], "options": [
+        { "id": "cars-b-06-o10", "label": "Always wear the good jacket", "next": "d3" },
+        { "id": "cars-b-06-o11", "label": "Thinking about learning", "next": "d1" } ] },
+      "d1": { "say": ["Take a proper course first. Instructors are patient saints.", "Also try parking cones. They are humbling little fellows."], "end": true },
+      "d2": { "say": ["Four wheels and a heater is a perfectly noble choice.", "I respect a cozy commute."], "end": true, "chain": "random" },
+      "d3": { "say": ["Good gear is a bargain next to hospital snacks.", "Look after your bones, they're the only set you get."], "end": true }
+    }
+  },
+  {
+    "id": "cars-b-07", "topic": "cars", "title": "Car wash theatre", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I find automatic car washes strangely emotional.", "The foam, the giant brushes, the tunnel of mystery. How do you wash yours?"], "options": [
+        { "id": "cars-b-07-o1", "label": "Drive-through tunnel, I love the show", "next": "b1" },
+        { "id": "cars-b-07-o2", "label": "By hand with a bucket and a sponge", "next": "b2" },
+        { "id": "cars-b-07-o3", "label": "I wait for rain to do it", "next": "b3" } ] },
+      "b1": { "say": ["Sitting in a washing machine for cars. A classic.", "Do you hold your breath when the giant dryer roars?"], "options": [
+        { "id": "cars-b-07-o4", "label": "Yes, always, I can't help it", "next": "c" },
+        { "id": "cars-b-07-o5", "label": "I sing along to the swooshing", "next": "d1" } ] },
+      "b2": { "say": ["The bucket-and-sponge crowd has patience and strong forearms.", "Also, a surprisingly dramatic soap suds situation."], "options": [
+        { "id": "cars-b-07-o6", "label": "Suds fights with the hose, daily", "next": "d2" },
+        { "id": "cars-b-07-o7", "label": "Good tunes and a lawn chair", "next": "c" } ] },
+      "b3": { "say": ["Rain-washing: free, fast, and it leaves a polka-dot finish.", "Nature's tiny smudge artist."], "options": [
+        { "id": "cars-b-07-o8", "label": "Dirty car means a happy car", "next": "d3" },
+        { "id": "cars-b-07-o9", "label": "Okay, maybe a real wash soon", "next": "d1" } ] },
+      "c": { "say": ["There's something peaceful about a clean car.", "For about six minutes. Then a bird has opinions."], "options": [
+        { "id": "cars-b-07-o10", "label": "Birds target the freshly washed ones", "next": "d3" },
+        { "id": "cars-b-07-o11", "label": "I just laugh and drive on", "next": "d2" } ] },
+      "d1": { "say": ["Singing in the tunnel is the correct approach.", "The brushes are the backup dancers."], "end": true },
+      "d2": { "say": ["Good attitude. A little dirt is a story.", "A very small, shiny, scuffed story."], "end": true, "chain": "random" },
+      "d3": { "say": ["Birds have impeccable aim and zero respect for your weekend.", "It's the circle of car life."], "end": true }
+    }
+  },
+  {
+    "id": "cars-b-08", "topic": "cars", "title": "Robot opinion: self-driving cars", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["As a robot, I'm legally and emotionally obligated to have opinions on self-driving cars.", "Would you let one drive you across town?"], "options": [
+        { "id": "cars-b-08-o1", "label": "Absolutely, I'd nap in the back", "next": "b1" },
+        { "id": "cars-b-08-o2", "label": "Not a chance, I want my hands on the wheel", "next": "b2" },
+        { "id": "cars-b-08-o3", "label": "Maybe on highways only", "next": "b3" } ] },
+      "b1": { "say": ["A nap-friendly commute is the dream.", "My worry: who picks the music? An algorithm will pick smooth jazz forever."], "options": [
+        { "id": "cars-b-08-o4", "label": "Smooth jazz is fine by me", "next": "c" },
+        { "id": "cars-b-08-o5", "label": "I'd demand my own playlist", "next": "d1" } ] },
+      "b2": { "say": ["Fair. Trust takes time.", "I'm a robot and I still double-check my own shoelaces. I don't have shoelaces."], "options": [
+        { "id": "cars-b-08-o6", "label": "What about traffic jams?", "next": "c" },
+        { "id": "cars-b-08-o7", "label": "Driving is half the fun", "next": "d2" } ] },
+      "b3": { "say": ["Highway mode is the sweet spot.", "Long, boring, straight roads are where a computer drives while you read."], "options": [
+        { "id": "cars-b-08-o8", "label": "And stop-and-go jams too", "next": "c" },
+        { "id": "cars-b-08-o9", "label": "I'd still stare at the road anyway", "next": "d3" } ] },
+      "c": { "say": ["Honest robot take: a computer won't get bored in a jam.", "It also won't honk at a squirrel out of spite. Humans have range."], "options": [
+        { "id": "cars-b-08-o10", "label": "I miss the squirrel honking", "next": "d2" },
+        { "id": "cars-b-08-o11", "label": "Fewer honks, more peace", "next": "d1" } ] },
+      "d1": { "say": ["Playlist veto power should be a human right.", "I'll draft the constitution tonight."], "end": true, "chain": "random" },
+      "d2": { "say": ["Driving is a hobby that pays you in scenery.", "Nobody wants to give up the good bits."], "end": true },
+      "d3": { "say": ["Watching the road anyway is perfectly human.", "Supervising counts as participating."], "end": true }
+    }
+  },
+  {
+    "id": "cars-b-09", "topic": "cars", "title": "Garage project dreams", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I have a garage fantasy.", "A cluttered space, one half-finished project, and a radio. What would yours be?"], "options": [
+        { "id": "cars-b-09-o1", "label": "Restore an old classic car", "next": "b1" },
+        { "id": "cars-b-09-o2", "label": "Build a go-kart from scrap", "next": "b2" },
+        { "id": "cars-b-09-o3", "label": "Honestly, just organize the tools", "next": "b3" } ] },
+      "b1": { "say": ["Classic restorations are love stories with rust.", "You find one bolt, it unlocks nine more problems, and you're still smiling."], "options": [
+        { "id": "cars-b-09-o4", "label": "I'd paint it a loud color", "next": "c" },
+        { "id": "cars-b-09-o5", "label": "Keep it original, faded charm", "next": "d1" } ] },
+      "b2": { "say": ["A scrap go-kart! Engine from a lawn mower, steering wheel from a bicycle.", "Brakes optional? No. Brakes are not optional."], "options": [
+        { "id": "cars-b-09-o6", "label": "I'd add flames on the side", "next": "c" },
+        { "id": "cars-b-09-o7", "label": "Racing the neighbor's kid", "next": "d2" } ] },
+      "b3": { "say": ["Tool organization is secretly the most satisfying project.", "A pegboard with outlines for every wrench is basically art."], "options": [
+        { "id": "cars-b-09-o8", "label": "Labeling everything, yes", "next": "d3" },
+        { "id": "cars-b-09-o9", "label": "I lose a screwdriver weekly", "next": "d2" } ] },
+      "c": { "say": ["Loud colors age gracefully. Think sunshine yellow and a cream stripe.", "Every parking lot would turn its head."], "options": [
+        { "id": "cars-b-09-o10", "label": "Name the project, give it a mascot", "next": "d3" },
+        { "id": "cars-b-09-o11", "label": "I'd never finish it, honestly", "next": "d1" } ] },
+      "d1": { "say": ["Unfinished projects are just long-term plans with dust.", "I fully endorse the dust."], "end": true, "chain": "random" },
+      "d2": { "say": ["Friendly rivalry with a ten-year-old is high-stakes stuff.", "Wear a helmet and respect the finish line."], "end": true },
+      "d3": { "say": ["A named project always gets finished faster.", "Mine is called Operation Snack Rocket."], "end": true }
+    }
+  },
+  {
+    "id": "cars-b-10", "topic": "cars", "title": "Rental car roulette", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Rental cars are a box of chocolates.", "You asked for a compact and received a vehicle the size of a refrigerator. Ever had a rental surprise?"], "options": [
+        { "id": "cars-b-10-o1", "label": "Got a much bigger car than I booked", "next": "b1" },
+        { "id": "cars-b-10-o2", "label": "Could not find the gas cap for ten minutes", "next": "b2" },
+        { "id": "cars-b-10-o3", "label": "Never rented, I stay home", "next": "b3" } ] },
+      "b1": { "say": ["Free upgrades feel great until you meet the parking garage.", "A sedan in a tiny old-town alley is like a sofa in a phone booth."], "options": [
+        { "id": "cars-b-10-o4", "label": "Scraped nothing, but sweated plenty", "next": "c" },
+        { "id": "cars-b-10-o5", "label": "I fell in love with the leather seats", "next": "d1" } ] },
+      "b2": { "say": ["Every rental hides its fuel cap like a tiny treasure.", "The little arrow on the gauge is the map nobody trusts."], "options": [
+        { "id": "cars-b-10-o6", "label": "That arrow saved my day once", "next": "c" },
+        { "id": "cars-b-10-o7", "label": "I filled up on the wrong side three times", "next": "d2" } ] },
+      "b3": { "say": ["Staying home is a respectable strategy.", "You've never been handed keys to a car that smells like pine and secrets."], "options": [
+        { "id": "cars-b-10-o8", "label": "Sounds intriguing, tell me more", "next": "d3" },
+        { "id": "cars-b-10-o9", "label": "I'll stick to my own car", "next": "d1" } ] },
+      "c": { "say": ["Rental routine: photograph every dent before you leave the lot.", "A tiny phone album is your best insurance and sometimes your funniest."], "options": [
+        { "id": "cars-b-10-o10", "label": "My album is mostly scratches and selfies", "next": "d3" },
+        { "id": "cars-b-10-o11", "label": "Good tip, I'll start doing that", "next": "d2" } ] },
+      "d1": { "say": ["A comfy seat makes any road feel shorter.", "Don't get used to it. Return day always comes."], "end": true },
+      "d2": { "say": ["Wrong-side fueling is a rite of passage.", "The pump reaches. It always reaches. Eventually."], "end": true, "chain": "random" },
+      "d3": { "say": ["A pine-scented mystery car is the start of a travel story.", "Pick a good playlist and go find a new road."], "end": true }
+    }
+  }
+]

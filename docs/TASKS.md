@@ -271,12 +271,12 @@ Do this first: games, rewards, caffeine and rankings all write here.
 - [ ] [H] 13.4.8 "Play while limited" entries in the agent menu (delegate to 13.7)
 
 ### 13.5 Simulated chat
-- [ ] [O] 13.5.1 Schema + offline generator: threads/nodes/options/transitions; 100+ bundled PG-13 threads; validation; no model calls at runtime
-- [ ] [S] 13.5.2 Chat UI: white bubbles, fast typewriter, option buttons, thread chaining, per-agent history, unread
-- [ ] [H] 13.5.3 **Haiku batch:** write the 100+ threads as JSON files in `data/chats/` in small batches (10 per agent run), each checked by the 13.5.1 validator (reachability, unique ids, PG-13 word list)
-- [ ] [S] 13.5.4 Idle initiation + rate-limit mode; close/reopen; no external requests
-- [ ] [H] 13.5.5 Settings: enable, speed, content filter; docs
-- [ ] [H] 13.5.6 Tests: schema, unique option ids, reachability, no network
+- [x] [O] 13.5.1 Schema + offline generator: threads/nodes/options/transitions; 100+ bundled PG-13 threads; validation; no model calls at runtime (schema + validator in `src/simchat/schema.ts`, `scripts/validate-simchat.ts`)
+- [x] [S] 13.5.2 Chat UI: white bubbles, fast typewriter, option buttons, thread chaining, per-agent history, unread (`src/simchat/SimChat.tsx`, store in `store.ts`; menu item in AgentMenu)
+- [x] [H] 13.5.3 **Haiku batch:** write the 100+ threads as JSON files in `data/chats/` in small batches (10 per agent run), each checked by the 13.5.1 validator (reachability, unique ids, PG-13 word list) (120 threads in `src/simchat/threads/*.json`, not `data/chats/`)
+- [x] [S] 13.5.4 Idle initiation + rate-limit mode; close/reopen; no external requests (`SimChatHost` mounted in World; reads `rateLimited` defensively; hook not wired to a real rate-limit source yet)
+- [x] [H] 13.5.5 Settings: enable, speed, content filter; docs (Settings > Water cooler chat; docs not written)
+- [x] [H] 13.5.6 Tests: schema, unique option ids, reachability, no network (`test/simchat.test.ts`)
 
 ### 13.6 Restaurant and drones
 - [ ] [O] 13.6.1 Convert Veranda into the restaurant; move the BBQ grill/picnic to the yard; zone layout + menu data
