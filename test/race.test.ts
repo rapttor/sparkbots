@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { computeLayout } from "../src/world/layout";
 import { makeFixtureSnapshot } from "../src/world/fixture";
-import { CAR, newCar, speedOf, stepCar } from "../src/world/games/race/car";
+import { newCar, slideOf, speedOf, stepCar } from "../src/world/games/race/car";
+import { AGENT_SPEED, CAR_TYPES } from "../src/world/games/race/carTypes";
 import { RaceSim } from "../src/world/games/race/sim";
 import { MAX_TURN, buildTrack, gridSlot, pointAt, project, trackClearance, trackInput, type Rect, type Track } from "../src/world/games/race/track";
 import { mulberry32 } from "../src/world/games/types";
@@ -76,7 +77,7 @@ describe("car physics", () => {
     const t = oval(), g = gridSlot(t, 0), c = newCar(g.x, g.z, g.h);
     for (let i = 0; i < 60 * 3; i++) stepCar(c, { throttle: 1, steer: 0, drift: false }, 1 / 60, t);
     expect(speedOf(c)).toBeGreaterThan(8);
-    for (let i = 0; i < 60 * 30; i++) { stepCar(c, { throttle: 1, steer: 0, drift: false }, 1 / 60, t); expect(speedOf(c)).toBeLessThanOrEqual(CAR.MAX + 0.01); }
+    for (let i = 0; i < 60 * 30; i++) { stepCar(c, { throttle: 1, steer: 0, drift: false }, 1 / 60, t); expect(speedOf(c)).toBeLessThanOrEqual(CAR_TYPES.race.maxSpeed + 0.01); }
     for (let i = 0; i < 60 * 8; i++) stepCar(c, { throttle: -1, steer: 0, drift: false }, 1 / 60, t);
     expect(speedOf(c)).toBeLessThan(8); // braked hard, may reverse slowly
   });
@@ -86,14 +87,29 @@ describe("car physics", () => {
     expect(a.h).toBeCloseTo(g.h, 5);
     expect(b.h).toBeGreaterThan(g.h + 0.2);
   });
-  it("a drift keeps sideways speed that a normal turn loses", () => {
-    const t = oval(), g = gridSlot(t, 0), mk = () => { const c = newCar(g.x, g.z, g.h); c.vx = Math.cos(g.h) * 14; c.vz = Math.sin(g.h) * 14; return c; };
-    const slideOf = (drift: boolean) => {
-      const c = mk();
-      for (let i = 0; i < 20; i++) stepCar(c, { throttle: 1, steer: 1, drift }, 1 / 60, t);
-      return Math.abs(c.vx * -Math.sin(c.h) + c.vz * Math.cos(c.h));
-    };
-    expect(slideOf(true)).toBeGreaterThan(slideOf(false) * 2);
+  const slideAt = (frac: number, drift: boolean, kind: "race" | "kart" | "monster" = "race") => {
+    const t = oval(), g = gridSlot(t, 0), spec = CAR_TYPES[kind], c = newCar(g.x, g.z, g.h);
+    c.vx = Math.cos(g.h) * spec.maxSpeed * frac; c.vz = Math.sin(g.h) * spec.maxSpeed * frac;
+    let worst = 0;
+    for (let i = 0; i < 25; i++) { stepCar(c, { throttle: 0.2, steer: 1, drift }, 1 / 60, t, spec, true); worst = Math.max(worst, Math.abs(slideOf(c))); }
+    return worst;
+  };
+  it("a drift keeps sideways speed that a normal turn at the same speed loses", () => {
+    expect(slideAt(0.6, true)).toBeGreaterThan(slideAt(0.6, false) * 1.5);
+  });
+  it("too much speed into a bend and the car slides wide instead of turning; slower it grips", () => {
+    expect(slideAt(1, false)).toBeGreaterThan(slideAt(0.35, false) * 2);
+  });
+  it("top speeds: monster truck 2x an agent, rocket kart 3x, race car 4x", () => {
+    expect(CAR_TYPES.monster.maxSpeed).toBeCloseTo(AGENT_SPEED * 2);
+    expect(CAR_TYPES.kart.maxSpeed).toBeCloseTo(AGENT_SPEED * 3);
+    expect(CAR_TYPES.race.maxSpeed).toBeCloseTo(AGENT_SPEED * 4);
+    for (const kind of ["monster", "kart", "race"] as const) {
+      const t = oval(), g = gridSlot(t, 0), c = newCar(g.x, g.z, g.h);
+      for (let i = 0; i < 60 * 40; i++) { stepCar(c, { throttle: 1, steer: 0, drift: false }, 1 / 60, t, CAR_TYPES[kind], true); }
+      expect(speedOf(c)).toBeLessThanOrEqual(CAR_TYPES[kind].maxSpeed + 0.01);
+      expect(speedOf(c)).toBeGreaterThan(CAR_TYPES[kind].maxSpeed * 0.8);
+    }
   });
   it("the road edge is a wall: driving straight into it stays on the road and counts a bump", () => {
     const t = oval(), p = pointAt(t, 30), c = newCar(p.x, p.z, Math.atan2(p.tz, p.tx) + Math.PI / 2); // facing sideways, off the road
@@ -203,10 +219,84 @@ describe("race hub", () => {
     expect(h.join("b")).toBe(true);
     expect(h.userId).toBe("b"); expect(h.userRacing).toBe(true);
     expect(h.join("a")).toBe(false);               // one car at a time
+    const before = speedOfCar(h, "b");
     h.sim!.setInput("b", { throttle: 0, steer: 0 }); run(h, 1);
-    expect(speedOfCar(h, "b")).toBeLessThan(8);    // the keyboard (idle) drives it now, not the AI
+    expect(speedOfCar(h, "b")).toBeLessThan(before);    // the keyboard (idle) drives it now, not the AI
     h.leave();
     expect(h.userRacing).toBe(false); expect(h.sim!.get("b")!.user).toBe(false); expect(h.sim!.get("b")!.out).toBe(false);
   });
 });
 const speedOfCar = (h: RaceHub, id: string) => speedOf(h.sim!.get(id)!.car);
+
+import { genDecor, makeCrossers, stepCrossers } from "../src/world/games/race/hazards";
+import { CAR_KINDS } from "../src/world/games/race/carTypes";
+
+describe("car types, hazards, carmageddon", () => {
+  it.each(CAR_KINDS)("%s: AI cars finish the laps, mostly clean", (kind) => {
+    const s = new RaceSim(oval(), mulberry32(11), 2, kind);
+    for (let i = 0; i < 5; i++) s.add(`a${i}`, `A${i}`, "#fff");
+    let guard = 0;
+    while (!s.over && guard++ < 60 * 900) s.step(1 / 60);
+    expect(s.racers.filter((r) => r.finishedAt !== null).length).toBeGreaterThanOrEqual(4);
+    const hits = s.racers.reduce((n, r) => n + r.car.hits, 0);
+    expect(hits).toBeLessThan(40);
+  });
+  it("faster cars lap faster: race car beats kart beats monster truck", () => {
+    const t = (kind: "race" | "kart" | "monster") => { const s = new RaceSim(oval(), mulberry32(2), 1, kind); s.add("a", "A", "#fff"); s.add("b", "B", "#fff"); let g = 0; while (!s.over && g++ < 60 * 900) s.step(1 / 60); return s.time; };
+    const [r, k, m] = [t("race"), t("kart"), t("monster")];
+    expect(r).toBeLessThan(k); expect(k).toBeLessThan(m);
+  });
+  it("decor is deterministic, sits clear of the walls, and potholes slow a car that drives into them", () => {
+    const track = oval();
+    expect(genDecor(track, mulberry32(4))).toEqual(genDecor(track, mulberry32(4)));
+    const d = genDecor(track, mulberry32(4));
+    expect(d.hazards.length).toBeGreaterThan(2);
+    for (const h of d.hazards) expect(Math.abs(project(track, h.x, h.z).lat)).toBeLessThan(track.halfWidth);
+    const s = new RaceSim(track, mulberry32(4), 1);
+    const pot = s.decor.hazards.find((h) => h.kind === "pothole")!, r = s.add("a", "A", "#fff")!;
+    adv(s, 3.1);
+    Object.assign(r.car, { seg: -1, x: pot.x, z: pot.z, vx: Math.cos(r.car.h) * 10, vz: Math.sin(r.car.h) * 10, cool: 0 });
+    r.input.throttle = 0; s.step(0.02);
+    expect(speedOf(r.car)).toBeLessThan(7);
+  });
+  it("oil takes the grip away", () => {
+    const s = new RaceSim(oval(), mulberry32(4), 1), oil = s.decor.hazards.find((h) => h.kind === "oil")!, r = s.add("a", "A", "#fff")!;
+    adv(s, 3.1);
+    Object.assign(r.car, { seg: -1, x: oil.x, z: oil.z });
+    s.step(0.02);
+    expect(r.car.slick).toBeGreaterThan(0);
+  });
+  it("mini robots cross the road and are knocked flat by a car, then come back", () => {
+    const track = oval(), rng = mulberry32(1), list = makeCrossers(track, [40], rng), k = list[0]!;
+    for (let t = 0; t < 30 && k.phase !== "run"; t += 0.1) stepCrossers(track, list, 0.1, rng);
+    expect(k.phase).toBe("run");
+    const s = new RaceSim(track, mulberry32(3), 1); s.crossers = list; const r = s.add("a", "A", "#fff")!;
+    adv(s, 3.1);
+    k.phase = "run"; k.lat = 0.2; stepCrossers(track, list, 0, rng); // a robot mid-road
+    Object.assign(r.car, { seg: -1, x: k.x, z: k.z, vx: 8, vz: 0 });
+    s.step(0.02);
+    expect(k.phase).toBe("flat");
+    for (let t = 0; t < 8; t += 0.1) stepCrossers(track, list, 0.1, rng);
+    expect(k.phase).not.toBe("flat");
+  });
+  it("carmageddon: off by default; your car may leave the road, the lap count does not apply, and the race has a time limit", () => {
+    const h = new RaceHub(mkEnvX(["a", "b", "c"])); h.setTrack(oval());
+    expect(h.carmageddon).toBe(false);
+    h.carmageddon = true; h.kind = "monster";
+    expect(h.join()).toBe(true);
+    expect(h.sim!.carmageddon).toBe(true); expect(h.sim!.spec.kind).toBe("monster");
+    adv(h.sim!, 3.1);
+    const me = h.sim!.get("user")!;
+    me.car.h += Math.PI / 2; me.input.throttle = 1; // drive off the road
+    for (let t = 0; t < 6; t += 0.05) h.sim!.step(0.05);
+    expect(Math.abs(me.car.lat)).toBeGreaterThan(h.sim!.track.halfWidth + 3);
+    expect(me.finishedAt).toBeNull();
+    adv(h.sim!, 250);
+    expect(h.sim!.over).toBe(true);
+  });
+  it("without you behind the wheel there is no carmageddon", () => {
+    const h = new RaceHub(mkEnvX(["a", "b", "c"])); h.setTrack(oval()); h.carmageddon = true;
+    expect(h.start(false)).toBe(true); expect(h.sim!.carmageddon).toBe(false);
+  });
+});
+const mkEnvX = (idle: string[]): RaceEnv => ({ rng: mulberry32(5), idle: () => idle, alive: () => true, name: (a) => a, color: () => "#fff" });

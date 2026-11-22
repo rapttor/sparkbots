@@ -84,6 +84,13 @@ export function stepRoam(d: DeskSlot, dt: number, mode: BotMode): Roam {
   if (r.visit && (mode !== "wander" || !poiExists(r.visit.poi.id))) { releaseVisit(id, r.visit.poi, r.visit.slot); r.visit = null; r.clip = null; } // work calls, or the layout changed
   if (r.game && mode !== "wander") r.game = null; // work calls: the game hub notices and calls the table off
   if (isHeld(id)) { r.moving = false; r.tx = r.x; r.tz = r.z; return r; } // an action menu owns this agent: stand still
+  if (r.squash) { // run over by a car (carmageddon, cosmetic): flat for a moment, then back at the desk and running away
+    if (nowMs < r.squash) { r.moving = false; r.tx = r.x; r.tz = r.z; return r; }
+    r.squash = 0;
+    const c = chairOf(d), a = Math.random() * Math.PI * 2;
+    r.x = c.x; r.z = c.z + 0.6;
+    r.flee = mode === "wander" ? { until: nowMs + 6000, x: r.x + Math.cos(a) * 14, z: r.z + Math.sin(a) * 14 } : null;
+  }
   if (mode === "wander") {
     if (r.game) { // idle agent at a game table: walk to its place, then stand there facing the table
       const g = r.game;
@@ -126,13 +133,14 @@ export function stepRoam(d: DeskSlot, dt: number, mode: BotMode): Roam {
     const g = mode === "sleep" ? bedOf(d) : chairOf(d);
     r.tx = g.x; r.tz = g.z;
   }
+  if (r.flee) { if (nowMs < r.flee.until && mode === "wander") { r.tx = r.flee.x; r.tz = r.flee.z; r.visit = null; r.game = null; } else r.flee = null; }
   const dx = r.tx - r.x, dz = r.tz - r.z, dist = Math.hypot(dx, dz);
   // Someone (the manager, another robot) is standing on the spot we want: wait a step away instead of pushing against them.
   const blocked = (mode === "desk" || mode === "rush") && dist > 0.05 && dist < 1.8 && occupiedAt(d.worker.id, r.tx, r.tz, 0.85);
   r.moving = dist > 0.05 && !blocked;
   if (blocked) r.ry = Math.atan2(-dx, -dz);
   if (r.moving) {
-    const speed = r.game && (!r.game.arrived || dist > 0.3) ? 2.6 : r.visit && !r.visit.arrived ? 1.6 : mode === "follow" && (dist > 4 || player.fast) ? 6 : speedOf[mode]; // followers hurry to catch up, and run with a sprinting manager
+    const speed = r.flee ? 3.2 : r.game && (!r.game.arrived || dist > 0.3) ? 2.6 : r.visit && !r.visit.arrived ? 1.6 : mode === "follow" && (dist > 4 || player.fast) ? 6 : speedOf[mode]; // followers hurry to catch up, and run with a sprinting manager
     const step = Math.min(dist, speed * dt);
     let ux = dx / dist, uz = dz / dist;
     if (dist > 1.5 && nav.flow) { // far away: follow the shared flow field around desks and furniture
@@ -230,7 +238,9 @@ export function poseBot(m: Meshes, i: number, d: DeskSlot, t: number, animate: b
   grp.position.set(r.x + jx, (lying ? 0.45 : 0.6 + bob) + hop + (hurry ? 0.04 : 0), r.z + jz);
   grp.rotation.order = "YXZ";
   grp.rotation.set(lying ? 0 : lean, r.ry + spin, lying ? Math.PI / 2 : sway);
+  if (r.squash && r.squash > performance.now()) { grp.position.y = 0.08; grp.scale.set(1.5, 0.1, 1.5); grp.rotation.set(0, r.ry, 0); } else grp.scale.set(1, 1, 1); // run over: flat on the floor
   grp.updateMatrix();
+  if (r.squash && r.squash > performance.now()) r.icon = "💫"; else if (r.flee) r.icon = "😱";
   if (opencode) {
     // TARS: the two side slabs swing together when walking; in a hurry they spin like wheels while the body leans forward.
     const legSwing = !r.moving ? 0 : hurry ? -t * 18 + ph : Math.sin(t * 10 + ph) * 0.3;

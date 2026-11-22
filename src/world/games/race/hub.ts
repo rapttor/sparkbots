@@ -1,4 +1,5 @@
 import { RaceSim, type Racer } from "./sim";
+import type { CarKind } from "./carTypes";
 import type { Track } from "./track";
 import type { Rng } from "../types";
 
@@ -28,6 +29,11 @@ export class RaceHub {
   sim: RaceSim | null = null;
   auto = true;
   version = 0;
+  /** What the next race uses (the car type is the same for everyone) and whether it is a carmageddon race (off by default). */
+  kind: CarKind = "race";
+  carmageddon = false;
+  /** Agents run over in this carmageddon race. */
+  squashed = 0;
   /** Standings of the last finished race (names, in order), for the overlay. */
   last: { name: string; time: number | null }[] = [];
   private t = 0;
@@ -52,15 +58,19 @@ export class RaceHub {
   /** The car you drive: your own gold one, or an agent's / pit bot's car you took over. */
   userId: string | null = null;
   get userRacing(): boolean { const r = this.userId ? this.sim?.get(this.userId) : undefined; return !!r && !r.out; }
+  /** Someone ran over an agent. */
+  squash(): void { this.squashed++; this.changed(); }
   /** Idle agents that could drive. */
   candidates(): string[] { return this.env.idle(); }
 
   /** Start a race with idle agents, optionally with you in it (then pit bots fill the grid up to three cars). False if impossible. */
   start(withUser = false, color = "#ffd166"): boolean {
+    this.squashed = 0;
     if (this.sim || !this.track) return false;
     const idle = this.candidates();
     if (!withUser && idle.length < 2) return false;
-    const sim = new RaceSim(this.track, this.env.rng, LAPS);
+    const carma = this.carmageddon && withUser; // carmageddon needs you behind the wheel
+    const sim = new RaceSim(this.track, this.env.rng, LAPS, this.kind, carma);
     if (withUser) sim.add(USER_ID, "You", color, true);
     const pool = [...idle];
     while (pool.length && sim.racers.length < 7) { const [a] = pool.splice(Math.floor(this.env.rng() * pool.length), 1); sim.add(a!, this.env.name(a!), this.env.color(a!)); }
