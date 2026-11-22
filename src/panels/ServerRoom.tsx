@@ -30,7 +30,8 @@ export function ServerRoom() {
       <div className="cards">
         {[...data.runs].reverse().map((r) => (
           <div className={`card ${r.status === "orphaned" ? "card-warn" : ""}`} key={r.runId}>
-            <div className="card-top"><span className={`tag s-${r.status}`}>{r.status}</span><span className="muted small">{fmtAge(r.startedAt)} · pid {r.pid}</span></div>
+            <div className="card-top"><span className={`tag s-${r.status}`}>{r.status}</span><span className="muted small">{fmtAge(r.startedAt)} · pid {r.pid}</span>
+              {r.status === "running" && <button className="small" title="Stop this run (SIGTERM to the process SparkBots started)" onClick={() => api.stop(r.runId).catch((e) => setErr((e as Error).message))}>Stop</button>}</div>
             <div className="card-text">{r.prompt.slice(0, 120)}</div>
             <div className="mono small card-path" title={r.cwd}>{r.cwd}</div>
           </div>

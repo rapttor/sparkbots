@@ -69,3 +69,13 @@ describe("StatsAggregator per service", () => {
     expect(s.estCostUsd).toBeCloseTo(3);
   });
 });
+
+import { fmtShare } from "../src/util";
+describe("fmtShare", () => {
+  it("never shows 0% for a service that has tokens", () => {
+    expect(fmtShare(0, 100)).toBe("0%");
+    expect(fmtShare(2, 1000)).toBe("<1%");
+    expect(fmtShare(50, 100)).toBe("50%");
+    expect(fmtShare(1, 0)).toBe("0%");
+  });
+});

@@ -6,7 +6,7 @@ import { useStore } from "../state/store";
 import type { Tokens } from "../../server/stats/aggregate";
 import type { WorkerState } from "../../server/adapters/types";
 import { STATE_COLORS, STATE_LABELS, STATE_ORDER } from "../world/colors";
-import { fmtNum } from "../util";
+import { fmtNum, fmtShare } from "../util";
 
 const total = (t: Tokens) => t.input + t.output + t.cacheRead + t.cacheWrite;
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -153,7 +153,7 @@ export function Stats() {
       <p className="muted small">History is kept in SparkBots' own cache, so days stay even after a tool deletes old transcripts. Stats refresh about every 30 s.</p>
 
       <h2>By service</h2>
-      <table>
+      <div className="table-scroll"><table>
         <thead><tr><th>Service</th><th>Tokens</th><th>Share</th><th>Input</th><th>Output</th><th>Cache</th><th>Est. cost</th></tr></thead>
         <tbody>
           {present.map((x) => {
@@ -161,7 +161,7 @@ export function Stats() {
             return (
               <tr key={x.id}>
                 <td><span className="legend-dot" style={{ background: x.color }} /> {x.label}</td>
-                <td>{fmtNum(total(t))}</td><td>{Math.round((100 * total(t)) / grand)}%</td>
+                <td>{fmtNum(total(t))}</td><td>{fmtShare(total(t), grand)}</td>
                 <td>{fmtNum(t.input)}</td><td>{fmtNum(t.output)}</td><td>{fmtNum(t.cacheRead + t.cacheWrite)}</td>
                 <td>{c !== undefined ? `$${c.toFixed(2)}` : <span className="muted" title="No price table for this service">–</span>}</td>
               </tr>
@@ -169,7 +169,7 @@ export function Stats() {
           })}
           {present.length === 0 && <tr><td colSpan={7} className="muted">No data</td></tr>}
         </tbody>
-      </table>
+      </table></div>
 
       <h2>Estimated cost <span className="tag">estimate</span></h2>
       <p>

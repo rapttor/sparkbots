@@ -41,6 +41,9 @@ export function cleanEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return Object.fromEntries(Object.entries(env).filter(([k]) => !k.startsWith("ANTHROPIC_")));
 }
 
+/** With the clean environment on, runs also skip ~/.claude/settings.json: its `env` block can point `claude` at a gateway (ANTHROPIC_BASE_URL + model aliases) that a process-env filter cannot undo. */
+export const CLEAN_SETTINGS_ARGS = ["--setting-sources", "project,local"];
+
 export class RunManager {
   private children = new Map<string, ChildProcess>();
   private queues = new Map<string, { prompt: string; cwd: string; opts: SendOpts }[]>();
@@ -50,6 +53,8 @@ export class RunManager {
   onChange?: () => void;
   /** Environment for spawned `claude` processes (default: ours). */
   envProvider: () => NodeJS.ProcessEnv = () => process.env;
+  /** Extra argv for every run (e.g. `--setting-sources` when the clean environment is on). */
+  extraArgs: () => string[] = () => [];
   runs: RunRecord[];
   /** Options each run was started with (memory only), so "Allow this tool & retry" can repeat the run. */
   private optsByRun = new Map<string, SendOpts>();
@@ -73,7 +78,7 @@ export class RunManager {
   spawnNew(cwd: string, prompt: string, opts: SendOpts = {}) { return this.start(undefined, cwd, prompt, opts); }
 
   private start(session: string | undefined, cwd: string, prompt: string, opts: SendOpts): RunRecord {
-    const args = buildArgs(prompt, session, opts);
+    const args = [...buildArgs(prompt, session, opts), ...this.extraArgs()];
     const child = spawn(this.bin, args, { cwd, shell: false, stdio: ["ignore", "pipe", "pipe"], env: this.envProvider() });
     const rec: RunRecord = { runId: randomUUID(), session: opts.fork ? undefined : session, cwd, prompt, pid: child.pid ?? -1, status: "running", startedAt: Date.now() };
     this.optsByRun.set(rec.runId, opts); if (this.optsByRun.size > 200) this.optsByRun.delete(this.optsByRun.keys().next().value!);

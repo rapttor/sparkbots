@@ -56,7 +56,7 @@ export function Board() {
     const go = (target: { session?: string; cwd?: string; fork?: boolean }) => { setMenu(undefined); void guard(() => api.assign(c.id, target)); };
     const pick = (w: Worker, fork: boolean) => (
       <button key={`${fork}${w.id}`} onClick={() => go({ session: w.id, fork })} title={w.cwd}>
-        {displayName(w)} <span className="muted small">{w.state}{w.liveInTerminal ? " · live in terminal" : ""}</span>
+        {displayName(w)} <span className="muted small">{w.source && w.source !== "claude" ? `${w.source} · ` : ""}{w.state}{w.liveInTerminal ? " · live in terminal" : ""}</span>
       </button>
     );
     const sendable = mine.filter((w) => !w.liveInTerminal).slice(0, 15);

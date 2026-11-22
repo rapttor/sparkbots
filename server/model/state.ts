@@ -52,8 +52,9 @@ export function tick(rt: Runtime, now: number, input: Input, t: Thresholds): Run
     rt.activity = rt.activity === "idle" ? "running" : rt.activity;
     set(rt, "working", now);
   }
-  // working with no activity beyond threshold and no turn_end seen -> idle
-  if (rt.state === "working" && quiet >= t.idleMs && input.alive && !(rt.hooked && now - rt.lastEventAt < t.asleepMs)) { rt.activity = "idle"; set(rt, "idle", now); }
+  // working with no activity beyond threshold and no turn_end seen -> idle. Also without a live process: an office-started headless run exits right
+  // after its last write (trailing metadata records can re-trigger "working" via mtime), and it would otherwise stay "working" until it falls asleep.
+  if (rt.state === "working" && quiet >= t.idleMs && !(rt.hooked && now - rt.lastEventAt < t.asleepMs)) { rt.activity = "idle"; set(rt, "idle", now); }
 
   if (input.alive && rt.state === "asleep") set(rt, "idle", now);
   if (!input.alive && (rt.state === "idle" || rt.state === "working") && quiet >= t.asleepMs) {
