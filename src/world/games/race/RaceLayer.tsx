@@ -12,13 +12,20 @@ import { AGENT_SPEED, CAR_KINDS, CAR_TYPES, type CarKind, type Part } from "./ca
 import { LAPS, RaceHub, type RaceEnv } from "./hub";
 import { raceCam } from "./cam";
 import { sendView } from "../../viewBus";
-import { buildTrack, trackInput, type Track } from "./track";
+import { buildTrack, pointAt, trackInput, type Track } from "./track";
+import { goTo } from "../goto";
+import { shortName } from "./names";
 
 /** The one race hub of the page. Its world is wired up by <RaceLayer>; until then nobody is idle. */
 const none: RaceEnv = { rng: Math.random, idle: () => [], alive: () => false, name: (a) => a, color: () => "#ffffff" };
 export const raceHub = new RaceHub(none);
 const AUTO_KEY = "sparkbots.race.auto";
 try { raceHub.auto = localStorage.getItem(AUTO_KEY) !== "0"; } catch { /* storage blocked: default on */ }
+
+let panelOpen = false;
+const panelSubs = new Set<() => void>();
+/** Open (or close) the race setup panel; the 🎮 Games popover has the button for it. */
+export function openRacePanel(on = true): void { panelOpen = on; for (const f of panelSubs) f(); }
 
 const DRIVE_KEYS = new Set(["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", " ", "c", "escape", "e", "shift"]);
 let fpv = false; // camera: behind the car (default) or from the driver's seat; C toggles
@@ -99,7 +106,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
       rng: mulberry32((Math.random() * 2 ** 32) >>> 0),
       idle: () => layoutRef.current.desks.filter((d) => effectiveState(d.worker.id, d.worker.state) === "idle").map((d) => d.worker.id),
       alive: (a) => { const d = desk(a); return !!d && effectiveState(a, d.worker.state) === "idle"; },
-      name: (a) => { const d = desk(a); return d ? displayName(d.worker) : a; },
+      name: (a) => { const d = desk(a); return d ? shortName(displayName(d.worker), d.worker.team) : a; },
       color: (a) => desk(a)?.worker.color ?? "#ffb020",
     };
     raceHub.setEnv(env);
@@ -279,7 +286,8 @@ const CSS = `
 /** Bottom-centre chip: start a race, take a seat (arrows or WASD, space = drift), standings while it runs. */
 function RaceOverlay() {
   useSyncExternalStore((cb) => raceHub.subscribe(cb), () => raceHub.version);
-  const [open, setOpen] = useState(false);
+  const open = useSyncExternalStore((cb) => { panelSubs.add(cb); return () => { panelSubs.delete(cb); }; }, () => panelOpen);
+  const setOpen = openRacePanel;
   const [, tick] = useState(0);
   const [msg, setMsg] = useState("");
   const [pick, setPick] = useState("");    // car to take over ("" = a new car of your own)
@@ -291,9 +299,9 @@ function RaceOverlay() {
     <>
       <style>{CSS}</style>
       <div className="race-bar">
-        <button className="games-chip" style={{ display: "flex", gap: 6, padding: "3px 8px", background: "#151b27ee", border: "1px solid #3a4558", borderRadius: 999, color: "#e7ecf5", fontSize: 12, cursor: "pointer" }} title="Race track" onClick={() => setOpen(!open)}>
-          🏎 Race{sim ? (sim.phase === "countdown" ? " · get ready" : sim.phase === "over" ? " · finished" : " · live") : ""}
-        </button>
+        {sim && <button className="games-chip" style={{ display: "flex", gap: 6, padding: "3px 8px", background: "#151b27ee", border: "1px solid #3a4558", borderRadius: 999, color: "#e7ecf5", fontSize: 12, cursor: "pointer" }} title="Race track" onClick={() => setOpen(!open)}>
+          🏎 Race{sim.phase === "countdown" ? " · get ready" : sim.phase === "over" ? " · finished" : " · live"}
+        </button>}
         {sim && <button className="race-stop" title="Stop the race (Esc while driving)" onClick={() => raceHub.stop()}>⏹ Stop race{raceHub.userRacing ? " · Esc" : ""}</button>}
         {(open || sim) && (
           <div className="race-pop" role="dialog" aria-label="Race track">
@@ -304,7 +312,8 @@ function RaceOverlay() {
               </ol>
             )}
             <div>
-              {!sim && !raceHub.carmageddon && <button onClick={() => setMsg(raceHub.start(false) ? "" : "Needs at least two idle agents.")}>Start race</button>}
+              {!sim && <button onClick={() => setOpen(false)} title="Close">✕</button>}
+              {!sim && !raceHub.carmageddon && <button onClick={() => { const ok = raceHub.start(false); setMsg(ok ? "" : "Needs at least two idle agents."); if (ok && raceHub.track) { const p = pointAt(raceHub.track, -9); goTo(p.x, p.z); } }}>Start race</button>}
               {!sim && raceHub.carmageddon && <button onClick={() => setMsg(raceHub.join(undefined, color) ? "" : "Could not start.")}>Start carmageddon</button>}
               {!raceHub.userRacing && !raceHub.carmageddon && (!sim || sim.phase !== "over") && <button onClick={() => setMsg(raceHub.join(pick || undefined, color) ? "" : "Could not take that seat.")}>Drive</button>}
               {raceHub.userRacing && <button onClick={() => raceHub.leave()}>Leave</button>}

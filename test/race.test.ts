@@ -393,3 +393,16 @@ describe("leaving the road and items", () => {
     expect(used).toBeGreaterThan(2);
   });
 });
+
+import { shortName } from "../src/world/games/race/names";
+describe("driver names", () => {
+  it("short, never empty, 'Untitled' replaced; duplicates in a race get numbers", () => {
+    expect(shortName("Untitled", "Radio")).toBe("Radio bot");
+    expect(shortName("   ")).toBe("Agent bot");
+    expect(shortName("forum: how about a forum on main page, easy login/magiclin").length).toBeLessThanOrEqual(20);
+    const h = new RaceHub({ rng: mulberry32(1), idle: () => ["a", "b", "c"], alive: () => true, name: () => "Untitled bot", color: () => "#fff" });
+    h.setTrack(oval()); h.start();
+    const names = h.sim!.racers.map((r) => r.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+});

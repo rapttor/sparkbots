@@ -3,6 +3,8 @@ import { call } from "../../api";
 import { hub, setAuto } from "./instance";
 import { GAMES, GAME_IDS } from "./registry";
 import type { GameId, RankRow } from "./types";
+import { goTo, spotBehindTable } from "./goto";
+import { openRacePanel } from "./race/RaceLayer";
 
 const CSS = `
 .games-bar{position:absolute;z-index:6;top:46px;left:0;right:0;padding:0 15%;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;pointer-events:none}
@@ -37,7 +39,9 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
   const start = () => {
     const ids = [form.a || cand[0], form.b].filter((x): x is string => !!x);
     if (!ids.length) { setMsg("No idle agent is free right now."); return; }
-    setMsg(hub.open(form.game, ids, true) ? "" : "No free table for that game (or an agent is busy).");
+    const inst = hub.open(form.game, ids, true);
+    setMsg(inst ? "" : "No free table for that game (or an agent is busy).");
+    if (inst) { const p = spotBehindTable(inst.slot); goTo(p.x, p.z); setOpen(false); } // you start a game: go and watch it from beside the table
   };
   const options = (skip = "") => cand.filter((c) => c !== skip).map((c) => <option key={c} value={c}>{hub.nameOf(c)}</option>);
 
@@ -53,6 +57,7 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
                 <option value="">invite…</option>{options(i.seats[0].agent ?? "")}
               </select>
             )}
+            <button title="Go to this table" aria-label="Go to this table" onClick={() => { const p = spotBehindTable(i.slot); goTo(p.x, p.z); }}>📍</button>
             <button title="Stop this game" aria-label="Stop this game" onClick={() => hub.stop(i.id)}>✕</button>
           </span>
         ))}
@@ -75,6 +80,7 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
             <select aria-label="Player two" value={form.b} onChange={(e) => setForm({ ...form, b: e.target.value })}><option value="">opponent: invite later</option>{options(form.a)}</select>
             <button type="submit">Start</button>
             {hub.instances.length > 0 && <button type="button" onClick={() => hub.stopAll()}>Stop all</button>}
+            <button type="button" title="Race track: cars, carmageddon" onClick={() => { openRacePanel(true); setOpen(false); }}>🏎 Race…</button>
           </form>
           {msg && <p role="alert">{msg}</p>}
           <label><input type="checkbox" checked={hub.auto} onChange={(e) => { setAuto(e.target.checked); setMsg(""); }} /> Idle agents play on their own</label>
