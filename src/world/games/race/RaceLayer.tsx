@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Html } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { BufferGeometry, Color, Float32BufferAttribute, Object3D, type InstancedMesh } from "three";
 import { displayName } from "../../../util";
 import { mulberry32 } from "../types";
 import { effectiveState } from "../../roam";
 import type { Layout } from "../../layout";
 import { MAX_CARS } from "./sim";
-import { LAPS, RaceHub, USER_ID, type RaceEnv } from "./hub";
+import { LAPS, RaceHub, type RaceEnv } from "./hub";
+import { raceCam } from "./cam";
+import { sendView } from "../../viewBus";
 import { buildTrack, trackInput, type Track } from "./track";
 
 /** The one race hub of the page. Its world is wired up by <RaceLayer>; until then nobody is idle. */
@@ -16,7 +18,9 @@ export const raceHub = new RaceHub(none);
 const AUTO_KEY = "sparkbots.race.auto";
 try { raceHub.auto = localStorage.getItem(AUTO_KEY) !== "0"; } catch { /* storage blocked: default on */ }
 
-const DRIVE_KEYS = new Set(["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", " "]);
+const DRIVE_KEYS = new Set(["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", " ", "c"]);
+let fpv = false; // camera: behind the car (default) or from the driver's seat; C toggles
+const angleDiff = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 
 /** Flat ribbon along the centre line between lateral offsets a..b (to the right of the direction of travel). */
 function ribbon(t: Track, a: number, b: number, y: number): BufferGeometry {
@@ -61,15 +65,18 @@ export function RaceLayer({ layout }: { layout: Layout }) {
 
   // keyboard: only while you are driving, in the capture phase so the walking controls never see these keys
   const keys = useRef(new Set<string>());
+  const camReady = useRef(false), camYaw = useRef(0), { camera } = useThree();
   const driving = raceHub.userRacing;
   useEffect(() => {
     if (!driving) { keys.current.clear(); return; }
+    raceCam.active = true; camReady.current = false;
+    sendView({ t: "mode", mode: "walk" }); // the 3D scene (not the label map) must be showing
     const typing = (e: KeyboardEvent) => { const el = e.target as HTMLElement | null; return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable); };
-    const down = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (!DRIVE_KEYS.has(k) || typing(e) || e.metaKey || e.ctrlKey || e.altKey) return; e.preventDefault(); e.stopImmediatePropagation(); keys.current.add(k); };
+    const down = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (!DRIVE_KEYS.has(k) || typing(e) || e.metaKey || e.ctrlKey || e.altKey) return; e.preventDefault(); e.stopImmediatePropagation(); if (k === "c") { if (!e.repeat) fpv = !fpv; return; } keys.current.add(k); };
     const up = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (DRIVE_KEYS.has(k)) { keys.current.delete(k); } };
     const clear = () => keys.current.clear();
     window.addEventListener("keydown", down, true); window.addEventListener("keyup", up, true); window.addEventListener("blur", clear);
-    return () => { window.removeEventListener("keydown", down, true); window.removeEventListener("keyup", up, true); window.removeEventListener("blur", clear); keys.current.clear(); };
+    return () => { raceCam.active = false; sendView({ t: "reset" }); window.removeEventListener("keydown", down, true); window.removeEventListener("keyup", up, true); window.removeEventListener("blur", clear); keys.current.clear(); };
   }, [driving]);
 
   const body = useRef<InstancedMesh>(null), cabin = useRef<InstancedMesh>(null);
@@ -82,9 +89,20 @@ export function RaceLayer({ layout }: { layout: Layout }) {
     const sim = raceHub.sim, b = body.current, c = cabin.current;
     if (!sim || !b || !c) return;
     const ks = keys.current;
-    if (ks.size || driving) {
+    if (driving && raceHub.userId) {
       const up = ks.has("arrowup") || ks.has("w"), down = ks.has("arrowdown") || ks.has("s"), l = ks.has("arrowleft") || ks.has("a"), r = ks.has("arrowright") || ks.has("d");
-      sim.setInput(USER_ID, { throttle: (up ? 1 : 0) - (down ? 1 : 0), steer: (r ? 1 : 0) - (l ? 1 : 0), drift: ks.has(" ") });
+      sim.setInput(raceHub.userId!, { throttle: (up ? 1 : 0) - (down ? 1 : 0), steer: (r ? 1 : 0) - (l ? 1 : 0), drift: ks.has(" ") });
+    }
+    const me = driving && raceHub.userId ? sim.get(raceHub.userId) : undefined;
+    if (me && raceCam.active) {
+      const car = me.car;
+      if (!camReady.current) { camYaw.current = car.h; camReady.current = true; }
+      camYaw.current += angleDiff(car.h - camYaw.current) * (1 - Math.exp(-(fpv ? 14 : 4) * dt));
+      const fx = Math.cos(camYaw.current), fz = Math.sin(camYaw.current);
+      const goal = fpv ? [car.x + fx * 0.3, 0.85, car.z + fz * 0.3] : [car.x - fx * 8, 3.6, car.z - fz * 8];
+      const k = 1 - Math.exp(-7 * dt); // eases in from wherever the camera was: no jump
+      camera.position.set(camera.position.x + (goal[0]! - camera.position.x) * k, camera.position.y + (goal[1]! - camera.position.y) * k, camera.position.z + (goal[2]! - camera.position.z) * k);
+      camera.lookAt(car.x + fx * (fpv ? 12 : 5), fpv ? 0.7 : 0.8, car.z + fz * (fpv ? 12 : 5));
     }
     sim.racers.forEach((rc, i) => {
       if (i >= MAX_CARS) return;
@@ -139,6 +157,8 @@ function RaceOverlay() {
   const [open, setOpen] = useState(false);
   const [, tick] = useState(0);
   const [msg, setMsg] = useState("");
+  const [pick, setPick] = useState("");    // car to take over ("" = a new car of your own)
+  const [color, setColor] = useState("#ffd166");
   const sim = raceHub.sim;
   useEffect(() => { if (!sim) return; const h = setInterval(() => tick((n) => n + 1), 400); return () => clearInterval(h); }, [sim]);
   const lapOf = (id: string) => { const r = sim?.get(id); return r ? Math.min(LAPS, Math.max(0, r.lap) + 1) : 0; };
@@ -159,11 +179,22 @@ function RaceOverlay() {
             )}
             <div>
               {!sim && <button onClick={() => setMsg(raceHub.start(false) ? "" : "Needs at least two idle agents.")}>Start race</button>}
-              {!raceHub.userRacing && (!sim || sim.phase === "countdown") && <button onClick={() => setMsg(raceHub.join() ? "" : "Could not take a seat.")}>Drive</button>}
+              {!raceHub.userRacing && (!sim || sim.phase !== "over") && <button onClick={() => setMsg(raceHub.join(pick || undefined, color) ? "" : "Could not take that seat.")}>Drive</button>}
               {raceHub.userRacing && <button onClick={() => raceHub.leave()}>Leave</button>}
               {sim && <button onClick={() => raceHub.stop()}>Stop</button>}
             </div>
-            {raceHub.userRacing && <div className="muted">Arrows or WASD to drive · Space to drift</div>}
+            {!raceHub.userRacing && (
+              <div>
+                {sim && sim.phase !== "over" && (
+                  <select aria-label="Car to drive" value={pick} onChange={(e) => setPick(e.target.value)}>
+                    <option value="">{sim.phase === "countdown" ? "my own new car" : "pick a car…"}</option>
+                    {sim.racers.filter((r) => !r.out && r.finishedAt === null).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                )}
+                {(!sim || (!pick && sim.phase === "countdown")) && <label> colour <input type="color" aria-label="Car colour" value={color} onChange={(e) => setColor(e.target.value)} /></label>}
+              </div>
+            )}
+            {raceHub.userRacing && <div className="muted">Arrows or WASD to drive · Space to drift · C: camera behind / driver's seat</div>}
             {msg && <div role="alert">{msg}</div>}
             <label><input type="checkbox" checked={raceHub.auto} onChange={(e) => { raceHub.auto = e.target.checked; try { localStorage.setItem(AUTO_KEY, e.target.checked ? "1" : "0"); } catch { /* ignore */ } tick((n) => n + 1); }} /> Idle agents race on their own</label>
           </div>

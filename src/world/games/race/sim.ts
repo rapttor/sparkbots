@@ -46,6 +46,8 @@ export class RaceSim {
 
   get(id: string): Racer | undefined { return this.racers.find((r) => r.id === id); }
   setInput(id: string, inp: Partial<CarInput>): void { const r = this.get(id); if (r) Object.assign(r.input, inp); }
+  /** Hand a car to the keyboard (or back to the AI). */
+  setUser(id: string, on: boolean): void { const r = this.get(id); if (r) { r.user = on; if (!on) r.input = { throttle: 0, steer: 0, drift: false }; } }
   retire(id: string): void { const r = this.get(id); if (r && r.finishedAt === null) r.out = true; }
   get over(): boolean { return this.phase === "over"; }
 

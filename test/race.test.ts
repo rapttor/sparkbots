@@ -172,4 +172,17 @@ describe("race hub", () => {
     h.setTrack(buildTrack({ zones: [{ x0: -30, z0: -30, x1: 30, z1: 30 }], areas: [], bounds: { x0: -90, z0: -90, x1: 90, z1: 90 } }));
     expect(h.running).toBe(false);
   });
+  it("you can take over an agent's car in a running race, and hand it back to the AI", () => {
+    const h = new RaceHub(mkEnv(["a", "b", "c"])); h.setTrack(oval()); h.auto = false; h.start();
+    run(h, 8);
+    expect(h.sim!.phase).toBe("racing");
+    expect(h.join("b")).toBe(true);
+    expect(h.userId).toBe("b"); expect(h.userRacing).toBe(true);
+    expect(h.join("a")).toBe(false);               // one car at a time
+    h.sim!.setInput("b", { throttle: 0, steer: 0 }); run(h, 1);
+    expect(speedOfCar(h, "b")).toBeLessThan(8);    // the keyboard (idle) drives it now, not the AI
+    h.leave();
+    expect(h.userRacing).toBe(false); expect(h.sim!.get("b")!.user).toBe(false); expect(h.sim!.get("b")!.out).toBe(false);
+  });
 });
+const speedOfCar = (h: RaceHub, id: string) => speedOf(h.sim!.get(id)!.car);

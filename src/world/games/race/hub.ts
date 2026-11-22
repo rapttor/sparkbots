@@ -49,33 +49,50 @@ export class RaceHub {
   }
 
   get running(): boolean { return this.sim !== null; }
-  get userRacing(): boolean { const r = this.sim?.get(USER_ID); return !!r && !r.out; }
+  /** The car you drive: your own gold one, or an agent's / pit bot's car you took over. */
+  userId: string | null = null;
+  get userRacing(): boolean { const r = this.userId ? this.sim?.get(this.userId) : undefined; return !!r && !r.out; }
   /** Idle agents that could drive. */
   candidates(): string[] { return this.env.idle(); }
 
   /** Start a race with idle agents, optionally with you in it (then pit bots fill the grid up to three cars). False if impossible. */
-  start(withUser = false): boolean {
+  start(withUser = false, color = "#ffd166"): boolean {
     if (this.sim || !this.track) return false;
     const idle = this.candidates();
     if (!withUser && idle.length < 2) return false;
     const sim = new RaceSim(this.track, this.env.rng, LAPS);
-    if (withUser) sim.add(USER_ID, "You", "#ffd166", true);
+    if (withUser) sim.add(USER_ID, "You", color, true);
     const pool = [...idle];
     while (pool.length && sim.racers.length < 7) { const [a] = pool.splice(Math.floor(this.env.rng() * pool.length), 1); sim.add(a!, this.env.name(a!), this.env.color(a!)); }
     for (let k = 0; sim.racers.length < 3; k++) sim.add(`pit${k}`, `Pit bot ${k + 1}`, FILLER_COLORS[k % FILLER_COLORS.length]!);
-    this.sim = sim; this.overFor = 0; this.last = [];
+    this.sim = sim; this.overFor = 0; this.last = []; this.userId = withUser ? USER_ID : null;
     this.changed();
     return true;
   }
 
-  /** You take a seat: join the race on the grid if it has not started yet, else start a new one. */
-  join(): boolean {
-    if (!this.sim) return this.start(true);
-    if (this.sim.phase === "countdown" && !this.userRacing) { const ok = !!this.sim.add(USER_ID, "You", "#ffd166", true); if (ok) this.changed(); return ok; }
-    return false;
+  /** You take a seat. No race yet: start one with your own car (`color`). Race on the grid: your own car, or take over `carId`. Started race: take over `carId` only. */
+  join(carId?: string, color = "#ffd166"): boolean {
+    if (!this.sim) return this.start(true, color);
+    if (this.userRacing) return false;
+    const sim = this.sim;
+    if (carId) {
+      const r = sim.get(carId);
+      if (!r || r.out || r.finishedAt !== null) return false;
+      sim.setUser(carId, true); this.userId = carId; this.changed();
+      return true;
+    }
+    if (sim.phase !== "countdown") return false;
+    const ok = !!sim.add(USER_ID, "You", color, true);
+    if (ok) { this.userId = USER_ID; this.changed(); }
+    return ok;
   }
-  leave(): void { if (this.userRacing) { this.sim!.retire(USER_ID); this.changed(); } }
-  stop(): void { if (this.sim) { this.sim = null; this.changed(); } }
+  /** Step out of the car: your own car retires, a car you took over goes back to the AI. */
+  leave(): void {
+    if (!this.userRacing || !this.sim || !this.userId) return;
+    if (this.userId === USER_ID) this.sim.retire(USER_ID); else this.sim.setUser(this.userId, false);
+    this.userId = null; this.changed();
+  }
+  stop(): void { if (this.sim) { this.sim = null; this.userId = null; this.changed(); } }
 
   tick(dt: number): void {
     this.t += dt;

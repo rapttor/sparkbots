@@ -36,6 +36,7 @@ import { RoomsContent } from "./rooms/RoomsContent";
 import { DataCenter, consoleSpot, openDataRoom } from "./datacenter";
 import { GamesLayer } from "./games/GamesLayer";
 import { RaceLayer } from "./games/race/RaceLayer";
+import { raceCam } from "./games/race/cam";
 import { ManagerWalls } from "./walls";
 import { nerd, sampleFrame } from "../state/nerd";
 import { clearView, loadFlyPrefs, loadView, saveView } from "./viewDefault";
@@ -642,6 +643,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       simAccum.current = 0;
     }
 
+    if (raceCam.active) return; // you are driving in the race: the race layer owns the camera
     if (modeRef.current !== "walk") {
       if (nearbyId.current) { nearbyId.current = null; onNearby(null); }
       return;
