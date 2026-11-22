@@ -31,5 +31,6 @@ Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest f
 - **Stop button:** one big red Stop in the header ends games, smashing (and the race, soon) and flies the camera back to normal [13.7.13]; drone icons and labels no longer draw over the sidebar [13.1.35].
 - **Sidebar colours:** each tab tints the sidebar in its own colour, configurable in Settings [13.1.36].
 - **Race and Stop:** the race is a special mode ended by the header Stop, its setup lives in Games > New game, missiles fly straight and expire, the rocket kart is much faster; Stop (and Exit at reception) now ends the whole smashing session including its timer [13.7.10g, 13.8.2d].
+- **Water cooler chat as bubbles:** the simulated chat now plays as slow typed 3D bubbles above you and the agent, auto-advance or a continue button, replies chosen from an option list, ended by Stop or by walking away [13.5.7].
 - **Fix:** API calls with a query string no longer produce a bad token [13.3.8].
 - **Tasks:** 13.0 reduced to a small `app.db` for new data; sync, card links and other tasks simplified or deferred; 7.41 split.
