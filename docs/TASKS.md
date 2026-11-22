@@ -261,6 +261,7 @@ Do this first: games, rewards, caffeine and rankings all write here.
 - [x] [H] 13.2.7 Data console: click the console computer in the Data center, or press E near it (hint "E · open Data room"), or "Use the data console" in the hand Actions menu, to open the Data room panel. `datacenter.tsx`, `World.tsx`
 - [x] [S] 13.1.31 Call to desk: clicking a desk (not the laptop) sends its away agent to the desk for 5 min; agent menu "Call to the desk"; menu header has a clickable project badge (flies the camera to the project) and a 🏠 Send home button. `World.tsx`, `AgentMenu.tsx`, `ProjectBadge.tsx`
 - [x] [S] 13.6.8 Restaurant: glass pane in front of the chef, chef 30% bigger, kitchen set behind that transforms per cuisine (salad bar / pizza oven / sushi bar with lanterns / diner grill / taco cart; `rooms/kitchenSets.ts`, pop animation in `Restaurant.tsx`)
+- [x] [S] 13.6.9 Visible glass (`rooms/Glass.tsx`: tinted pane, frame, sliding light streaks) in front of the chef and in front of the cafe counter; chef arms, prep table (board, knife, pan), flipping food and steam while cooking; Cafe barista robot (`rooms/Cafe.tsx`) with coffee brewing cycle (arms, steam, stream, cup fills and slides out; click to order). The restaurant glass was too faint before (opacity 0.16)
 - [x] [H] 13.1.32 Fix: games chips covered the hand-mode buttons; laptop close-up hides the hand and its buttons and shows the real cursor (hand + walk both keep "Back to the office")
 
 ### 13.4 Cubicles, identity, caffeine, rate limit

@@ -21,5 +21,6 @@ Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest f
 - **Stats:** Refresh button (`POST /api/stats/refresh`).
 - **Call to desk / send home:** click a desk to call its agent back, "Call to the desk" in the agent menu, clickable project badge and 🏠 in the menu header [13.1.31].
 - **Restaurant:** glass in front of the chef and a kitchen that transforms with the cuisine [13.6.8]; **Fix:** games chips no longer cover the hand buttons, close-up shows Back in hand and walk mode [13.1.32].
+- **Cafe and restaurant:** visible glass panes, a cafe barista that brews coffee (steam, stream, filling cup), chef arms and a prep table with flipping food and steam while cooking [13.6.9].
 - **Fix:** API calls with a query string no longer produce a bad token [13.3.8].
 - **Tasks:** 13.0 reduced to a small `app.db` for new data; sync, card links and other tasks simplified or deferred; 7.41 split.
