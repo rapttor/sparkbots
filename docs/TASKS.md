@@ -312,6 +312,7 @@ Do this first: games, rewards, caffeine and rankings all write here.
 ### 13.8 Gym, anger room, sponsor
 - [x] [H] 13.8.1 Gym: mirror wall, over-pump blow-up fx, treadmill boredom bubbles
 - [x] [S] 13.8.2 Anger room: weapon pick, 60 s reset, destructible props, points (points are per visit, not saved to SQLite)
+- [x] [S] 13.8.2b Anger room rework: box-model items (computer, fax, floppy, phone, mail), instanced debris + sparks + dust, smasher bot swings a held weapon (wind-up/hit/recover) with item wobble/flatten, weapons bat/hammer/box wrench/pry bar/wrecking bar, reception click starts/stops wrecking waves (2-4 items every 3-4 s, max 9); logic in `rooms/anger.ts` with tests (not yet seen in a browser)
 - [x] [H] 13.8.3 Sponsor room: a data file `src/shared/sponsor.ts` with `#` placeholders plus one zone file; cards disabled until filled; open links only on click (small, Haiku)
 - [x] [H] 13.8.4 Idle "sponsor" bubbles, frequency-capped, off by default
 - [x] [H] 13.8.5 Tests: no background requests, no invented addresses, placeholders never clickable
