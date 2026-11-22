@@ -1,17 +1,18 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useStore } from "../state/store";
 import { displayName } from "../util";
 import { isRateLimited, useSimChat, type ChatLine } from "./store";
 import { getSettings, SPEED_MS, subscribeSettings } from "./settings";
 import { shouldInitiate } from "./engine";
 import { threadById } from "./data";
+import { holdAgent, releaseAgent } from "../world/roam";
 import "./simchat.css";
 
 const useSettings = () => useSyncExternalStore(subscribeSettings, getSettings);
 
 /** Reveals `text` char by char (instantly when speed is 0). Calls onDone once finished. */
-function Typed({ text, msPerChar, animate, onDone }: { text: string; msPerChar: number; animate: boolean; onDone: () => void }) {
-  const [n, setN] = useState(animate && msPerChar > 0 ? 0 : text.length);
+function Typed({ text, msPerChar, onDone }: { text: string; msPerChar: number; onDone: () => void }) {
+  const [n, setN] = useState(0);
   useEffect(() => {
     if (n >= text.length) { onDone(); return; }
     const t = setTimeout(() => setN((x) => x + 1), msPerChar);
@@ -26,28 +27,30 @@ function ChatWindow({ id }: { id: string }) {
   const { close, choose, next } = useSimChat.getState();
   const { speed } = useSettings();
   const [mountAt] = useState(() => Date.now());
-  const [typing, setTyping] = useState<number | null>(null); // id of the line being typed
+  const [done, setDone] = useState<Set<number>>(() => new Set()); // fresh bot lines that finished typing
   const log = useRef<HTMLDivElement>(null);
   const lines = chat?.lines ?? [];
-  const lastBot = [...lines].reverse().find((l) => l.who === "bot");
-  const busy = typing !== null && typing === lastBot?.id;
+  const ms = SPEED_MS[speed];
+  // Lines that arrived while the window is open are revealed one after another: every earlier line is shown, the first
+  // unfinished fresh bot line is typing, and everything after it waits.
+  const isFresh = (l: ChatLine) => l.who === "bot" && ms > 0 && l.at >= mountAt - 50 && !done.has(l.id);
+  const firstPending = lines.findIndex(isFresh);
+  const shown = firstPending < 0 ? lines : lines.slice(0, firstPending + 1);
+  const busy = firstPending >= 0;
+  const finish = useCallback((id: number) => setDone((d) => (d.has(id) ? d : new Set(d).add(id))), []);
   useEffect(() => { log.current?.scrollTo({ top: log.current.scrollHeight }); });
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") close(); }; document.addEventListener("keydown", k); return () => document.removeEventListener("keydown", k); }, [close]);
   const thread = chat?.threadId ? threadById(chat.threadId) : undefined;
   const options = chat?.nodeId && thread ? thread.nodes[chat.nodeId]?.options ?? [] : [];
-  const render = (l: ChatLine) => {
-    const fresh = l.who === "bot" && l.at >= mountAt - 50 && l.id === lastBot?.id;
-    return (
-      <div key={l.id} className={`sc-row ${l.who}`}><div className="sc-bubble">
-        {fresh ? <Typed text={l.text} msPerChar={SPEED_MS[speed]} animate onDone={() => setTyping((t) => (t === l.id ? null : t))} /> : l.text}
-      </div></div>
-    );
-  };
-  useEffect(() => { if (lastBot && lastBot.at >= mountAt - 50 && SPEED_MS[speed] > 0) setTyping(lastBot.id); }, [lastBot?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const render = (l: ChatLine, i: number) => (
+    <div key={l.id} className={`sc-row ${l.who}`}><div className="sc-bubble">
+      {i === firstPending ? <Typed text={l.text} msPerChar={ms} onDone={() => finish(l.id)} /> : l.text}
+    </div></div>
+  );
   return (
     <div className="sc-panel" role="dialog" aria-label="Water cooler chat">
       <div className="sc-head"><span>☕</span><strong>{worker ? displayName(worker) : "Agent"} · water cooler</strong><button className="icon-btn" aria-label="Close" onClick={close}>×</button></div>
-      <div className="sc-log" ref={log}>{lines.map(render)}</div>
+      <div className="sc-log" ref={log}>{shown.map(render)}</div>
       <p className="sc-note">Simulated and offline: not the real agent, nothing is sent anywhere.</p>
       <div className="sc-opts">
         {!busy && options.map((o) => <button key={o.id} onClick={() => choose(id, o.id)}>{o.label}</button>)}
@@ -64,12 +67,20 @@ export function SimChatHost() {
   const snapshot = useStore((s) => s.snapshot);
   const idleSince = useRef<Record<string, number>>({});
   const workers = useMemo(() => snapshot?.teams.flatMap((t) => t.workers) ?? [], [snapshot]);
+  // The agent you are chatting with stays put (no games, no wandering off) while the window is open.
+  useEffect(() => {
+    if (!openFor || !settings.enabled) return;
+    holdAgent(openFor);
+    return () => releaseAgent(openFor);
+  }, [openFor, settings.enabled]);
+  const workersRef = useRef(workers);
+  workersRef.current = workers; // the timer must not restart on every snapshot (they arrive every few seconds, the tick is 20 s)
   useEffect(() => {
     if (!settings.enabled || !settings.idleStart) return;
     const tick = async () => {
       const limited = await isRateLimited(); // rate-limit mode: agents are more talkative
       const now = Date.now(); const st = useSimChat.getState();
-      for (const w of workers) {
+      for (const w of workersRef.current) {
         if (w.state !== "idle" && !limited) { delete idleSince.current[w.id]; continue; }
         const since = (idleSince.current[w.id] ??= now);
         const last = st.chats[w.id]?.lastStartedAt ?? 0;
@@ -78,7 +89,7 @@ export function SimChatHost() {
     };
     const t = setInterval(() => void tick(), 20_000);
     return () => clearInterval(t);
-  }, [workers, settings.enabled, settings.idleStart]);
+  }, [settings.enabled, settings.idleStart]);
   if (!settings.enabled || !openFor) return null;
   return <ChatWindow id={openFor} />;
 }

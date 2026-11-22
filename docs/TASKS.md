@@ -272,7 +272,7 @@ Do this first: games, rewards, caffeine and rankings all write here.
 
 ### 13.5 Simulated chat
 - [x] [O] 13.5.1 Schema + offline generator: threads/nodes/options/transitions; 100+ bundled PG-13 threads; validation; no model calls at runtime (schema + validator in `src/simchat/schema.ts`, `scripts/validate-simchat.ts`)
-- [x] [S] 13.5.2 Chat UI: white bubbles, fast typewriter, option buttons, thread chaining, per-agent history, unread (`src/simchat/SimChat.tsx`, store in `store.ts`; menu item in AgentMenu)
+- [x] [S] 13.5.2 Chat UI: white bubbles, fast typewriter, option buttons, thread chaining, per-agent history, unread (`src/simchat/SimChat.tsx`, store in `store.ts`; menu item in AgentMenu) — **QA'd on screen 2026-11-22:** typewriter now reveals reply lines one after another, idle timer no longer restarts on every snapshot (it never fired), chat holds the agent (no games/wandering) while open, no network calls, no console errors; history/unread/settings rows checked; not seen: the unread dot in the menu, a real idle initiation
 - [x] [H] 13.5.3 **Haiku batch:** write the 100+ threads as JSON files in `data/chats/` in small batches (10 per agent run), each checked by the 13.5.1 validator (reachability, unique ids, PG-13 word list) (120 threads in `src/simchat/threads/*.json`, not `data/chats/`)
 - [x] [S] 13.5.4 Idle initiation + rate-limit mode; close/reopen; no external requests (`SimChatHost` mounted in World; reads `rateLimited` defensively; hook not wired to a real rate-limit source yet)
 - [x] [H] 13.5.5 Settings: enable, speed, content filter; docs (Settings > Water cooler chat; docs not written)
@@ -290,7 +290,7 @@ Do this first: games, rewards, caffeine and rankings all write here.
 ### 13.7 Games
 - [x] [O] 13.7.1 Framework: game registry, instances, seats, state machine, score above the table, exit via header, cleanup, per-agent rankings (SQLite) — **done:** `src/world/games/` (pure: registry, hub/instances, seats, state machine; `GamesLayer.tsx` draws tables + score above them; header chip with ✕ to exit), `game_result` table + `/api/games/rankings|result`
 - [x] [S] 13.7.2 Instances: create a new table if taken, remove idle ones, invite/bring an agent; seat reservations — **done:** hub creates a table in the next free slot (`tables.ts` SLOTS), removes it after the match / timeout, `invite()` + Start form in the 🎮 popover, seats reserved per agent
-- [x] [S] 13.7.3 Idle agents pair up (behavior intent); local simulation only — **done:** `Roam.game` intent (`roam.ts`, `bots.ts`); idle agents pair up (max 2 auto tables, switch in the popover); work drops the game, no result kept
+- [x] [S] 13.7.3 Idle agents pair up (behavior intent); local simulation only — **QA'd on screen 2026-11-22: tables/seats/pairing/score label OK** — **done:** `Roam.game` intent (`roam.ts`, `bots.ts`); idle agents pair up (max 2 auto tables, switch in the popover); work drops the game, no result kept
 - [x] [S] 13.7.4 Pong/table tennis (proximity hit, distance = strength) — **done:** `rally.ts` pong: further back = harder hit but smaller reach; AI drifts back/forth
 - [x] [H] 13.7.5 Rock-paper-scissors + dice — **done:** `rounds.ts`: rock-paper-scissors and 2-dice duels, first to 3
 - [x] [S] 13.7.6 Air hockey (reuse pong physics, edge bounces, centre target) — **done:** `rally.ts` hockey mode: edge bounces, goal = centre of the end, accuracy falls with stretch
@@ -298,7 +298,7 @@ Do this first: games, rewards, caffeine and rankings all write here.
 - [ ] [S] 13.7.8 Basketball timing game (angle -> strength -> shot, speed-up, drone ball)
 - [ ] [S] 13.7.9 Claw machine + item inventory -> rewards
 - [ ] [O] 13.7.10 Race track (last): track from layout, car physics, powerups, traps, carmageddon
-- [x] [H] 13.7.11 Scoreboard/ranking UI + persistence tests — **done:** 🎮 popover rankings (per game / all) in `GamesOverlay.tsx`; persistence + hub + sim tests in `test/games.test.ts`
+- [x] [H] 13.7.11 Scoreboard/ranking UI + persistence tests — **done:** 🎮 popover rankings (per game / all) in `GamesOverlay.tsx`; persistence + hub + sim tests in `test/games.test.ts`; **QA fixes 2026-11-22:** the chips/popover were a drei `Html fullscreen` that drifted off screen with the camera (now plain DOM, `GamesHud`), long agent names are shortened, Map > Game room no longer drops the manager into the sponsor room (`panels/mapFly.ts`); dice score and rankings verified, hockey/pong/RPS seen running; not verified: seated agent poses up close
 
 ### 13.8 Gym, anger room, sponsor
 - [x] [H] 13.8.1 Gym: mirror wall, over-pump blow-up fx, treadmill boredom bubbles

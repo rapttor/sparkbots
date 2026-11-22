@@ -34,7 +34,7 @@ import { CoffeeFactory } from "./coffeefactory";
 import { Cubicles } from "./cubicles";
 import { RoomsContent } from "./rooms/RoomsContent";
 import { DataCenter, consoleSpot, openDataRoom } from "./datacenter";
-import { GamesLayer } from "./games/GamesLayer";
+import { GamesLayer, GamesHud } from "./games/GamesLayer";
 import { ManagerWalls } from "./walls";
 import { nerd, sampleFrame } from "../state/nerd";
 import { clearView, loadFlyPrefs, loadView, saveView } from "./viewDefault";
@@ -1157,6 +1157,7 @@ export default function World({ active = true }: { active?: boolean }) {
       {inCloseup && <button className="closeup-back" onClick={() => setCloseupExit((n) => n + 1)}>← Back to the office</button>}
       <FollowBar />
       <SimChatHost />
+      <GamesHud layout={layout} />
       {meetingOpen && <div style={{ position: "absolute", right: 10, bottom: 10, zIndex: 6 }}><MeetingChat onClose={() => setMeetingOpen(false)} /></div>}
       {showKeymap && <KeymapLegend entries={entries} onHide={() => setShowKeymap(false)} />}
       {menu && menuWorker && (
