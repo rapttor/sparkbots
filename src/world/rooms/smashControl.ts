@@ -1,2 +1,5 @@
 /** Shared flag between the anger room and World: while true, YOU are the weapon, so World parks the avatar/hand and ignores floor clicks and drags. Cosmetic only. */
-export const smashCtl: { active: boolean } = { active: false };
+export const smashCtl: { active: boolean; stop?: () => void } = { active: false };
+
+import { registerMode } from "../../state/modes";
+registerMode({ id: "smash", label: "Smashing", active: () => smashCtl.active, stop: () => smashCtl.stop?.() });
