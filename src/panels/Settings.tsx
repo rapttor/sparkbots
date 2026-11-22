@@ -11,7 +11,7 @@ import { listAvatars } from "../world/avatar";
 import { LOGO_EMOJIS, TOP_STYLES, type TopStyle } from "../world/devLook";
 import { DEFAULT_FILTERS } from "./teamFilters";
 import type { OpenCodeModel } from "../shared/opencode";
-import { getSettings as getSimChat, setSettings as setSimChat, type ChatFilter, type ChatSpeed } from "../simchat/settings";
+import { getSettings as getSimChat, setSettings as setSimChat, type ChatAdvance, type ChatFilter, type ChatSpeed } from "../simchat/settings";
 
 type NumKey = "historyDays" | "idleThresholdSec" | "asleepAfterMin" | "doneWaveSec" | "errorSec";
 const NUMS: { key: NumKey; label: string; desc: string; words: string }[] = [
@@ -359,6 +359,10 @@ export function Settings() {
       desc: "How fast the simulated agent's text appears.",
       body: <select value={getSimChat().speed} onChange={(e) => { setSimChat({ speed: e.target.value as ChatSpeed }); bump((n) => n + 1); }}>
         <option value="slow">Slow</option><option value="normal">Normal</option><option value="fast">Fast</option><option value="instant">Instant</option></select> },
+    { id: "simchat-advance", section: "Water cooler chat", label: "Advance", words: "automatic manual continue next message click pace timing",
+      desc: "Automatic: the next message appears about 3 seconds after the last one. Manual: only when you click continue (or press Enter).",
+      body: <select value={getSimChat().advance} onChange={(e) => { setSimChat({ advance: e.target.value as ChatAdvance }); bump((n) => n + 1); }}>
+        <option value="auto">Automatic</option><option value="manual">Manual</option></select> },
     { id: "simchat-filter", section: "Water cooler chat", label: "Content filter", words: "family friendly pg13 mature content rating clean jokes",
       desc: "Family: only G and PG topics. PG-13: also lightly edgier banter (still no slurs or sexual content).",
       body: <select value={getSimChat().filter} onChange={(e) => { setSimChat({ filter: e.target.value as ChatFilter }); bump((n) => n + 1); }}>

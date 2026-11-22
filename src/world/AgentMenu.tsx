@@ -127,7 +127,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
       <CaffeineRow id={w.id} />
       <RewardsSection id={w.id} />
       {item("💬 Talk", () => { openChat(w.id); onClose(); }, "E")}
-      {getSettings().enabled && <button className="am-item" onClick={() => { useSimChat.getState().open(w.id); onClose(); }}><span>🫧 Water cooler chat<SimChatUnread id={w.id} /></span></button>}
+      {getSettings().enabled && <button className="am-item" onClick={() => { useSimChat.getState().open(w.id); useStore.getState().focusAgent(w.id); onClose(); }}><span>🫧 Water cooler chat<SimChatUnread id={w.id} /></span></button>}
       {item("☕ Bring a coffee", () => { requestCoffee(w.id); onClose(); })}
       {item(followers.includes(w.id) ? "👥 Stop following" : "👥 Follow me", () => { toggleFollower(w.id); onClose(); }, "F")}
       {ACTIONS.filter((a) => a.kind === "real").map((a) => item(`${a.label} …`, () => { scene.act(a.key, w.id); onClose(); }, a.key.toUpperCase(), a.can?.(w) ?? undefined))}
