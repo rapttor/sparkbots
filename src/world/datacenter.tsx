@@ -3,6 +3,7 @@ import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { CatmullRomCurve3, Color, CylinderGeometry, InstancedMesh, Object3D, SphereGeometry, TubeGeometry, Vector3, type Group, type MeshBasicMaterial } from "three";
 import { useStore } from "../state/store";
+import { rackLabel, roomLabel, useDataCenter } from "../state/dataCenter";
 import type { Layout } from "./layout";
 import { AISLES, AISLE_X, RACKS, RACK_SIZE } from "./datacenterSlots";
 import { player } from "./roam";
@@ -10,7 +11,8 @@ import { player } from "./roam";
 /** The console desk (see zones/data-room.ts) is the way into the Data room panel: click it, or press E close to it. */
 const CONSOLE = { x: 3.2, z: -1.3, reach: 2.6 };
 export const consoleSpot = { near: false };
-export const openDataRoom = () => useStore.getState().setPanel("data");
+export const openDataRoomFor = (team: string) => { useDataCenter.getState().openFor(team); useStore.getState().setPanel("data"); };
+export const openDataRoom = () => openDataRoomFor("");
 
 const LEDS_PER_RACK = 8;
 const HUB = new Vector3(-1.6, 3.4, -3.9);   // where the cables meet, above the back of the rack block
@@ -41,6 +43,8 @@ function useRacks(): (Rack | null)[] {
 export function DataCenter({ layout }: { layout: Layout }) {
   const zone = layout.zones.find((z) => z.zone.id === "data-room");
   const racks = useRacks();
+  const aliases = useDataCenter((s) => s.aliases);
+  useEffect(() => { useDataCenter.getState().loadAliases(); }, []);
   const racksRef = useRef(racks); racksRef.current = racks;
   const leds = useRef<InstancedMesh>(null), reels = useRef<InstancedMesh>(null), packets = useRef<InstancedMesh>(null);
   const bots = useRef<(Group | null)[]>([]);
@@ -151,8 +155,21 @@ export function DataCenter({ layout }: { layout: Layout }) {
       {/* project names */}
       {racks.map((r, i) => r && (
         <Html key={i} position={[RACKS[i]!.x, RACK_SIZE[1] + 0.25, RACKS[i]!.z]} center distanceFactor={9} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
-          <div className="rack-label" style={{ borderColor: r.color }}>{r.name}</div>
+          <div className="rack-label" style={{ borderColor: r.color }}>{rackLabel(aliases, r.name)}</div>
         </Html>
+      ))}
+
+      {/* room name, above the rack block (rename it from the Data room panel) */}
+      <Html position={[-1.6, 3.1, 1.9]} center distanceFactor={9} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
+        <div className="rack-label" style={{ borderColor: "#33c3f0" }}>{roomLabel(aliases)}</div>
+      </Html>
+
+      {/* one invisible click box per rack: opens the Data room panel filtered to that project */}
+      {racks.map((r, i) => r && (
+        <mesh key={i} position={[RACKS[i]!.x, RACK_SIZE[1] / 2, RACKS[i]!.z]} onClick={(e) => { e.stopPropagation(); openDataRoomFor(r.name); }}
+          onPointerOver={() => { document.body.style.cursor = "pointer"; }} onPointerOut={() => { document.body.style.cursor = ""; }}>
+          <boxGeometry args={RACK_SIZE} /><meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
       ))}
 
       {/* the console: click it (or E nearby) to open the Data room panel */}

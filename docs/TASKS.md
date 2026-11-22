@@ -241,10 +241,10 @@ Do this first: games, rewards, caffeine and rankings all write here.
 ### 13.2 Data center
 - [x] [O] 13.2.1 Design: one rack per project, deterministic layout, growth and caps, instanced LEDs/tapes/cables; no per-frame React — **done (2026-11-22):** one rack per project (first 15 by name), `datacenterSlots.ts` fixed slots, instanced LEDs/reels/packets
 - [x] [S] 13.2.2 `world/datacenter.tsx`: racks, project-colour labels, LEDs = active chats (VU style), tape units, hydra cables, forcefield walls — **done (2026-11-22):** `world/datacenter.tsx` (red blinking LEDs by activity, spinning tape reels, hydra cables to a hub + trunk, data packets, project labels) + force field in `zones/data-room.ts`
-- [ ] [H] 13.2.3 Rename the room and each rack alias (SQLite); labels survive reloads
+- [x] [H] 13.2.3 Rename the room and each rack alias (SQLite); labels survive reloads — **done (2026-11-22):** migration 2 `rack_alias`, `GET/PUT /api/rack-alias`, click the title in the Data room panel to rename the room or the filtered project's rack
 - [x] [H] 13.2.4 Inspector service robots between racks (reuse `servicebots.tsx`; cosmetic) — **done (2026-11-22):** three inspector robots patrol the aisles (own simple bots, not `servicebots.tsx`)
-- [ ] [S] 13.2.5 Click a rack -> Data room search filtered to that project; deep link from Map/Teams
-- [ ] [H] 13.2.6 Rename UI strings: Data center (3D), Data room (search), Server room (processes); update menus, keymap, docs
+- [x] [S] 13.2.5 Click a rack -> Data room search filtered to that project; deep link from Map/Teams — **done (2026-11-22):** invisible click box per rack; 🗄 button on each Teams row (Map chips are zone fly-tos, left as is)
+- [x] [H] 13.2.6 Rename UI strings: Data center (3D), Data room (search), Server room (processes); update menus, keymap, docs — **done (2026-11-22):** zone name, dock label, panel title, Settings entry
 
 ### 13.3 Board and backlog track
 - [x] [S] 13.3.1 Board redesign: columns, cards, spacing, drop targets, header/filters; world palette; keep the narrow one-column mode — **done (2026-11-22):** columns with tones, lift-on-hover cards, drop highlight, collapsible compose, narrow tabs kept (`Board.tsx`, `.kb-*` in `styles.css`)
