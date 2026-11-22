@@ -8,6 +8,7 @@ import { useNarrow } from "./dock/useLayout";
 import { dockVisible } from "./state/dock";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { FilterBar } from "./panels/FilterBar";
+import { StopModes } from "./dock/StopModes";
 import { api } from "./api";
 import { useLive } from "./state/live";
 import { makeFixtureSnapshot } from "./world/fixture";
@@ -39,6 +40,7 @@ export function App() {
         <strong>{BRAND.name}</strong>
         <FilterBar />
         <div id="topbar-slot" className="topbar-slot" />
+        <StopModes />
         <span className="spacer" />
         <PanelMenu />
       </header>

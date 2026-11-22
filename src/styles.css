@@ -280,7 +280,7 @@ button.kmap-row:disabled{opacity:.45;cursor:not-allowed}
 /* ---- dock layout: icon rail, always-visible 3D stage, tabbed dock, big dialog ---- */
 .stage{flex:1;min-width:0;position:relative;display:flex}
 /* The dock floats OVER the 3D stage like a force field (the stage never resizes; the camera re-centres instead, see World.tsx) */
-.dock{position:absolute;top:0;bottom:0;right:0;z-index:20;display:flex;flex-direction:column;min-width:0;background:rgba(12,17,28,.76);backdrop-filter:blur(7px) saturate(1.15);-webkit-backdrop-filter:blur(7px) saturate(1.15);border-left:1px solid rgba(79,209,197,.45);box-shadow:-6px 0 28px rgba(79,209,197,.12)}
+.dock{position:absolute;top:0;bottom:0;right:0;z-index:20000000;display:flex;flex-direction:column;min-width:0;background:rgba(12,17,28,.76);backdrop-filter:blur(7px) saturate(1.15);-webkit-backdrop-filter:blur(7px) saturate(1.15);border-left:1px solid rgba(79,209,197,.45);box-shadow:-6px 0 28px rgba(79,209,197,.12)}
 .dock.side-left{right:auto;left:0;border-left:0;border-right:1px solid rgba(79,209,197,.45);box-shadow:6px 0 28px rgba(79,209,197,.12)}
 .dock-grip{position:absolute;top:0;bottom:0;width:6px;cursor:col-resize;z-index:5}
 .dock-grip.right{left:-3px}.dock-grip.left{right:-3px}
@@ -299,7 +299,7 @@ button.kmap-row:disabled{opacity:.45;cursor:not-allowed}
 .dialog-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
 .dialog-body{flex:1;min-height:0;overflow:auto}
 @media (max-width:899px){
-  .dock.sheet{background:rgba(11,15,23,.94);backdrop-filter:blur(10px);position:fixed;left:0;right:0;bottom:0;height:90dvh;width:auto;border-left:0;border-top:1px solid var(--line);border-radius:14px 14px 0 0;z-index:55;box-shadow:0 -10px 30px rgba(0,0,0,.5)}
+  .dock.sheet{background:rgba(11,15,23,.94);backdrop-filter:blur(10px);position:fixed;left:0;right:0;bottom:0;height:90dvh;width:auto;border-left:0;border-top:1px solid var(--line);border-radius:14px 14px 0 0;z-index:20000000;box-shadow:0 -10px 30px rgba(0,0,0,.5)}
   .dialog-backdrop{padding:0}.dialog{border-radius:0}
 }
 .dock-tabs .icon-btn{width:28px;height:28px;padding:0;align-self:center;font-size:14px}
@@ -521,3 +521,9 @@ button.project-link:hover{background:#ffffff10}
 /* controls that sit inside the 3D view stay clear of the floating dock (App sets --dock-l / --dock-r) */
 .closeup-back{left:calc(50% + (var(--dock-l,0px) - var(--dock-r,0px)) / 2)}
 .games-bar{left:var(--dock-l,0px);right:var(--dock-r,0px)}
+
+/* the big red Stop button for special modes (games, race, smashing) */
+.stop-modes{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:46px;padding:3px 10px 2px;background:#b91c1c;border:1px solid #f87171;border-radius:8px;color:#fff;cursor:pointer;box-shadow:0 0 12px #ef444455}
+.stop-modes:hover{background:#dc2626}
+.stop-modes-icon{width:16px;height:16px;background:#fff;border-radius:3px;display:block}
+.stop-modes small{font-size:9px;letter-spacing:.08em;text-transform:uppercase;line-height:1}

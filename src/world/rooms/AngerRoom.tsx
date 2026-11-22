@@ -194,6 +194,7 @@ export function AngerRoom({ layout }: { layout: Layout }) {
 
   const choose = (id: string) => { setWeapon(id); setPick(false); const n = startRun(startSession(id, Date.now()), Date.now()); setSess(n); sessRef.current = n; };
   const exit = () => { const s = sessRef.current; setMenu(false); if (s?.running) { const n = stopRun(s, Date.now()); setSess(n); sessRef.current = n; } };
+  smashCtl.stop = exit; // the header Stop button ends a smashing run too
   const reception = () => {
     const s = sessRef.current, now = Date.now();
     if (!weapon && !s) { setPick(true); return; }
