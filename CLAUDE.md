@@ -13,7 +13,7 @@ A local, browser-based 3D "company" where every Claude Code session is a worker,
 - **No `--dangerously-skip-permissions`, ever.** Nothing the office spawns may bypass Claude Code permissions. This is a hard rule, not a default.
 - **Undocumented formats get `[VERIFY]`.** Claude Code's on-disk formats (`~/.claude/sessions/`, JSONL record shapes) are not a public API. Every parser is defensive: unknown fields are ignored, unparseable lines are skipped and counted, and nothing crashes the server.
 - **Original mascot only.** Workers are an original low-poly "spark bot" design. No Claude/Anthropic logo, wordmark or likeness anywhere in the repo, assets or screenshots (trademark; required for open source).
-- **Scope discipline.** Work is tracked in `docs/TASKS.md`: phases 1-9 and 11 are done, 10.6 and parts of 12 are open, Phase 13 (backlog) is in progress (13.0 not started; 13.1 mostly done), and Phase 14 OpenCode v1 is implemented with stop/run-registry/board-card work still open. Keep the task list updated when work is planned or finished.
+- **Scope discipline.** Work is tracked in `docs/TASKS.md`: phases 1-12 and 14 are done apart from small leftovers (12.1 cleanup), Phase 13 (backlog) is mostly done (open: 13.1.4/5/8/9, 13.4.3/4/8, 13.7.7-10, deferred sync 13.0.3-6), and 7.41 c/d (live approval, slash commands) is open. Keep the task list updated when work is planned or finished.
 
 ---
 
@@ -40,7 +40,7 @@ A local, browser-based 3D "company" where every Claude Code session is a worker,
 - **Runtime:** Node 20+, TypeScript (strict), pnpm.
 - **Server:** Fastify, `ws` for WebSocket push, `chokidar` for file watching, `pidusage` (or `ps` parsing) for process stats.
 - **Client:** Vite + React 18 + React Three Fiber + drei. Zustand for client state. Panels are plain React (no 3D needed to use any feature).
-- **Storage:** JSON files in `~/.agent-office/` (config, board, aliases, spawned-run registry). No database.
+- **Storage:** JSON files in `~/.agent-office/` (config, board, aliases, spawned-run registry) plus one SQLite file `~/.agent-office/app.db` (`server/db.ts`, numbered migrations) for data SparkBots generates and keeps forever: usage history, rack aliases, caffeine, game results.
 - **Distribution:** `npx agent-office` (placeholder name) starts the server and opens the browser.
 - **Tests:** Vitest. Fixture JSONL files under `test/fixtures/` (anonymized, hand-written, never copied from real sessions).
 
@@ -290,7 +290,8 @@ Our difference: project-as-team grouping across all sessions, safe two-way comma
 | `teams.json` | directory → team merges, team colors, per-team `allowedTools` / `permissionMode` |
 | `board.json` | kanban cards (id, title, body, team, column, linked session/run, timestamps) |
 | `runs.json` | office-spawned run registry |
-| `cache/` | stats cache |
+| `cache/` | stats cache, OpenCode/Codex mirrors |
+| `app.db` | SQLite: usage history (hourly, forever), rack aliases, caffeine, game results; schema by `PRAGMA user_version` |
 | `backups/` | settings.json backups from hooks install |
 
 All files are versioned (`"schemaVersion": 1`) and migrated on load.
