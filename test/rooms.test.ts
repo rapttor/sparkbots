@@ -137,3 +137,13 @@ describe("zones", () => {
     expect(ids).toEqual(expect.arrayContaining(["anger-room", "sponsor-room"]));
   });
 });
+
+describe("restaurant kitchen floor", () => {
+  it("has a raised, walkable floor behind the counter so the chef clears the counter top", () => {
+    const z = ZONES.find((x) => x.id === "restaurant")!;
+    const floor = z.props.find((p) => p.size[1] === 0.3 && p.solid === false);
+    expect(floor, "raised kitchen floor").toBeDefined();
+    const counter = z.props.find((p) => p.size[1] === 0.95 && p.size[0] === 6.0)!;
+    expect(floor!.at[1]).toBeLessThan(counter.at[1]);
+  });
+});

@@ -7,7 +7,7 @@ import { newlyWorking } from "../servicebots";
 import { CHEF_LOOKS, MENU, chefLook, dishById, newOrder, place, tick, type Order } from "./menu";
 import { FIRE_FLAG, initFire, loadFlag, tickFire, type FireState } from "./fire";
 import { FOOD_CHANCE, MAX_FLIGHTS, FLIGHT_S, emitFoodDelivered, flight } from "./drones";
-import { bubble, btn, panel, pointer } from "./ui";
+import { bubble, btn, panel, pointer, Stop } from "./ui";
 
 interface Flight { id: string; t: number; from: { x: number; z: number }; to: { x: number; z: number }; carry: boolean; emoji: string }
 
@@ -85,7 +85,7 @@ export function Restaurant({ layout }: { layout: Layout }) {
   return (
     <>
       {/* chef behind the counter */}
-      <group position={[rz.x, 0.05, rz.z - 4.0]}>
+      <group position={[rz.x, 0.35, rz.z - 4.0]}> {/* 0.3 = raised kitchen floor in zones/restaurant.ts */}
         <group ref={chef}
           onClick={(e) => { e.stopPropagation(); setMenu((m) => !m); }} {...pointer}>
           <mesh position={[0, 0.9, 0]}><boxGeometry args={[1.2, 1.9, 1.0]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh>
@@ -101,12 +101,12 @@ export function Restaurant({ layout }: { layout: Layout }) {
         </group>
         {menu && order.state === "idle" && (
           <Html position={[0, 2.2, 0]} center zIndexRange={[30, 0]}>
-            <div style={panel}>
+            <Stop><div style={panel}>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>🍽 Menu</div>
               {MENU.map((d) => (
                 <button key={d.id} style={btn} title={d.blurb} onClick={() => { const n = place(orderRef.current, d.id, Date.now()); orderRef.current = n; setOrder(n); setMenu(false); setToast(CHEF_LOOKS[d.cuisine].quip); }}>{d.icon} {d.name}</button>
               ))}
-            </div>
+            </div></Stop>
           </Html>
         )}
         {(order.state !== "idle" || toast) && (
