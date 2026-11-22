@@ -11,5 +11,6 @@ Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest f
 - **Analytics forever:** usage history now lives in SparkBots' own SQLite file (`~/.agent-office/app.db`, hourly rows), so it outlives deleted transcripts [13.3.11].
 - **Data console:** click the computer in the Data center, or press E near it, to open the Data room panel [13.2.7].
 - **Merged from parallel sessions:** live reply streaming + "Allow this tool & retry" [7.41 a/b]; OpenCode Stop, run registry and board cards [14.3]; Data center rack aliases, click-a-rack search and renamed strings [13.2.3/5/6]; cubicles, caffeine, rate limit and nervous mode [13.4]; simulated water-cooler chat with 120 threads [13.5]; restaurant, gym extras, anger room and sponsor room [13.6, 13.8]; Codex liveness, stats/search and archived sessions [12.3/5/7]; MCP servers in the Server room [10.6].
+- **Games:** framework with table instances and seats, per-agent rankings in SQLite, idle agents pair up and play pong, rock-paper-scissors, dice and air hockey, plus a scoreboard [13.7.1-6, 13.7.11].
 - **Fix:** API calls with a query string no longer produce a bad token [13.3.8].
 - **Tasks:** 13.0 reduced to a small `app.db` for new data; sync, card links and other tasks simplified or deferred; 7.41 split.
