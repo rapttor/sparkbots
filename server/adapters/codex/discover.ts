@@ -2,6 +2,7 @@ import { open, readdir, stat, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { SessionRef } from "../types";
+import { aoHome } from "../../config";
 import { parseLine } from "./parse";
 
 const HEAD_BYTES = 64 * 1024;
@@ -37,13 +38,15 @@ async function inspect(file: string, fallbackId: string, names: Map<string, stri
   return { id: `codex:${id}`, source: "codex", file, cwd, title: (names.get(id) ?? first ?? "Untitled Codex chat").slice(0, 60), mtimeMs: st.mtimeMs, sizeBytes: st.size };
 }
 
-export async function discoverSessions(root = codexDir()): Promise<SessionRef[]> {
-  const base = join(root, "sessions"), byId = new Map<string, SessionRef>(), names = await titles(root);
+/** Decompressed archived sessions live here (written only by an explicit "load archived", never inside ~/.codex). */
+export function codexCacheDir(): string { return join(aoHome(), "cache", "codex"); }
+
+async function scan(base: string, names: Map<string, string>, byId: Map<string, SessionRef>): Promise<void> {
   let files: string[] = [];
   try {
     const entries = await readdir(base, { recursive: true, withFileTypes: true });
     files = entries.filter((e) => e.isFile() && e.name.endsWith(".jsonl")).map((e) => join(e.parentPath, e.name));
-  } catch { return []; }
+  } catch { return; }
   for (const file of files) {
     const m = ROLLOUT.exec(file); if (!m) continue;
     try {
@@ -51,5 +54,13 @@ export async function discoverSessions(root = codexDir()): Promise<SessionRef[]>
       if (s && (!old || s.mtimeMs > old.mtimeMs)) byId.set(s.id, s);
     } catch { /* one bad transcript must not hide the rest */ }
   }
+}
+
+/** Live sessions under `<root>/sessions`, plus archived ones the user already loaded into `cacheDir` (a plain read, no decompression). */
+export async function discoverSessions(root?: string, cacheDir?: string): Promise<SessionRef[]> {
+  const byId = new Map<string, SessionRef>(), r = root ?? codexDir(), names = await titles(r);
+  await scan(join(r, "sessions"), names, byId);
+  const cache = cacheDir ?? (root === undefined ? codexCacheDir() : undefined);
+  if (cache) { const loaded = new Map<string, SessionRef>(); await scan(cache, names, loaded); for (const [id, s] of loaded) if (!byId.has(id)) byId.set(id, s); }
   return [...byId.values()];
 }

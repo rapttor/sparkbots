@@ -27,7 +27,7 @@ describe("Codex adapter", () => {
     const events = lines.flatMap((line) => parseLine(line).events);
     expect(events.map((e) => e.kind)).toEqual(["turn_start", "message", "message", "tool", "usage", "message", "turn_end"]);
     expect(events.find((e) => e.kind === "message" && e.role === "assistant")).toMatchObject({ preview: "Working on it…" });
-    expect(events.find((e) => e.kind === "usage")).toMatchObject({ input: 10, output: 4, cacheRead: 3 });
+    expect(events.find((e) => e.kind === "usage")).toMatchObject({ input: 7, output: 4, cacheRead: 3 });
     expect(toolActivity("apply_patch")).toBe("coding");
   });
 

@@ -21,7 +21,10 @@ function itemText(content: unknown): string {
   return content.filter((b: any) => b && (b.type === "Text" || b.type === "text") && typeof b.text === "string").map((b: any) => b.text as string).join("\n");
 }
 
-export function parseLine(line: string): ParsedLine {
+/** Per-session parse state: the model is only written on `turn_context` records, not on the usage records themselves. */
+export interface CodexParseCtx { model?: string }
+
+export function parseLine(line: string, ctx?: CodexParseCtx): ParsedLine {
   let o: any;
   try { o = JSON.parse(line); } catch { return { events: [], ok: false }; }
   if (!o || typeof o !== "object" || Array.isArray(o)) return { events: [], ok: false };
@@ -48,8 +51,12 @@ export function parseLine(line: string): ParsedLine {
     const name = str(p.name) ?? "tool";
     events.push({ kind: "tool", session, tool: name, at });
   }
+  if (o.type === "turn_context" && ctx && str(p.model)) ctx.model = str(p.model);
+  // `token_usage_record` carries one response's usage (the sibling `token_count` event repeats it, so it is not read).
+  // OpenAI counts cached tokens inside input_tokens; SparkBots' pipeline treats input and cacheRead as separate buckets.
   if (o.type === "token_usage_record" && p.usage) {
-    events.push({ kind: "usage", session, model: str(p.model) ?? "codex", input: num(p.usage.input_tokens), output: num(p.usage.output_tokens), cacheRead: num(p.usage.cached_input_tokens), cacheWrite: num(p.usage.cache_write_input_tokens), at });
+    const cached = num(p.usage.cached_input_tokens);
+    events.push({ kind: "usage", session, model: str(p.model) ?? ctx?.model ?? "codex", input: Math.max(0, num(p.usage.input_tokens) - cached), output: num(p.usage.output_tokens), cacheRead: cached, cacheWrite: num(p.usage.cache_write_input_tokens), at });
   }
   return { events, ok: true, cwd: o.type === "session_meta" ? str(p.cwd) : undefined, sessionId: o.type === "session_meta" ? (str(p.session_id) ?? str(p.id)) : undefined };
 }
