@@ -4,8 +4,9 @@ import { useFrame } from "@react-three/fiber";
 import type { Layout } from "../layout";
 import { insideRoom, player } from "../roam";
 import { SESSION_S, WEAPONS, isOver, smash, startSession, timeLeft, type Session } from "./anger";
-import { bubble, btn, panel, pointer } from "./ui";
+import { bubble, btn, panel, pointer, Stop } from "./ui";
 
+const DWELL_MS = 2500;
 /** Anger room: the weapon pick opens when you walk in (or click the rack); then 60 s of breakable office junk. When time is up or everything is smashed the room resets. Points are local to this visit. */
 export function AngerRoom({ layout }: { layout: Layout }) {
   const az = layout.zones.find((z) => z.zone.id === "anger-room");
@@ -14,13 +15,16 @@ export function AngerRoom({ layout }: { layout: Layout }) {
   const [left, setLeft] = useState(0);
   const [total, setTotal] = useState(0);
   const inside = useRef(false);
+  const since = useRef(0); // when the player came in; the pick only opens after a short stay so walking through does not pop it up
   const sessRef = useRef<Session | null>(null); sessRef.current = sess;
 
   useFrame(() => {
     if (!az) return;
     const was = inside.current;
     inside.current = player.on && insideRoom({ x: az.x, z: az.z, w: az.w, d: az.d }, player.x, player.z);
-    if (inside.current && !was && !sessRef.current) setPick(true);
+    if (inside.current && !was) since.current = Date.now();
+    if (inside.current && since.current && Date.now() - since.current > DWELL_MS && !sessRef.current) { since.current = 0; setPick(true); }
+    if (!inside.current) { since.current = 0; if (was) setPick(false); } // walked out: the pick closes
     const s = sessRef.current;
     if (s) {
       const now = Date.now();
@@ -47,11 +51,11 @@ export function AngerRoom({ layout }: { layout: Layout }) {
       ))}
       {pick && !sess && (
         <Html position={[-3.7, 2.4, 2.3]} center zIndexRange={[30, 0]}>
-          <div style={panel}>
+          <Stop><div style={panel}>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>💢 Pick a weapon</div>
             {WEAPONS.map((w) => <button key={w.id} style={btn} onClick={() => begin(w.id)}>{w.icon} {w.name}</button>)}
             <button style={btn} onClick={() => setPick(false)}>Not today</button>
-          </div>
+          </div></Stop>
         </Html>
       )}
       {sess && <Html position={[0, 2.6, -2.5]} center style={{ pointerEvents: "none" }}><div style={bubble}>{WEAPONS.find((w) => w.id === sess.weapon)?.icon} {left}s · {sess.points} pts</div></Html>}
