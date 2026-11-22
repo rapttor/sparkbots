@@ -542,3 +542,22 @@ button.project-link:hover{background:#ffffff10}
 .am-msg.mine{background:#4fd1c514;border-color:#4fd1c544;align-self:flex-end;max-width:90%}
 .am-msg.bot{background:#ffffff08;max-width:94%}
 .am-tabs{flex:none}
+
+/* compact composer: message box (auto-grows to 15 lines) on the left, icon buttons with a small label under each on the right, Archive last and red */
+.wc-compose{grid-template-columns:minmax(0,1fr) auto;align-items:end}
+.wc-ta{position:relative;display:flex}
+.wc-compose textarea{flex:1;resize:none;min-height:62px;max-height:none;line-height:1.4;padding-bottom:26px;overflow-y:auto}
+.wc-attach{position:absolute;left:6px;bottom:5px;background:none;border:0;padding:0 4px;font-size:15px;opacity:.75;cursor:pointer}
+.wc-attach:hover{opacity:1}
+.wc-compose .wc-btns{display:grid;grid-template-columns:repeat(2,52px);gap:4px;min-width:0;align-content:end}
+.wc-ib{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:4px 2px;min-height:44px;width:100%;line-height:1}
+.wc-ib .wc-ico{font-size:17px}
+.wc-ib small{font-size:10px;color:var(--muted)}
+.wc-ib.wc-send{background:var(--accent);border-color:var(--accent);color:#06201d}
+.wc-ib.wc-send small{color:#06201d}
+.wc-ib.off{opacity:.45;cursor:not-allowed}
+.wc-ib.wc-danger{border-color:#f8717166;color:var(--red)}
+.wc-ib.wc-danger small{color:var(--red)}
+.wc-ib.wc-danger:hover:not(:disabled){background:#f8717122;border-color:var(--red)}
+.wc-forkcell{position:relative}
+.wc-forkcell .wc-info{position:absolute;top:-2px;right:-2px;padding:0 3px;font-size:11px;line-height:1.2;background:var(--bg)}

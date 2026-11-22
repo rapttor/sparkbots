@@ -168,6 +168,14 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
     } catch { /* transient */ }
   }, ["messages", "runs"], workerId);
 
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { // the message box grows with its text, up to 15 lines, then scrolls
+    const el = taRef.current; if (!el) return;
+    el.style.height = "auto";
+    const line = parseFloat(getComputedStyle(el).lineHeight) || 20;
+    el.style.height = `${Math.min(el.scrollHeight, Math.round(line * 15 + 16))}px`;
+  }, [prompt]);
+
   const busy = w?.state === "working" || w?.state === "waiting";
   useEffect(() => {
     // Wait until React has painted the newly appended bubble/typing row, then pin the conversation to its end.
@@ -314,9 +322,11 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
               ))}
             </div>
           )}
+          <div className="wc-ta">
           <textarea
+            ref={taRef}
             value={prompt}
-            rows={3}
+            rows={2}
             onChange={(e) => { setPrompt(e.target.value); setSlashOff(false); setSlashIdx(0); }}
             onKeyDown={onComposeKey}
             onKeyUp={stopProp}
@@ -324,15 +334,16 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
             placeholder={isCodex ? "Message this Codex agent (Enter to send)" : isOpenCode ? "Message this OpenCode agent (Enter to send)" : "Message this agent (Enter to send, Shift+Enter for a new line). Drop or paste files to attach."}
             aria-label="Message"
           />
+          {!isCodex && <button type="button" className="wc-attach" onClick={() => fileInput.current?.click()} title="Attach files or images (max 15 MB each)" aria-label="Attach files">📎</button>}
+          </div>
           <div className="wc-btns">
-            <button className={`wc-send ${hasContent && (isCodex || !w.liveInTerminal) ? "" : "off"}`} aria-disabled={!hasContent || (!isCodex && w.liveInTerminal)} onClick={onSend} title={!isCodex && w.liveInTerminal ? "Open in a terminal: use Send as fork" : "Send"}>Send</button>
-            {!isCodex && <div className="wc-forkrow">
-              <button className={`small ${hasContent ? "" : "off"}`} aria-disabled={!hasContent} onClick={onFork} title="A new agent that continues from this conversation">
-                Send as fork{w.liveInTerminal ? " · required" : ""}
-              </button>
+            <button className={`wc-ib wc-send ${hasContent && (isCodex || !w.liveInTerminal) ? "" : "off"}`} aria-disabled={!hasContent || (!isCodex && w.liveInTerminal)} onClick={onSend} title={!isCodex && w.liveInTerminal ? "Open in a terminal: use Send as fork" : "Send (Enter)"}><span className="wc-ico">➤</span><small>Send</small></button>
+            {!isCodex && <div className="wc-forkcell">
+              <button className={`wc-ib ${hasContent ? "" : "off"}`} aria-disabled={!hasContent} onClick={onFork} title={`A new agent that continues from this conversation${w.liveInTerminal ? " (required: a terminal holds this session)" : ""}`}><span className="wc-ico">⑂</span><small>Fork{w.liveInTerminal ? " *" : ""}</small></button>
               <button className="icon-btn wc-info" aria-label="About forking" aria-expanded={infoOpen} onClick={() => setInfoOpen(!infoOpen)}>ⓘ</button>
             </div>}
-            {run?.status === "running" && <button className="small" onClick={() => guard(() => api.stop(run.runId).then(() => undefined))}>Stop</button>}
+            {run?.status === "running" && <button className="wc-ib" onClick={() => guard(() => api.stop(run.runId).then(() => undefined))} title="Stop the running reply"><span className="wc-ico">⏹</span><small>Stop</small></button>}
+            <button className="wc-ib wc-danger" onClick={archive} disabled={w.liveInTerminal} title={w.liveInTerminal ? "Live in a terminal: close it first" : "Archive this agent (it leaves the office; nothing is deleted)"}><span className="wc-ico">🗄</span><small>Archive</small></button>
           </div>
         </div>
         {infoOpen && (
@@ -347,9 +358,7 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
           </div>
         )}
         <div className="wc-tools">
-          <button className="small" onClick={archive} disabled={w.liveInTerminal} title={w.liveInTerminal ? "Live in a terminal: close it first" : "Archive this agent (nothing is deleted)"}>🗄 Archive</button>
-          {!isCodex && <><button className="small" onClick={() => fileInput.current?.click()} title="Attach files or images (max 15 MB each)">📎 Attach</button>
-          <input ref={fileInput} type="file" multiple hidden onChange={(e) => { if (e.target.files) void attach(e.target.files); e.target.value = ""; }} /></>}
+          {!isCodex && <input ref={fileInput} type="file" multiple hidden onChange={(e) => { if (e.target.files) void attach(e.target.files); e.target.value = ""; }} />}
           {isOpenCode && <button type="button" className="wc-model-open" onClick={() => setModelPicker(true)} title="Browse OpenCode models with provider, version, context and cost">
             <span className="muted">Model</span> <b>{model || "project / global default"}</b> <span aria-hidden>▾</span>
           </button>}
