@@ -3,7 +3,7 @@ import { computeLayout } from "../src/world/layout";
 import { makeFixtureSnapshot } from "../src/world/fixture";
 import { CAR, newCar, speedOf, stepCar } from "../src/world/games/race/car";
 import { RaceSim } from "../src/world/games/race/sim";
-import { buildTrack, gridSlot, pointAt, project, trackClearance, trackInput, type Rect, type Track } from "../src/world/games/race/track";
+import { MAX_TURN, buildTrack, gridSlot, pointAt, project, trackClearance, trackInput, type Rect, type Track } from "../src/world/games/race/track";
 import { mulberry32 } from "../src/world/games/types";
 
 const rectsOf = (l: ReturnType<typeof computeLayout>) => { const i = trackInput(l); return { zones: i.zones, areas: i.areas, input: i }; };
@@ -27,18 +27,34 @@ describe("race track from the campus layout", () => {
       expect(trackClearance(t, areas)).toBeGreaterThan(0);
     });
   }
+  it("hugs the shape of the map: more corners than a rectangle, none too sharp, closed", () => {
+    for (const n of [20, 40, 150]) {
+      const t = buildTrack(rectsOf(computeLayout(makeFixtureSnapshot(n))).input)!;
+      expect(t.kind).toBe("contour");
+      let abs = 0, signed = 0, worst = 0;
+      for (let i = 0; i < t.n; i++) {
+        const a = (i + t.n - 1) % t.n, c = (i + 1) % t.n;
+        const h1 = Math.atan2(t.zs[i]! - t.zs[a]!, t.xs[i]! - t.xs[a]!), h2 = Math.atan2(t.zs[c]! - t.zs[i]!, t.xs[c]! - t.xs[i]!);
+        const d = Math.atan2(Math.sin(h2 - h1), Math.cos(h2 - h1));
+        abs += Math.abs(d); signed += d; worst = Math.max(worst, Math.abs(d));
+      }
+      expect(Math.abs(Math.abs(signed) - 2 * Math.PI)).toBeLessThan(0.3); // one closed loop, no figure-of-eight
+      expect(worst).toBeLessThan(MAX_TURN * 1.6);
+      expect(abs).toBeGreaterThan(2 * Math.PI * 1.1);                      // concave bends: the outline follows the cut-out corners
+    }
+  });
   it("is deterministic, and null without a campus", () => {
     const i = rectsOf(computeLayout(makeFixtureSnapshot(40))).input;
     expect(buildTrack(i)!.xs).toEqual(buildTrack(i)!.xs);
     expect(buildTrack({ zones: [], areas: [], bounds: { x0: -5, z0: -5, x1: 5, z1: 5 } })).toBeNull();
   });
-  it("prefers the loop through the plaza when it is wide enough, else goes around the campus", () => {
+  it("prefers the loop through the plaza when it is wide enough, else hugs the campus", () => {
     const zone: Rect = { x0: -10, z0: -10, x1: 10, z1: 10 };
     const far: Rect = { x0: -60, z0: -60, x1: 60, z1: 60 };
     const inner = buildTrack({ zones: [zone], areas: [{ x0: 40, z0: 40, x1: 60, z1: 60 }], bounds: far })!;
     expect(inner.kind).toBe("inner");
     const tight = buildTrack({ zones: [zone], areas: [{ x0: 11.5, z0: -60, x1: 40, z1: 60 }], bounds: far })!;
-    expect(tight.kind).toBe("outer");
+    expect(tight.kind).not.toBe("inner");
     expect(trackClearance(tight, [zone, { x0: 11.5, z0: -60, x1: 40, z1: 60 }])).toBeGreaterThan(0);
   });
   it("project and pointAt agree, on the centre line and beside it", () => {
@@ -109,6 +125,14 @@ describe("race", () => {
     expect(done.length).toBe(6);
     expect(s.order[0]).toBe(done.sort((a, b) => a.finishedAt! - b.finishedAt!)[0]!.id);
     expect(s.time).toBeLessThan(200); // 2 laps on this loop
+  });
+  it("AI cars finish a race on the campus-hugging loop too", () => {
+    const t = buildTrack(rectsOf(computeLayout(makeFixtureSnapshot(40))).input)!;
+    const s = new RaceSim(t, mulberry32(9), 1);
+    for (let i = 0; i < 6; i++) s.add(`a${i}`, `A${i}`, "#fff");
+    let guard = 0;
+    while (!s.over && guard++ < 60 * 600) { s.step(1 / 60); for (const r of s.racers) expect(Math.abs(r.car.lat)).toBeLessThanOrEqual(t.halfWidth + 1e-6); }
+    expect(s.racers.filter((r) => r.finishedAt !== null).length).toBeGreaterThanOrEqual(5);
   });
   it("a retired car leaves the standings; a race with only retired cars ends", () => {
     const s = mk(3);

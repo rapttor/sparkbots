@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import {
@@ -37,6 +37,7 @@ import { DataCenter, consoleSpot, openDataRoom } from "./datacenter";
 import { GamesLayer } from "./games/GamesLayer";
 import { RaceLayer } from "./games/race/RaceLayer";
 import { raceCam } from "./games/race/cam";
+import { raceHub } from "./games/race/RaceLayer";
 import { ManagerWalls } from "./walls";
 import { nerd, sampleFrame } from "../state/nerd";
 import { clearView, loadFlyPrefs, loadView, saveView } from "./viewDefault";
@@ -945,7 +946,12 @@ export default function World({ active = true }: { active?: boolean }) {
   const shownSnap = useMemo(
     () => (snapshot ? { ...snapshot, teams: applyFilters(snapshot.teams, filters, tasks).filter((t) => t.workers.length > 0) } : snapshot),
     [snapshot, filters, tasks]);
-  const layout = useMemo(() => computeLayout(shownSnap, showAll), [shownSnap, showAll]);
+  const liveLayout = useMemo(() => computeLayout(shownSnap, showAll), [shownSnap, showAll]);
+  // While a race runs the map stays exactly as it was at the start, whatever you filter or the data does (the track is drawn on it).
+  const racing = useSyncExternalStore((cb) => raceHub.subscribe(cb), () => raceHub.running);
+  const heldLayout = useRef(liveLayout);
+  if (!racing) heldLayout.current = liveLayout;
+  const layout = heldLayout.current;
   const hiddenTeams = shownSnap ? shownSnap.teams.length - visibleTeams(shownSnap, false).length : 0;
   const [jump, setJump] = useState<JumpReq | null>(null);
   // other panels ask the camera to go somewhere: "fly to this agent / project" (Teams, Control Room, search results)

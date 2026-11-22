@@ -195,6 +195,7 @@ function RaceOverlay() {
               </div>
             )}
             {raceHub.userRacing && <div className="muted">Arrows or WASD to drive · Space to drift · C: camera behind / driver's seat</div>}
+            {sim && <div className="muted">The map stays as it was at the start until the race ends.</div>}
             {msg && <div role="alert">{msg}</div>}
             <label><input type="checkbox" checked={raceHub.auto} onChange={(e) => { raceHub.auto = e.target.checked; try { localStorage.setItem(AUTO_KEY, e.target.checked ? "1" : "0"); } catch { /* ignore */ } tick((n) => n + 1); }} /> Idle agents race on their own</label>
           </div>

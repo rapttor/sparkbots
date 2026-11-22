@@ -10,7 +10,7 @@ const CORNER_R = 9;
 const MIN_HALF_EXTENT = 14;       // a tiny layout still gets a decent loop
 
 export interface Track {
-  kind: "inner" | "outer";
+  kind: "inner" | "contour" | "outer";
   xs: number[]; zs: number[];     // centre line, closed (the last point connects to the first)
   cum: number[];                  // cum[i] = distance from point 0 to point i
   n: number;
@@ -58,6 +58,119 @@ function roundedLoop(rect: Rect, r: number): { xs: number[]; zs: number[]; cum: 
   return { xs, zs, cum, length: total };
 }
 
+/** Marching squares on a distance field: the closed loops where the field crosses `level`. Pure and deterministic. */
+function isoLoops(f: Float32Array, w: number, h: number, ox: number, oz: number, cell: number, level: number): Pt[][] {
+  const pt = new Map<number, Pt>();
+  const adj = new Map<number, number[]>();
+  const edgeKey = (i: number, j: number, horiz: boolean): number => (j * w + i) * 2 + (horiz ? 0 : 1);
+  const edgePt = (i: number, j: number, horiz: boolean): number => {
+    const k = edgeKey(i, j, horiz);
+    if (!pt.has(k)) {
+      const i1 = horiz ? i + 1 : i, j1 = horiz ? j : j + 1, v0 = f[j * w + i]!, v1 = f[j1 * w + i1]!, t = (level - v0) / (v1 - v0);
+      pt.set(k, { x: ox + (i + (i1 - i) * t) * cell, z: oz + (j + (j1 - j) * t) * cell });
+    }
+    return k;
+  };
+  const link = (a: number, b: number) => { (adj.get(a) ?? adj.set(a, []).get(a)!).push(b); (adj.get(b) ?? adj.set(b, []).get(b)!).push(a); };
+  for (let j = 0; j < h - 1; j++) for (let i = 0; i < w - 1; i++) {
+    const idx = (f[j * w + i]! > level ? 1 : 0) | (f[j * w + i + 1]! > level ? 2 : 0) | (f[(j + 1) * w + i + 1]! > level ? 4 : 0) | (f[(j + 1) * w + i]! > level ? 8 : 0);
+    if (idx === 0 || idx === 15) continue;
+    const T = () => edgePt(i, j, true), B = () => edgePt(i, j + 1, true), L = () => edgePt(i, j, false), R = () => edgePt(i + 1, j, false);
+    switch (idx) {
+      case 1: case 14: link(L(), T()); break;
+      case 2: case 13: link(T(), R()); break;
+      case 3: case 12: link(L(), R()); break;
+      case 4: case 11: link(R(), B()); break;
+      case 5: link(L(), T()); link(R(), B()); break;
+      case 6: case 9: link(T(), B()); break;
+      case 7: case 8: link(L(), B()); break;
+      case 10: link(T(), R()); link(L(), B()); break;
+    }
+  }
+  const seen = new Set<number>(), loops: Pt[][] = [];
+  for (const start of adj.keys()) {
+    if (seen.has(start)) continue;
+    const loop: Pt[] = [];
+    let prev = -1, cur = start;
+    for (let guard = 0; guard < adj.size + 2; guard++) {
+      seen.add(cur); loop.push(pt.get(cur)!);
+      const nb = adj.get(cur)!, next = nb[0] !== prev ? nb[0]! : nb[1] ?? nb[0]!;
+      if (nb.length !== 2) { loop.length = 0; break; } // not a clean loop (touches the grid edge): ignore
+      prev = cur; cur = next;
+      if (cur === start) break;
+    }
+    if (loop.length > 8) loops.push(loop);
+  }
+  return loops;
+}
+
+const polyLen = (p: Pt[]): number => { let l = 0; for (let i = 0; i < p.length; i++) { const a = p[i]!, b = p[(i + 1) % p.length]!; l += Math.hypot(b.x - a.x, b.z - a.z); } return l; };
+const bboxArea = (p: Pt[]): number => { const xs = p.map((q) => q.x), zs = p.map((q) => q.z); return (Math.max(...xs) - Math.min(...xs)) * (Math.max(...zs) - Math.min(...zs)); };
+const inside = (p: Pt, poly: Pt[]): boolean => {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i]!, b = poly[j]!;
+    if ((a.z > p.z) !== (b.z > p.z) && p.x < ((b.x - a.x) * (p.z - a.z)) / (b.z - a.z) + a.x) c = !c;
+  }
+  return c;
+};
+
+/** Resample a closed polyline at even spacing. */
+function resample(p: Pt[], step: number): Pt[] {
+  const total = polyLen(p), n = Math.max(8, Math.round(total / step)), d = total / n, out: Pt[] = [];
+  let i = 0, acc = 0, segLen = Math.hypot(p[1 % p.length]!.x - p[0]!.x, p[1 % p.length]!.z - p[0]!.z);
+  for (let k = 0; k < n; k++) {
+    const want = k * d;
+    while (acc + segLen < want && i < p.length - 1) { acc += segLen; i++; const a = p[i]!, b = p[(i + 1) % p.length]!; segLen = Math.hypot(b.x - a.x, b.z - a.z); }
+    const a = p[i]!, b = p[(i + 1) % p.length]!, t = segLen > 0 ? (want - acc) / segLen : 0;
+    out.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+  }
+  return out;
+}
+
+const turnAt = (p: Pt[], i: number): number => {
+  const n = p.length, a = p[(i - 1 + n) % n]!, b = p[i]!, c = p[(i + 1) % n]!;
+  const h1 = Math.atan2(b.z - a.z, b.x - a.x), h2 = Math.atan2(c.z - b.z, c.x - b.x);
+  return Math.atan2(Math.sin(h2 - h1), Math.cos(h2 - h1));
+};
+export const MAX_TURN = 0.2; // rad per metre of road: a corner radius of at least 5 m
+
+/** Smooth a 1 m-spaced closed loop until no bend is sharper than MAX_TURN. */
+function smoothLoop(p0: Pt[]): Pt[] {
+  let p = p0;
+  for (let pass = 0; pass < 80; pass++) {
+    let worst = 0;
+    for (let i = 0; i < p.length; i++) worst = Math.max(worst, Math.abs(turnAt(p, i)));
+    if (worst <= MAX_TURN * 0.9 && pass >= 6) break;
+    const n = p.length, K = 3;
+    p = p.map((_, i) => { let x = 0, z = 0; for (let k = -K; k <= K; k++) { const q = p[(i + k + n * 4) % n]!; x += q.x; z += q.z; } return { x: x / (2 * K + 1), z: z / (2 * K + 1) }; });
+    p = resample(p, STEP);
+  }
+  return p;
+}
+
+/** The loop that hugs the shape of the campus: the contour at a distance from all rects, smoothed. Null when the shape is not one piece. */
+function contourLoop(rects: Rect[], need: number): Pt[] | null {
+  const cell = 1;
+  const hullAll = { x0: Math.min(...rects.map((r) => r.x0)), z0: Math.min(...rects.map((r) => r.z0)), x1: Math.max(...rects.map((r) => r.x1)), z1: Math.max(...rects.map((r) => r.z1)) };
+  const pad = need + 14, ox = hullAll.x0 - pad, oz = hullAll.z0 - pad;
+  const w = Math.ceil((hullAll.x1 - hullAll.x0 + 2 * pad) / cell) + 1, h = Math.ceil((hullAll.z1 - hullAll.z0 + 2 * pad) / cell) + 1;
+  if (w * h > 400_000) return null;
+  const f = new Float32Array(w * h);
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { let m = Infinity; for (const r of rects) m = Math.min(m, distToRect(ox + i * cell, oz + j * cell, r)); f[j * w + i] = m; }
+  for (let extra = 1.2; extra < 9; extra += 0.8) {
+    const loops = isoLoops(f, w, h, ox, oz, cell, need + extra);
+    if (!loops.length) return null;
+    loops.sort((a, b) => bboxArea(b) - bboxArea(a));
+    const outer = loops[0]!;
+    if (loops.slice(1).some((l) => !inside(l[0]!, outer))) return null; // a second separate piece: no single loop around everything
+    if (polyLen(outer) < 80) return null;
+    const sm = smoothLoop(resample(outer, STEP));
+    if (minClearance(sm.map((q) => q.x), sm.map((q) => q.z), rects) >= need - 1e-6) return sm;
+  }
+  return null;
+}
+
 const minClearance = (xs: number[], zs: number[], rects: Rect[]): number => {
   let m = Infinity;
   for (let i = 0; i < xs.length; i++) for (const r of rects) m = Math.min(m, distToRect(xs[i]!, zs[i]!, r));
@@ -86,6 +199,16 @@ export function buildTrack(input: TrackInput): Track | null {
   if (input.zones.length) {
     const inner = make("inner", grow(hull(input.zones), off));
     if (minClearance(inner.xs, inner.zs, all) >= need - 1e-6) return inner;
+  }
+  const c = contourLoop(all, need);
+  if (c) {
+    // start line in the straightest stretch: a long run-up and run-out
+    const n = c.length, W = 14;
+    let bestI = 0, best = Infinity;
+    for (let i = 0; i < n; i += 2) { let sc = 0; for (let k = -W; k <= W; k++) sc += Math.abs(turnAt(c, (i + k + n * 2) % n)); if (sc < best) { best = sc; bestI = i; } }
+    const rot = [...c.slice(bestI), ...c.slice(0, bestI)], length = polyLen(rot), xs = rot.map((q) => q.x), zs = rot.map((q) => q.z);
+    const rect = { x0: Math.min(...xs), z0: Math.min(...zs), x1: Math.max(...xs), z1: Math.max(...zs) };
+    return { kind: "contour", xs, zs, cum: xs.map((_, k) => (k * length) / n), n, length, halfWidth: HALF_WIDTH, rect };
   }
   const everything = [...all, input.bounds];
   return make("outer", grow(atLeast(hull(everything)), off));
