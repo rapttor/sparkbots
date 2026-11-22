@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeLayout } from "../src/world/layout";
 import { makeFixtureSnapshot } from "../src/world/fixture";
-import { newCar, slideOf, speedOf, stepCar } from "../src/world/games/race/car";
+import { newCar, offroadLimit, slideOf, speedOf, stepCar } from "../src/world/games/race/car";
 import { AGENT_SPEED, CAR_TYPES } from "../src/world/games/race/carTypes";
 import { RaceSim } from "../src/world/games/race/sim";
 import { MAX_TURN, buildTrack, gridSlot, pointAt, project, trackClearance, trackInput, type Rect, type Track } from "../src/world/games/race/track";
@@ -111,9 +111,9 @@ describe("car physics", () => {
       expect(speedOf(c)).toBeGreaterThan(CAR_TYPES[kind].maxSpeed * 0.8);
     }
   });
-  it("the road edge is a wall: driving straight into it stays on the road and counts a bump", () => {
+  it("two car widths beyond the road edge there is a wall: you stay inside it and it counts a bump", () => {
     const t = oval(), p = pointAt(t, 30), c = newCar(p.x, p.z, Math.atan2(p.tz, p.tx) + Math.PI / 2); // facing sideways, off the road
-    for (let i = 0; i < 60 * 4; i++) { stepCar(c, { throttle: 1, steer: 0, drift: false }, 1 / 60, t); expect(Math.abs(c.lat)).toBeLessThanOrEqual(t.halfWidth + 1e-6); }
+    for (let i = 0; i < 60 * 4; i++) { stepCar(c, { throttle: 1, steer: 0, drift: false }, 1 / 60, t); expect(Math.abs(c.lat)).toBeLessThanOrEqual(offroadLimit(t, CAR_TYPES.race) + 1e-6); }
     expect(c.hits).toBeGreaterThan(0);
   });
 });
@@ -134,7 +134,7 @@ describe("race", () => {
     let guard = 0;
     while (!s.over && guard++ < 60 * 400) {
       s.step(1 / 60);
-      for (const r of s.racers) { expect(Math.abs(r.car.lat)).toBeLessThanOrEqual(s.track.halfWidth + 1e-6); expect(Number.isFinite(r.car.x)).toBe(true); }
+      for (const r of s.racers) { expect(Math.abs(r.car.lat)).toBeLessThanOrEqual(offroadLimit(s.track, s.spec) + 1e-6); expect(Number.isFinite(r.car.x)).toBe(true); }
     }
     expect(s.over).toBe(true);
     const done = s.racers.filter((r) => r.finishedAt !== null);
@@ -147,7 +147,7 @@ describe("race", () => {
     const s = new RaceSim(t, mulberry32(9), 1);
     for (let i = 0; i < 6; i++) s.add(`a${i}`, `A${i}`, "#fff");
     let guard = 0;
-    while (!s.over && guard++ < 60 * 600) { s.step(1 / 60); for (const r of s.racers) expect(Math.abs(r.car.lat)).toBeLessThanOrEqual(t.halfWidth + 1e-6); }
+    while (!s.over && guard++ < 60 * 600) { s.step(1 / 60); for (const r of s.racers) expect(Math.abs(r.car.lat)).toBeLessThanOrEqual(offroadLimit(t, s.spec) + 1e-6); }
     expect(s.racers.filter((r) => r.finishedAt !== null).length).toBeGreaterThanOrEqual(5);
   });
   it("a retired car leaves the standings; a race with only retired cars ends", () => {
@@ -289,7 +289,7 @@ describe("car types, hazards, carmageddon", () => {
     const me = h.sim!.get("user")!;
     me.car.h += Math.PI / 2; me.input.throttle = 1; // drive off the road
     for (let t = 0; t < 6; t += 0.05) h.sim!.step(0.05);
-    expect(Math.abs(me.car.lat)).toBeGreaterThan(h.sim!.track.halfWidth + 3);
+    expect(Math.abs(me.car.lat)).toBeGreaterThan(offroadLimit(h.sim!.track, h.sim!.spec) + 3);
     expect(me.finishedAt).toBeNull();
     adv(h.sim!, 250);
     expect(h.sim!.over).toBe(true);
@@ -324,5 +324,72 @@ describe("car-to-car knocks and lap times", () => {
     const r = s.get("a")!;
     expect(r.lastLap).not.toBeNull(); expect(r.bestLap!).toBeLessThanOrEqual(r.lastLap!);
     expect(r.bestLap!).toBeGreaterThan(5);
+  });
+});
+
+describe("leaving the road and items", () => {
+  it("you may leave the tarmac by two car widths (slower there), but not further", () => {
+    const t = oval(), spec = CAR_TYPES.race, p = pointAt(t, 30), c = newCar(p.x, p.z, Math.atan2(p.tz, p.tx) + Math.PI / 2);
+    let maxLat = 0, sawGrass = false;
+    for (let i = 0; i < 60 * 6; i++) { stepCar(c, { throttle: 1, steer: 0, drift: false }, 1 / 60, t, spec); maxLat = Math.max(maxLat, Math.abs(c.lat)); if (Math.abs(c.lat) > t.halfWidth) { sawGrass = true; expect(speedOf(c)).toBeLessThan(spec.maxSpeed * 0.66 + 1.5); } }
+    expect(sawGrass).toBe(true);
+    expect(maxLat).toBeGreaterThan(t.halfWidth + spec.radius * 2);
+    expect(maxLat).toBeLessThanOrEqual(offroadLimit(t, spec) + 1e-6);
+  });
+  it("the loop leaves room beside the road for that", () => {
+    const l = computeLayout(makeFixtureSnapshot(40)), { zones, areas, input } = rectsOf(l), t = buildTrack(input)!;
+    for (const kind of ["race", "kart", "monster"] as const) {
+      expect(trackClearance(t, zones)).toBeGreaterThan(offroadLimit(t, CAR_TYPES[kind]) - t.halfWidth);
+      expect(trackClearance(t, areas)).toBeGreaterThan(offroadLimit(t, CAR_TYPES[kind]) - t.halfWidth);
+    }
+  });
+  const mk = (n = 3) => { const s = new RaceSim(oval(), mulberry32(8), 3); for (let i = 0; i < n; i++) s.add(`a${i}`, `A${i}`, "#fff", i === 0); adv(s, 3.1); return s; };
+  it("item boxes give one item to a car that drives through them, then come back", () => {
+    const s = mk(1), r = s.get("a0")!, pk = s.decor.pickups[0]!;
+    Object.assign(r.car, { seg: -1, x: pk.x, z: pk.z });
+    s.step(0.02);
+    expect(r.item).not.toBeNull();
+    expect(s.pickupCd[0]).toBeGreaterThan(0);
+    const first = r.item; Object.assign(r.car, { seg: -1, x: pk.x, z: pk.z }); s.step(0.02);
+    expect(r.item).toBe(first);                       // hands full: nothing new
+  });
+  it("boost speeds you past the normal top speed for a while", () => {
+    const s = mk(1), r = s.get("a0")!;
+    r.item = "boost"; r.input.throttle = 1;
+    for (let i = 0; i < 60 * 2; i++) { r.input.throttle = 1; s.step(1 / 60); }
+    r.item = "boost";
+    expect(s.useItem("a0")).toBe(true);
+    expect(r.item).toBeNull();
+    let top = 0;
+    for (let i = 0; i < 60 * 2; i++) { r.input.throttle = 1; s.step(1 / 60); top = Math.max(top, speedOf(r.car)); }
+    expect(top).toBeGreaterThan(s.spec.maxSpeed * 1.05);
+  });
+  it("a missile follows the road and homes in on the car ahead: it slows that car and explodes", () => {
+    const s = mk(2), a = s.get("a0")!, b = s.get("a1")!, p = pointAt(s.track, 60);
+    Object.assign(b.car, { seg: -1, s: 60, x: p.x, z: p.z, h: Math.atan2(p.tz, p.tx), vx: p.tx * 10, vz: p.tz * 10 }); b.prog = a.prog + 25; b.input = { throttle: 0, steer: 0, drift: false };
+    const q = pointAt(s.track, 35);
+    Object.assign(a.car, { seg: -1, s: 35, x: q.x, z: q.z, h: Math.atan2(q.tz, q.tx) }); a.prog = b.prog - 25; a.item = "missile";
+    expect(s.useItem("a0")).toBe(true);
+    expect(s.missiles.length).toBe(1); expect(s.missiles[0]!.target).toBe("a1");
+    const before = speedOf(b.car);
+    for (let i = 0; i < 60 * 2 && s.missiles.length; i++) s.step(1 / 60);
+    expect(s.missiles.length).toBe(0);
+    expect(s.events.length).toBe(1);
+    expect(speedOf(b.car)).toBeLessThan(before * 0.6);
+  });
+  it("a trap drops an oil slick behind you that takes the grip from a car driving over it", () => {
+    const s = mk(2), a = s.get("a0")!, b = s.get("a1")!;
+    a.item = "trap"; expect(s.useItem("a0")).toBe(true);
+    const tr = s.traps[0]!;
+    Object.assign(b.car, { seg: -1, x: tr.x, z: tr.z, slick: 0 });
+    s.step(0.02);
+    expect(b.car.slick).toBeGreaterThan(0);
+  });
+  it("AI cars use their items", () => {
+    const s = new RaceSim(oval(), mulberry32(3), 2);
+    for (let i = 0; i < 6; i++) s.add(`a${i}`, `A${i}`, "#fff");
+    let used = 0; const orig = s.useItem.bind(s); s.useItem = (id: string) => { const ok = orig(id); if (ok) used++; return ok; };
+    let g = 0; while (!s.over && g++ < 60 * 900) s.step(1 / 60);
+    expect(used).toBeGreaterThan(2);
   });
 });

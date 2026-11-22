@@ -5,7 +5,7 @@ export interface Pt { x: number; z: number }
 
 export const STEP = 1;            // spacing of the centre line points (m)
 export const HALF_WIDTH = 2.6;    // the road is 5.2 m wide
-export const CLEARANCE = 0.8;     // keep this much between the road edge and any room
+export const CLEARANCE = 5.4;     // free ground beside the road: you may leave it by two car widths (see offroadLimit) before a wall stops you
 const CORNER_R = 9;
 const MIN_HALF_EXTENT = 14;       // a tiny layout still gets a decent loop
 

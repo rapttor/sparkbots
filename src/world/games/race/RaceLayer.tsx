@@ -6,7 +6,7 @@ import { displayName } from "../../../util";
 import { mulberry32 } from "../types";
 import { effectiveState, roams } from "../../roam";
 import type { Layout } from "../../layout";
-import { CARMA_TIME, MAX_CARS } from "./sim";
+import { CARMA_TIME, ITEM_ICON, MAX_CARS } from "./sim";
 import { slideOf, speedOf } from "./car";
 import { AGENT_SPEED, CAR_KINDS, CAR_TYPES, type CarKind, type Part } from "./carTypes";
 import { LAPS, RaceHub, type RaceEnv } from "./hub";
@@ -20,7 +20,7 @@ export const raceHub = new RaceHub(none);
 const AUTO_KEY = "sparkbots.race.auto";
 try { raceHub.auto = localStorage.getItem(AUTO_KEY) !== "0"; } catch { /* storage blocked: default on */ }
 
-const DRIVE_KEYS = new Set(["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", " ", "c", "escape"]);
+const DRIVE_KEYS = new Set(["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", " ", "c", "escape", "e", "shift"]);
 let fpv = false; // camera: behind the car (default) or from the driver's seat; C toggles
 const angleDiff = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 
@@ -115,7 +115,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
     raceCam.active = true; camReady.current = false;
     sendView({ t: "mode", mode: "walk" }); // the 3D scene (not the label map) must be showing
     const typing = (e: KeyboardEvent) => { const el = e.target as HTMLElement | null; return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable); };
-    const down = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (!DRIVE_KEYS.has(k) || typing(e) || e.metaKey || e.ctrlKey || e.altKey) return; e.preventDefault(); e.stopImmediatePropagation(); if (k === "c") { if (!e.repeat) fpv = !fpv; return; } if (k === "escape") { raceHub.stop(); return; } keys.current.add(k); };
+    const down = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (!DRIVE_KEYS.has(k) || typing(e) || e.metaKey || e.ctrlKey || e.altKey) return; e.preventDefault(); e.stopImmediatePropagation(); if (k === "c") { if (!e.repeat) fpv = !fpv; return; } if (k === "escape") { raceHub.stop(); return; } if (k === "e" || k === "shift") { if (!e.repeat && raceHub.userId) raceHub.sim?.useItem(raceHub.userId); return; } keys.current.add(k); };
     const up = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (DRIVE_KEYS.has(k)) { keys.current.delete(k); } };
     const clear = () => keys.current.clear();
     window.addEventListener("keydown", down, true); window.addEventListener("keyup", up, true); window.addEventListener("blur", clear);
@@ -130,6 +130,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
   const colored = useRef(-1);
   const road = useMemo(() => (track ? { asphalt: ribbon(track, -track.halfWidth, track.halfWidth, 0.03), kerbs: kerbs(track) } : null), [track]);
   const potM = useRef<InstancedMesh>(null), oilM = useRef<InstancedMesh>(null), tyreM = useRef<InstancedMesh>(null), botB = useRef<InstancedMesh>(null), botH = useRef<InstancedMesh>(null), splashM = useRef<InstancedMesh>(null);
+  const pickM = useRef<InstancedMesh>(null), missM = useRef<InstancedMesh>(null), trapM = useRef<InstancedMesh>(null);
   const decorFor = useRef<unknown>(null);
   const clock = useRef(0);
 
@@ -202,6 +203,14 @@ export function RaceLayer({ layout }: { layout: Layout }) {
       const tyres = sim.decor.tyres.flatMap((t) => Array.from({ length: t.n }, (_, k) => ({ x: t.x, z: t.z, y: 0.3 + k * 0.55 })));
       put(tyreM.current, tyres.length, (i) => [tyres[i]!.x, tyres[i]!.y, tyres[i]!.z, 1]);
     }
+    // item boxes (spin; gone while cooling down), missiles in flight, oil slicks dropped by drivers, explosions
+    const pm = pickM.current;
+    if (pm) { sim.decor.pickups.forEach((pk, i) => { dummy.position.set(pk.x, sim.pickupCd[i]! > 0 ? -50 : 0.9 + Math.sin(clock.current * 3 + i) * 0.12, pk.z); dummy.rotation.set(0.4, clock.current * 2 + i, 0.4); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); pm.setMatrixAt(i, dummy.matrix); }); pm.count = sim.decor.pickups.length; pm.instanceMatrix.needsUpdate = true; }
+    const mm = missM.current;
+    if (mm) { sim.missiles.forEach((m, i) => { dummy.position.set(m.x, 0.7, m.z); dummy.rotation.set(0, -m.h, Math.PI / 2); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); mm.setMatrixAt(i, dummy.matrix); }); mm.count = sim.missiles.length; mm.instanceMatrix.needsUpdate = true; }
+    const tm = trapM.current;
+    if (tm) { sim.traps.forEach((tr, i) => { dummy.position.set(tr.x, 0.058, tr.z); dummy.rotation.set(0, 0, 0); dummy.scale.set(1.8, 1, 1.8); dummy.updateMatrix(); tm.setMatrixAt(i, dummy.matrix); }); tm.count = sim.traps.length; tm.instanceMatrix.needsUpdate = true; }
+    while (sim.events.length) { const ev = sim.events.pop()!; splash(ev.x, ev.z, ev.color); }
     // the mini robots crossing the road
     const bb = botB.current, bh = botH.current;
     if (bb && bh) sim.crossers.forEach((k, i) => {
@@ -240,6 +249,9 @@ export function RaceLayer({ layout }: { layout: Layout }) {
           <instancedMesh ref={potM} args={[undefined, undefined, 40]} frustumCulled={false}><cylinderGeometry args={[1, 1, 0.02, 14]} /><meshStandardMaterial color="#17120e" roughness={1} /></instancedMesh>
           <instancedMesh ref={oilM} args={[undefined, undefined, 40]} frustumCulled={false}><cylinderGeometry args={[1, 1, 0.02, 18]} /><meshStandardMaterial color="#2b1d46" roughness={0.15} metalness={0.4} /></instancedMesh>
           <instancedMesh ref={tyreM} args={[undefined, undefined, 400]} frustumCulled={false}><cylinderGeometry args={[0.55, 0.55, 0.5, 12]} /><meshStandardMaterial color="#1a1a1d" roughness={0.9} /></instancedMesh>
+          <instancedMesh ref={pickM} args={[undefined, undefined, 80]} frustumCulled={false}><boxGeometry args={[0.8, 0.8, 0.8]} /><meshStandardMaterial color="#ffd166" emissive="#ff9a2e" emissiveIntensity={0.7} /></instancedMesh>
+          <instancedMesh ref={missM} args={[undefined, undefined, 8]} frustumCulled={false}><cylinderGeometry args={[0.16, 0.16, 1.2, 8]} /><meshStandardMaterial color="#e53935" emissive="#ff5a2e" emissiveIntensity={0.8} /></instancedMesh>
+          <instancedMesh ref={trapM} args={[undefined, undefined, 16]} frustumCulled={false}><cylinderGeometry args={[1, 1, 0.02, 18]} /><meshStandardMaterial color="#2b1d46" roughness={0.15} metalness={0.4} /></instancedMesh>
           <instancedMesh ref={botB} args={[undefined, undefined, 8]} frustumCulled={false}><boxGeometry args={[0.38, 0.5, 0.3]} /><meshStandardMaterial roughness={0.6} /></instancedMesh>
           <instancedMesh ref={botH} args={[undefined, undefined, 8]} frustumCulled={false}><boxGeometry args={[0.3, 0.24, 0.26]} /><meshStandardMaterial color="#e7ecf5" roughness={0.5} /></instancedMesh>
           <instancedMesh ref={splashM} args={[undefined, undefined, PCOUNT]} frustumCulled={false}><boxGeometry args={[0.14, 0.14, 0.14]} /><meshBasicMaterial /></instancedMesh>
@@ -318,7 +330,7 @@ function RaceOverlay() {
                 {(!sim || (!pick && sim.phase === "countdown")) && <label> colour <input type="color" aria-label="Car colour" value={color} onChange={(e) => setColor(e.target.value)} /></label>}
               </div>
             )}
-            {raceHub.userRacing && <div className="muted">Arrows or WASD to drive · Space to drift · C: camera · Esc: stop race</div>}
+            {raceHub.userRacing && <div className="muted">Arrows or WASD to drive · Space to drift · E: use item · C: camera · Esc: stop</div>}
             {sim && <div className="muted">The map stays as it was at the start until the race ends.</div>}
             {msg && <div role="alert">{msg}</div>}
             <label><input type="checkbox" checked={raceHub.auto} onChange={(e) => { raceHub.auto = e.target.checked; try { localStorage.setItem(AUTO_KEY, e.target.checked ? "1" : "0"); } catch { /* ignore */ } tick((n) => n + 1); }} /> Idle agents race on their own</label>
@@ -352,6 +364,7 @@ function RaceHud() {
           <div>Last {t(me.lastLap)} · best {t(me.bestLap)}</div>
         </>
       )}
+      <div>Item <b>{me.item ? `${ITEM_ICON[me.item]} ${me.item}` : "–"}</b>{me.item ? " · press E" : ""}</div>
       <div>Speed <b>{Math.round(sp * 3.6)}</b> km/h · {(sp / AGENT_SPEED).toFixed(1)}x agent</div>
       <div>Time {Math.max(0, sim.time).toFixed(1)}s · knocks {me.bumps} · walls {me.car.hits}</div>
     </div>

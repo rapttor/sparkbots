@@ -18,7 +18,10 @@ export interface CarState {
   cool: number;       // seconds before the next pothole can hurt
 }
 
-export const CAR = { DRAG: 0.3, BOOST: 1.3 };
+export const CAR = { DRAG: 0.3, BOOST: 1.3, OFFROAD_SPEED: 0.65 };
+/** How far the car's centre may be from the centre line: the road edge plus two car widths. Beyond it a wall stops you. */
+export const offroadLimit = (track: Track, spec: CarSpec): number => track.halfWidth + 4 * spec.radius;
+const onGrass = (c: CarState, track: Track): boolean => Math.abs(c.lat) > track.halfWidth;
 
 export const newCar = (x: number, z: number, h: number): CarState => ({ x, z, h, vx: 0, vz: 0, drifting: false, seg: -1, s: 0, lat: 0, hits: 0, boost: 0, slick: 0, cool: 0 });
 export const speedOf = (c: CarState): number => Math.hypot(c.vx, c.vz);
@@ -30,13 +33,14 @@ const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(
 export function stepCar(c: CarState, inp: CarInput, dt: number, track: Track, spec: CarSpec = CAR_TYPES.race, free = false): void {
   const fx = Math.cos(c.h), fz = Math.sin(c.h), rx = -fz, rz = fx;
   let vf = c.vx * fx + c.vz * fz, vl = c.vx * rx + c.vz * rz;
-  const max = spec.maxSpeed * (c.boost > 0 ? CAR.BOOST : 1);
+  const grass = !free && onGrass(c, track); // off the tarmac: slower and loose
+  const max = spec.maxSpeed * (c.boost > 0 ? CAR.BOOST : 1) * (grass ? CAR.OFFROAD_SPEED : 1);
   const th = clamp(inp.throttle, -1, 1);
   if (th > 0) vf += spec.accel * th * Math.max(0, 1 - vf / max) * dt + (c.boost > 0 ? 6 * dt : 0);
   else if (th < 0) vf += (vf > 0.5 ? -spec.brake : -spec.accel * 0.6) * -th * dt;
   if (th <= 0.05) vf -= vf * CAR.DRAG * dt; // coasting slows you; with the throttle down the top speed is the spec
   if (vf < -spec.maxSpeed * 0.3) vf = -spec.maxSpeed * 0.3;
-  if (vf > max) vf = max;
+  if (vf > max) vf = vf > max + 0.5 ? vf - (vf - max) * Math.min(1, 3 * dt) : max; // too fast for the surface: bleeds off, no sudden stop
   const sp = Math.abs(vf);
   const bite = Math.min(1, sp / 3) * (1 - 0.25 * Math.min(1, sp / spec.maxSpeed)); // no spinning on the spot; a little lazier flat out
   const drift = inp.drift && sp > spec.maxSpeed * 0.4 && Math.abs(inp.steer) > 0.15;
@@ -45,6 +49,7 @@ export function stepCar(c: CarState, inp: CarInput, dt: number, track: Track, sp
   let gripF = over <= 1 ? 1 : Math.max(0.12, 1 / (over * over));  // past the limit the grip collapses...
   if (th > 0.5 && Math.abs(inp.steer) > 0.4 && sp > 0.65 * max) gripF *= 0.6; // ...and power on the rear wheels in a bend lets the tail out
   if (drift) gripF = Math.min(gripF, 0.18);
+  if (grass) gripF *= 0.7;
   let yaw = yawWant * (over > 1 ? 1 / Math.sqrt(over) : 1);        // the front tyres wash out: it turns less than you asked for
   if (c.slick > 0) { gripF *= 0.25; yaw *= 0.7; c.slick = Math.max(0, c.slick - dt); }
   if (c.cool > 0) c.cool = Math.max(0, c.cool - dt);
@@ -62,8 +67,8 @@ export function stepCar(c: CarState, inp: CarInput, dt: number, track: Track, sp
   const p = project(track, c.x, c.z, c.seg);
   c.seg = p.i; c.s = p.s; c.lat = p.lat;
   if (free) return;
-  // the road edge is a wall: slide along it, lose some speed, count the bump
-  const lim = track.halfWidth - spec.radius;
+  // two car widths beyond the road edge there is a wall: slide along it, lose some speed, count the bump
+  const lim = offroadLimit(track, spec);
   if (Math.abs(p.lat) > lim) {
     const sign = p.lat > 0 ? 1 : -1, nx = -p.tz * sign, nz = p.tx * sign; // outward normal
     const o = Math.abs(p.lat) - lim;

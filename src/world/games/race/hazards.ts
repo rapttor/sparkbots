@@ -4,7 +4,8 @@ import type { Rng } from "../types";
 /** Things on and beside the road (13.7.10): potholes, oil, tyre stacks (decor), and mini robots that run across the road. Pure. */
 export interface Hazard { kind: "pothole" | "oil"; x: number; z: number; r: number; s: number }
 export interface TyreStack { x: number; z: number; n: number }
-export interface Decor { hazards: Hazard[]; tyres: TyreStack[]; crossAt: number[] }
+export interface Pickup { x: number; z: number; s: number }
+export interface Decor { hazards: Hazard[]; tyres: TyreStack[]; crossAt: number[]; pickups: Pickup[] }
 
 const turnNear = (t: Track, s: number, span: number): number => {
   const a = pointAt(t, s - span), b = pointAt(t, s + span);
@@ -13,7 +14,7 @@ const turnNear = (t: Track, s: number, span: number): number => {
 
 /** Deterministic for a track and seed: the same road always has the same potholes. */
 export function genDecor(t: Track, rng: Rng): Decor {
-  const hazards: Hazard[] = [], tyres: TyreStack[] = [], crossAt: number[] = [];
+  const hazards: Hazard[] = [], tyres: TyreStack[] = [], crossAt: number[] = [], pickups: Pickup[] = [];
   const edge = HALF_WIDTH + 1.0;
   for (let s = 30; s < t.length - 20; s += 28 + rng() * 22) {
     const k = rng();
@@ -30,7 +31,12 @@ export function genDecor(t: Track, rng: Rng): Decor {
     tyres.push({ x: p.x - p.tz * off, z: p.z + p.tx * off, n: 1 + Math.floor(rng() * 3) });
   }
   for (let k = 0; k < 4; k++) crossAt.push(((k + 0.25 + rng() * 0.5) / 4) * t.length);
-  return { hazards, tyres, crossAt };
+  // item boxes: a row of three across the road every ~65 m (not at the start line)
+  for (let s = 45; s < t.length - 25; s += 55 + rng() * 20) {
+    const p = pointAt(t, s);
+    for (const lat of [-1.6, 0, 1.6]) pickups.push({ x: p.x - p.tz * lat, z: p.z + p.tx * lat, s });
+  }
+  return { hazards, tyres, crossAt, pickups };
 };
 
 /** A mini robot that waits at the roadside, runs across, and gets knocked flat if a car hits it. */
