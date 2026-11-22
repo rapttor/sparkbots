@@ -1,0 +1,104 @@
+import { RaceSim, type Racer } from "./sim";
+import type { Track } from "./track";
+import type { Rng } from "../types";
+
+/** What the race hub needs from the world (the agents); faked in tests. */
+export interface RaceEnv {
+  rng: Rng;
+  /** Agents that may drive right now: idle (not working, not waiting). */
+  idle(): string[];
+  /** Is the agent still idle? A car whose agent went back to work retires at once. */
+  alive(agent: string): boolean;
+  name(agent: string): string;
+  color(agent: string): string;
+}
+
+export const USER_ID = "user";
+export const MIN_AUTO = 3;        // idle agents needed before a race starts by itself
+export const OVER_SHOW = 10;      // s the results stay up
+export const LAPS = 3;
+const FILLER_COLORS = ["#4cc9f0", "#f72585", "#b5e48c", "#ffb703", "#9d4edd", "#2ec4b6", "#ef476f"];
+
+/**
+ * Owns the one race of the campus: starts it when idle agents get bored (or you join), runs it, drops cars whose agent went
+ * back to work and shows the results for a while. Pure: it talks to the world through `RaceEnv`. Nothing runs without a race.
+ */
+export class RaceHub {
+  track: Track | null = null;
+  sim: RaceSim | null = null;
+  auto = true;
+  version = 0;
+  /** Standings of the last finished race (names, in order), for the overlay. */
+  last: { name: string; time: number | null }[] = [];
+  private t = 0;
+  private overFor = 0;
+  private autoIn = 20;
+  private listeners = new Set<() => void>();
+  constructor(private env: RaceEnv) {}
+
+  setEnv(env: RaceEnv): void { this.env = env; }
+  subscribe(fn: () => void): () => void { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; }
+  private changed(): void { this.version++; for (const l of this.listeners) l(); }
+
+  /** The loop changed (the layout did): a running race is off. */
+  setTrack(t: Track | null): void {
+    const same = !!this.track && !!t && this.track.length === t.length && this.track.xs[0] === t.xs[0] && this.track.zs[0] === t.zs[0];
+    if (same) return;
+    this.track = t;
+    if (this.sim) this.stop();
+  }
+
+  get running(): boolean { return this.sim !== null; }
+  get userRacing(): boolean { const r = this.sim?.get(USER_ID); return !!r && !r.out; }
+  /** Idle agents that could drive. */
+  candidates(): string[] { return this.env.idle(); }
+
+  /** Start a race with idle agents, optionally with you in it (then pit bots fill the grid up to three cars). False if impossible. */
+  start(withUser = false): boolean {
+    if (this.sim || !this.track) return false;
+    const idle = this.candidates();
+    if (!withUser && idle.length < 2) return false;
+    const sim = new RaceSim(this.track, this.env.rng, LAPS);
+    if (withUser) sim.add(USER_ID, "You", "#ffd166", true);
+    const pool = [...idle];
+    while (pool.length && sim.racers.length < 7) { const [a] = pool.splice(Math.floor(this.env.rng() * pool.length), 1); sim.add(a!, this.env.name(a!), this.env.color(a!)); }
+    for (let k = 0; sim.racers.length < 3; k++) sim.add(`pit${k}`, `Pit bot ${k + 1}`, FILLER_COLORS[k % FILLER_COLORS.length]!);
+    this.sim = sim; this.overFor = 0; this.last = [];
+    this.changed();
+    return true;
+  }
+
+  /** You take a seat: join the race on the grid if it has not started yet, else start a new one. */
+  join(): boolean {
+    if (!this.sim) return this.start(true);
+    if (this.sim.phase === "countdown" && !this.userRacing) { const ok = !!this.sim.add(USER_ID, "You", "#ffd166", true); if (ok) this.changed(); return ok; }
+    return false;
+  }
+  leave(): void { if (this.userRacing) { this.sim!.retire(USER_ID); this.changed(); } }
+  stop(): void { if (this.sim) { this.sim = null; this.changed(); } }
+
+  tick(dt: number): void {
+    this.t += dt;
+    const sim = this.sim;
+    if (!sim) {
+      if (!this.auto || !this.track) return;
+      this.autoIn -= dt;
+      if (this.autoIn <= 0) { this.autoIn = 60 + this.env.rng() * 90; if (this.candidates().length >= MIN_AUTO) this.start(false); }
+      return;
+    }
+    const before = sim.phase;
+    for (const r of sim.racers) if (!r.user && !r.id.startsWith("pit") && !r.out && !this.env.alive(r.id)) { sim.retire(r.id); this.changed(); }
+    sim.step(dt);
+    if (sim.phase !== before) this.changed();
+    if (sim.phase === "over") {
+      if (this.overFor === 0) this.finish(sim);
+      this.overFor += dt;
+      if (this.overFor > OVER_SHOW) this.stop();
+    }
+  }
+
+  private finish(sim: RaceSim): void {
+    this.last = sim.standings().map((r: Racer) => ({ name: r.name, time: r.finishedAt }));
+    this.changed();
+  }
+}

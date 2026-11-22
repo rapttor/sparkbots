@@ -36,6 +36,7 @@ import { RoomsContent } from "./rooms/RoomsContent";
 import { DataCenter, consoleSpot, openDataRoom } from "./datacenter";
 import { GamesLayer, GamesHud } from "./games/GamesLayer";
 import { ClawLayer } from "./games/ClawLayer";
+import { RaceLayer } from "./games/race/RaceLayer";
 import { ManagerWalls } from "./walls";
 import { nerd, sampleFrame } from "../state/nerd";
 import { clearView, loadFlyPrefs, loadView, saveView } from "./viewDefault";
@@ -794,6 +795,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       <DataCenter layout={layout} />
       <GamesLayer layout={layout} />
       <ClawLayer layout={layout} />
+      <RaceLayer layout={layout} />
       <ServiceBots layout={layout} />
       <Cubicles layout={layout} />
       <RoomsContent layout={layout} />
