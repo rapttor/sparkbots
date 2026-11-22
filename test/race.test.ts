@@ -300,3 +300,29 @@ describe("car types, hazards, carmageddon", () => {
   });
 });
 const mkEnvX = (idle: string[]): RaceEnv => ({ rng: mulberry32(5), idle: () => idle, alive: () => true, name: (a) => a, color: () => "#fff" });
+
+describe("car-to-car knocks and lap times", () => {
+  it("a head-on-ish knock pushes the cars apart, slows both and counts a bump", () => {
+    const s = new RaceSim(oval(), mulberry32(6), 1);
+    const a = s.add("a", "A", "#fff")!, b = s.add("b", "B", "#fff")!;
+    adv(s, 3.1);
+    const h = a.car.h;
+    Object.assign(a.car, { x: 0, z: 0, vx: Math.cos(h) * 10, vz: Math.sin(h) * 10, seg: -1 });
+    Object.assign(b.car, { x: Math.cos(h) * 1.0, z: Math.sin(h) * 1.0, vx: 0, vz: 0, seg: -1 }); // right in front, standing
+    a.input.throttle = 0; b.input.throttle = 0;
+    const before = speedOf(a.car);
+    s.step(0.02);
+    expect(speedOf(a.car)).toBeLessThan(before * 0.6);
+    expect(speedOf(b.car)).toBeGreaterThan(1);
+    expect(a.bumps).toBe(1); expect(b.bumps).toBe(1);
+    expect(Math.hypot(a.car.x - b.car.x, a.car.z - b.car.z)).toBeGreaterThanOrEqual(s.spec.radius * 1.7 - 0.2);
+  });
+  it("lap times are recorded", () => {
+    const s = new RaceSim(oval(), mulberry32(2), 2);
+    s.add("a", "A", "#fff");
+    let g = 0; while (!s.over && g++ < 60 * 900) s.step(1 / 60);
+    const r = s.get("a")!;
+    expect(r.lastLap).not.toBeNull(); expect(r.bestLap!).toBeLessThanOrEqual(r.lastLap!);
+    expect(r.bestLap!).toBeGreaterThan(5);
+  });
+});

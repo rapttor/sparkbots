@@ -6,7 +6,7 @@ import { displayName } from "../../../util";
 import { mulberry32 } from "../types";
 import { effectiveState, roams } from "../../roam";
 import type { Layout } from "../../layout";
-import { MAX_CARS } from "./sim";
+import { CARMA_TIME, MAX_CARS } from "./sim";
 import { slideOf, speedOf } from "./car";
 import { AGENT_SPEED, CAR_KINDS, CAR_TYPES, type CarKind, type Part } from "./carTypes";
 import { LAPS, RaceHub, type RaceEnv } from "./hub";
@@ -250,7 +250,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
           ))}
         </group>
       )}
-      <Html fullscreen zIndexRange={[40, 30]} style={{ pointerEvents: "none" }}><RaceOverlay /></Html>
+      <Html fullscreen zIndexRange={[40, 30]} style={{ pointerEvents: "none" }}><RaceOverlay /><RaceHud /></Html>
     </>
   );
 }
@@ -261,7 +261,7 @@ const CSS = `
 .race-pop{padding:8px 10px;background:#151b27ee;border:1px solid #3a4558;border-radius:8px;color:#e7ecf5;font-size:12px;min-width:200px}
 .race-pop button{margin-right:6px}.race-pop ol{margin:4px 0;padding-left:18px}
 .race-stop{padding:3px 10px;background:#7a1f1f;border:1px solid #c44;border-radius:999px;color:#fff;font-size:12px;cursor:pointer}
-.race-lights{font-size:20px;letter-spacing:4px}
+.race-hud{position:absolute;top:56px;left:12px;padding:8px 12px;background:#10151fcc;border:1px solid #3a4558;border-radius:8px;color:#e7ecf5;font:12px ui-monospace,Menlo,monospace;line-height:1.5;pointer-events:none;min-width:170px}\n.race-hud b{font-size:15px}\n.race-lights{font-size:20px;letter-spacing:4px}
 `;
 
 /** Bottom-centre chip: start a race, take a seat (arrows or WASD, space = drift), standings while it runs. */
@@ -326,5 +326,34 @@ function RaceOverlay() {
         )}
       </div>
     </>
+  );
+}
+
+/** Nerd stats while you drive: place, lap, speed, lap times, bumps, drift, agents run over. Refreshes ~8 times a second. */
+function RaceHud() {
+  useSyncExternalStore((cb) => raceHub.subscribe(cb), () => raceHub.version);
+  const [, tick] = useState(0);
+  const sim = raceHub.sim, me = sim && raceHub.userId ? sim.get(raceHub.userId) : undefined;
+  useEffect(() => { if (!me) return; const h = setInterval(() => tick((n) => n + 1), 120); return () => clearInterval(h); }, [me]);
+  if (!sim || !me || me.out) return null;
+  const sp = speedOf(me.car), place = sim.order.indexOf(me.id) + 1, t = (v: number | null) => (v === null ? "–" : `${v.toFixed(1)}s`);
+  return (
+    <div className="race-hud" role="status" aria-label="Race stats">
+      <div>{sim.spec.icon} {sim.spec.name}{me.car.drifting ? " · 🔥 drifting" : ""}{me.car.slick > 0 ? " · 🛢 oil" : ""}</div>
+      {sim.carmageddon ? (
+        <>
+          <div>💥 Run over <b>{raceHub.squashed}</b></div>
+          <div>Time left <b>{Math.max(0, Math.round(CARMA_TIME - sim.time))}s</b></div>
+        </>
+      ) : (
+        <>
+          <div>Place <b>{place}</b>/{sim.racers.filter((r) => !r.out).length}</div>
+          <div>Lap <b>{Math.min(sim.laps, me.lap + 1)}</b>/{sim.laps}{me.finishedAt !== null ? " · finished" : ""}</div>
+          <div>Last {t(me.lastLap)} · best {t(me.bestLap)}</div>
+        </>
+      )}
+      <div>Speed <b>{Math.round(sp * 3.6)}</b> km/h · {(sp / AGENT_SPEED).toFixed(1)}x agent</div>
+      <div>Time {Math.max(0, sim.time).toFixed(1)}s · knocks {me.bumps} · walls {me.car.hits}</div>
+    </div>
   );
 }

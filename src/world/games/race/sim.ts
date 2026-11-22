@@ -17,6 +17,10 @@ export interface Racer {
   prog: number;           // distance covered since the start line (negative on the grid)
   lap: number;            // laps completed
   finishedAt: number | null;
+  lapAt: number;          // race time when the current lap began
+  lastLap: number | null;
+  bestLap: number | null;
+  bumps: number;          // car-to-car knocks
   out: boolean;           // retired (its agent went back to work)
 }
 export type RacePhase = "countdown" | "racing" | "over";
@@ -49,7 +53,7 @@ export class RaceSim {
     const g = gridSlot(this.track, this.racers.length);
     const car = newCar(g.x, g.z, g.h);
     car.s = ((g.s % this.track.length) + this.track.length) % this.track.length;
-    const r: Racer = { id, name, color, user, car, input: { throttle: 0, steer: 0, drift: false }, skill: 0.82 + this.rng() * 0.18, lane: (this.rng() - 0.5) * this.track.halfWidth * 0.8, prog: g.s, lap: 0, finishedAt: null, out: false };
+    const r: Racer = { id, name, color, user, car, input: { throttle: 0, steer: 0, drift: false }, skill: 0.82 + this.rng() * 0.18, lane: (this.rng() - 0.5) * this.track.halfWidth * 0.8, prog: g.s, lap: 0, finishedAt: null, lapAt: 0, lastLap: null, bestLap: null, bumps: 0, out: false };
     this.racers.push(r);
     this.rank();
     return r;
@@ -80,7 +84,9 @@ export class RaceSim {
       else this.hazards(r, h);
       if (r.finishedAt === null && !free) {
         r.prog += wrapDelta(r.car.s - prevS, this.track.length);
-        r.lap = Math.max(0, Math.floor(r.prog / this.track.length));
+        const lap = Math.max(0, Math.floor(r.prog / this.track.length));
+        if (lap > r.lap) { r.lastLap = this.time - r.lapAt; r.bestLap = r.bestLap === null ? r.lastLap : Math.min(r.bestLap, r.lastLap); r.lapAt = this.time; }
+        r.lap = lap;
         if (r.prog >= this.laps * this.track.length) r.finishedAt = this.time;
       }
     }
@@ -136,16 +142,24 @@ export class RaceSim {
     r.input.drift = r.skill > 0.95 && Math.abs(err) > 0.5 && sp > max * 0.7; // the best drivers slide through hard corners
   }
 
-  /** Soft bumper cars: overlapping cars are pushed apart, so nobody drives through anyone. O(n^2) with n <= 8. */
+  /** Bumper cars: overlapping cars are pushed apart, bounce off each other a little and both lose some speed. O(n^2) with n <= 8. */
   private separate(): void {
     const R = this.spec.radius * 1.7;
     for (let i = 0; i < this.racers.length; i++) for (let j = i + 1; j < this.racers.length; j++) {
-      const a = this.racers[i]!.car, b = this.racers[j]!.car;
-      if (this.racers[i]!.out || this.racers[j]!.out) continue;
-      const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
+      const ra = this.racers[i]!, rb = this.racers[j]!;
+      if (ra.out || rb.out) continue;
+      const a = ra.car, b = rb.car, dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
       if (d >= R || d < 1e-6) continue;
       const push = (R - d) / 2, nx = dx / d, nz = dz / d;
       a.x -= nx * push; a.z -= nz * push; b.x += nx * push; b.z += nz * push;
+      const vn = (a.vx - b.vx) * nx + (a.vz - b.vz) * nz; // > 0: closing
+      if (vn > 0) {
+        const j2 = vn * 0.7; // equal masses, a bit bouncy
+        a.vx -= nx * j2; a.vz -= nz * j2; b.vx += nx * j2; b.vz += nz * j2;
+        const loss = Math.max(0.9, 1 - vn * 0.012); // a knock costs speed
+        a.vx *= loss; a.vz *= loss; b.vx *= loss; b.vz *= loss;
+        if (vn > 1.5) { ra.bumps++; rb.bumps++; }
+      }
     }
   }
 
