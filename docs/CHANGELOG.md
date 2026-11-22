@@ -3,6 +3,7 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## 2026-11-22
+- **Laptop screens:** the nearby open laptop shows the project, model and the agent's latest message, and refreshes every 5 s [13.1.41].
 - **Board:** picking a project auto-loads its task list [13.3.7]; redesigned kanban (toned columns, hover cards, drop highlight, compose form) [13.3.1-2]; read-only Backlog.md lane with "Create from template" [13.3.3-5].
 - **Hand mode:** click the floor and the camera glides there [13.1.30]; hold and drag to move the camera, grab-the-ground style [13.1.29].
 - **Data center:** one rack per project with blinking LEDs, spinning tape reels, hydra cables, data packets, force field and inspector robots [13.2.1-2, 13.2.4].

@@ -19,6 +19,7 @@ const CLOSED_ANGLE = Math.PI / 2;
 const POOL = 10;              // detailed screens at once
 const NEAR = 28;              // only desks closer than this to the camera get one
 const CW = 480, CH = 288;
+const REFRESH_MS = 5_000;     // a nearby open laptop redraws at least this often (live numbers, "active Ns ago")
 const SPEED = 4;              // lid open/close speed (1 = full swing per second)
 
 const grp = new Object3D();
@@ -61,18 +62,34 @@ export function drawScreen(ctx: CanvasRenderingContext2D, w: Worker, now: number
   ctx.fillStyle = "#c9d3ea"; ctx.font = "22px system-ui, sans-serif"; ctx.textAlign = "right";
   ctx.fillText(w.activity, CW - 16, 27);
 
-  ctx.textAlign = "left"; ctx.fillStyle = "#ffffff"; ctx.font = "bold 25px system-ui, sans-serif";
-  ctx.fillText(fit(ctx, w.name || w.title || "(untitled)", CW - 40), 24, 80);
+  // project (team) first, then the agent's name, so you always see where you are
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.fillStyle = accent; ctx.font = "bold 19px system-ui, sans-serif";
+  ctx.fillText(fit(ctx, `${w.team}${w.model ? `  ·  ${w.model}` : ""}`, CW - 40), 24, 76);
+  ctx.fillStyle = "#ffffff"; ctx.font = "bold 24px system-ui, sans-serif";
+  ctx.fillText(fit(ctx, w.name || w.title || "(untitled)", CW - 40), 24, 106);
 
   const s = w.stats;
   const cells: [string, string][] = s
-    ? [["WORKED", fmtDuration(s.workMs)], ["TOKENS", fmtNum(s.tokens)], ["PROMPTS", fmtNum(s.turns)], ["TOOL CALLS", fmtNum(s.tools)]]
-    : [["WORKED", "…"], ["TOKENS", "…"], ["PROMPTS", "…"], ["TOOL CALLS", "…"]];
+    ? [["WORKED", fmtDuration(s.workMs)], ["TOKENS", fmtNum(s.tokens)], ["PROMPTS", fmtNum(s.turns)], ["TOOLS", fmtNum(s.tools)]]
+    : [["WORKED", "…"], ["TOKENS", "…"], ["PROMPTS", "…"], ["TOOLS", "…"]];
   cells.forEach(([label, value], i) => {
-    const x = 24 + (i % 2) * 220, y = 120 + Math.floor(i / 2) * 62;
-    ctx.fillStyle = "#7f8aa3"; ctx.font = "16px system-ui, sans-serif"; ctx.fillText(label, x, y);
-    ctx.fillStyle = "#ffffff"; ctx.font = "bold 32px system-ui, sans-serif"; ctx.fillText(value, x, y + 28);
+    const x = 24 + i * 112, y = 142;
+    ctx.fillStyle = "#7f8aa3"; ctx.font = "14px system-ui, sans-serif"; ctx.fillText(label, x, y);
+    ctx.fillStyle = "#ffffff"; ctx.font = "bold 26px system-ui, sans-serif"; ctx.fillText(value, x, y + 26);
   });
+
+  // live: the latest thing the agent said (or its preview), up to two lines
+  const live = (w.said?.text ?? w.preview ?? "").replace(/\s+/g, " ").trim();
+  if (live) {
+    ctx.fillStyle = "#c9d3ea"; ctx.font = "italic 17px system-ui, sans-serif";
+    let line = "", n = 0;
+    for (const word of live.split(" ")) {
+      const t = line ? `${line} ${word}` : word;
+      if (ctx.measureText(t).width > CW - 40 && line) { ctx.fillText(line, 24, 206 + n * 24); line = word; if (++n >= 2) break; } else line = t;
+    }
+    if (n < 2 && line) ctx.fillText(fit(ctx, line, CW - 40), 24, 206 + n * 24);
+  }
 
   ctx.fillStyle = "#7f8aa3"; ctx.font = "17px system-ui, sans-serif"; ctx.textBaseline = "alphabetic";
   const bits = [`active ${relTime(w.lastEventAt, now)}`];
@@ -86,7 +103,7 @@ export function drawScreen(ctx: CanvasRenderingContext2D, w: Worker, now: number
 }
 
 const keyOf = (w: Worker, now: number) =>
-  [w.id, w.state, w.activity, w.title, w.name, w.helpers, w.liveInTerminal, w.stats?.workMs, w.stats?.tokens, w.stats?.turns, w.stats?.tools, w.stats?.ctx, Math.floor(now / 10_000)].join("|");
+  [w.id, w.state, w.activity, w.title, w.name, w.team, w.model, w.said?.at, w.preview, w.helpers, w.liveInTerminal, w.stats?.workMs, w.stats?.tokens, w.stats?.turns, w.stats?.tools, w.stats?.ctx, Math.floor(now / REFRESH_MS)].join("|");
 
 export function DeskScreens({ layout, openId, onScreen }: { layout: Layout; openId?: string; onScreen?: (deskIndex: number) => void }) {
   const { camera } = useThree();
