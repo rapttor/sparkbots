@@ -5,12 +5,12 @@ import { GAMES, GAME_IDS } from "./registry";
 import type { GameId, RankRow } from "./types";
 
 const CSS = `
-.games-bar{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:70%;pointer-events:none}
+.games-bar{position:absolute;z-index:7;top:8px;left:0;right:0;padding:0 15%;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;pointer-events:none}
 .games-bar>*{pointer-events:auto}
 .games-chip{display:flex;gap:6px;align-items:center;padding:3px 8px;background:#151b27ee;border:1px solid #3a4558;border-radius:999px;font-size:12px;color:#e7ecf5}
 .games-chip button{border:0;background:#0000;color:#e7ecf5;cursor:pointer;padding:0 2px;font-size:12px}
 .games-chip select{font-size:11px;max-width:120px}
-.games-pop{position:absolute;top:44px;left:50%;transform:translateX(-50%);width:min(440px,92vw);max-height:70vh;overflow:auto;padding:10px;background:#151b27;border:1px solid #3a4558;border-radius:8px;box-shadow:0 8px 24px #0009;color:#e7ecf5;font-size:12px;pointer-events:auto}
+.games-pop{position:absolute;z-index:7;top:44px;left:50%;transform:translateX(-50%);width:min(440px,92vw);max-height:70vh;overflow:auto;padding:10px;background:#151b27;border:1px solid #3a4558;border-radius:8px;box-shadow:0 8px 24px #0009;color:#e7ecf5;font-size:12px;pointer-events:auto}
 .games-pop table{width:100%;border-collapse:collapse}.games-pop th,.games-pop td{padding:2px 6px;text-align:right}.games-pop th:first-child,.games-pop td:first-child{text-align:left}
 .games-pop .tabs{display:flex;gap:4px;margin:6px 0;flex-wrap:wrap}.games-pop .tabs button.on{outline:1px solid #4fd1c5}
 .games-pop form{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
