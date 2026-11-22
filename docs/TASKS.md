@@ -263,7 +263,7 @@ Do this first: games, rewards, caffeine and rankings all write here.
 ### 13.4 Cubicles, identity, caffeine, rate limit
 - [x] [S] 13.4.1 **Simplified:** cubicle = two see-through wall boxes + a small shelf of slot instances around the existing desk (instanced meshes, no new collision: walls are click-through). *How:* one `world/cubicles.tsx` fed by the desk list; archive overflow comes later with 13.4.3 *(done; not yet checked in the browser)*
 - [x] [S] 13.4.2 Render cubicles/shelves; keep laptop and status screen; walls stay click-through *(done; not yet checked in the browser)*
-- [ ] [S] 13.4.3 Rewards/trophies: SQLite rewards, wall slots, archive overflow; claw items can be given to an agent
+- [x] [S] 13.4.3 Rewards/trophies: SQLite rewards, wall slots, archive overflow; claw items can be given to an agent — **done:** migration #5 `reward`, `server/rewards.ts` (`/api/rewards`, `/prize`, `/:id/give`; a stored match win adds `trophy-<game>`), shelf slots in `cubicles.tsx` coloured by the newest 3 items, archive list + "Give a prize" in the agent menu (`rewards/RewardsSection.tsx`), pure rules in `src/shared/rewards.ts`, `test/rewards.test.ts` *(API and claw panel checked in the browser; cubicle shelf and agent menu section not seen on screen)*
 - [ ] [S] 13.4.4 Project-colour hat/visor accent (after 9.3); project badge in Teams, agent menu and chat header
 - [x] [H] 13.4.5 Caffeine: SQLite value per agent, decay, coffee/food bump, shown in the agent menu; jitter/yawn clip modifiers only *(done; not yet checked in the browser)*
 - [x] [H] 13.4.6 **Simplified:** rate limit = reuse the 429 / usage-limit detection already in `runProblem` (`server/`); store a flag `rateLimited{until}` in the store + a manual toggle row in Settings. *How:* new server field in the snapshot meta, no transcript scanning at first *(done; not yet checked in the browser)*
@@ -296,7 +296,7 @@ Do this first: games, rewards, caffeine and rankings all write here.
 - [x] [S] 13.7.6 Air hockey (reuse pong physics, edge bounces, centre target) — **done:** `rally.ts` hockey mode: edge bounces, goal = centre of the end, accuracy falls with stretch
 - [ ] [S] 13.7.7 Billiards (aim/strength 1-9 or hold E; table colour by variant)
 - [ ] [S] 13.7.8 Basketball timing game (angle -> strength -> shot, speed-up, drone ball)
-- [ ] [S] 13.7.9 Claw machine + item inventory -> rewards
+- [x] [S] 13.7.9 Claw machine + item inventory -> rewards — **done:** cabinet in the game room (click it or the 🕹 Claw chip), `ClawSim` (sweep x, sweep z, drop; grab odds fall with distance to the nearest prize, 50% slip on the way back), prizes go to your inventory and can be given to any agent; `games/ClawLayer.tsx`. Single-player, so it sits beside the 2-seat hub rather than in `GAMES`; agents do not play it
 - [ ] [O] 13.7.10 Race track (last): track from layout, car physics, powerups, traps, carmageddon
 - [x] [H] 13.7.11 Scoreboard/ranking UI + persistence tests — **done:** 🎮 popover rankings (per game / all) in `GamesOverlay.tsx`; persistence + hub + sim tests in `test/games.test.ts`
 
