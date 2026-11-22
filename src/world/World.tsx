@@ -25,6 +25,7 @@ import { MAX_DESKS, computeLayout, visibleTeams, type Layout, type TeamArea } fr
 import { nav, Flow, buildNav } from "./nav";
 import { ZonesLayer } from "./zonelayer";
 import { lunchAll, followerList, insideRoom, meeting, MAX_SEATS, setFollowers, startErrand, setPois, rebuildRoamGrid } from "./roam";
+import { useShowDesks } from "../state/deskPref";
 import { roams, setLook, clearLook, player as playerState, pushPlayerOut, holdAgent, releaseAgent } from "./roam";
 import { tarsParts } from "./tars";
 import { ACTIONS } from "./actions";
@@ -110,6 +111,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   const bossTimer = useRef(5); // seconds until the next "boss is coming" few nearby sleepers wake up
   const bossAt = useRef(new Vector3(0, 0, 0));
   const meshesRef = useRef<Meshes | null>(null);
+  const showDesks = useShowDesks();
   const refs = {
     desk: useRef<InstancedMesh>(null), ring: useRef<InstancedMesh>(null), body: useRef<InstancedMesh>(null),
     legA: useRef<InstancedMesh>(null), legB: useRef<InstancedMesh>(null),
@@ -821,7 +823,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
         </group>
       ))}
 
-      <instancedMesh ref={refs.desk} args={[assets.deskG, undefined, MAX_DESKS]} frustumCulled={false}
+      <instancedMesh ref={refs.desk} args={[assets.deskG, undefined, MAX_DESKS]} frustumCulled={false} visible={showDesks} raycast={showDesks ? undefined : () => null}
         onClick={(e) => { // the desk itself calls its agent back to it; with the agent already there it opens the agent menu
           e.stopPropagation();
           const d = e.instanceId !== undefined ? layoutRef.current.desks[e.instanceId] : undefined;

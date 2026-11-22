@@ -3,6 +3,7 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## 2026-11-22
+- **Desks:** new Settings switch "Desks", off by default: agents sit in a cubicle with a floating laptop instead of a desk [13.1.43].
 - **Race:** results go into the Rankings (Race tab, winner vs lower finisher) [13.7.10d]; drivers' bots stand at the track side and watch, and drifting cars leave tyre marks [13.7.10e].
 - **Database:** docs mention rewards; tests for schema version, in-memory DB and reopening a file [13.0.5, 13.0.6].
 - **Walking:** a robot seated at its desk (or asleep) no longer pushes you out, so you can walk across desks and laptops [13.1.42].
