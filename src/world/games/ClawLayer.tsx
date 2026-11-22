@@ -53,7 +53,22 @@ function Cabinet({ x, z }: { x: number; z: number }) {
   );
 }
 
+/** Everything inside the claw window stays in the window: no click, drag or wheel reaches the 3D scene behind it (the character would walk off).
+ *  Native listeners on purpose: the scene listens natively on a parent element, and React's own stopPropagation runs too late to stop it. */
+function useSwallowEvents(): React.RefObject<HTMLDivElement> {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const stop = (e: Event) => e.stopPropagation();
+    const types = ["click", "dblclick", "pointerdown", "pointerup", "pointermove", "mousedown", "mouseup", "contextmenu", "wheel", "touchstart", "touchend"];
+    for (const t of types) el.addEventListener(t, stop);
+    return () => { for (const t of types) el.removeEventListener(t, stop); };
+  }, []);
+  return ref;
+}
+
 function ClawPanel({ layout }: { layout: Layout }) {
+  const panelRef = useSwallowEvents();
   const sim = useRef(new ClawSim(mulberry32((Math.random() * 2 ** 32) >>> 0)));
   const [, frame] = useState(0);
   const [done, setDone] = useState<string | null>(null);
@@ -90,7 +105,7 @@ function ClawPanel({ layout }: { layout: Layout }) {
   const label = s.phase === "x" ? "Stop sideways" : s.phase === "z" ? "Stop and drop" : s.phase === "done" ? "Play again" : "…";
   const won = done ? itemDef(done) : null;
   return (
-    <div className="claw-pop" role="dialog" aria-label="Claw machine">
+    <div className="claw-pop" role="dialog" aria-label="Claw machine" ref={panelRef}>
       <b>🕹 Claw machine</b> <button style={{ float: "right" }} aria-label="Close" onClick={() => setOpen(false)}>×</button>
       <div className="claw-field">
         {s.plushes.map((p, i) => { const d = itemDef(p.item); return d && !(s.grabbed === p && s.phase !== "x") ? <span key={i} style={{ left: `${p.x * 100}%`, top: `${p.z * 100}%` }}>{d.icon}</span> : null; })}
@@ -98,7 +113,7 @@ function ClawPanel({ layout }: { layout: Layout }) {
       </div>
       <div>
         <button disabled={dropping} onClick={() => (s.phase === "done" ? again() : press())}>{label} <kbd>Space</kbd></button>{" "}
-        <span role="status">{s.phase === "done" ? (won ? `You won ${won.icon} ${won.name}! ${s.log}` : s.log) : s.phase === "x" ? "Stop the claw sideways, then front-to-back. Close to a prize = better odds; it may still slip on the way back." : ""}</span>
+        <span role="status">{s.phase === "done" ? (won ? `You won ${won.icon} ${won.name}! ${s.log}` : s.log) : s.phase === "x" ? "Stop the claw sideways, then front-to-back. Land the claw on a prize icon and it is yours." : ""}</span>
       </div>
       <hr />
       <b>🎁 Your inventory</b>

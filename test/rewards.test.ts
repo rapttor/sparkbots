@@ -4,11 +4,10 @@ import { mulberry32 } from "../src/world/games/types";
 
 const R = (id: string, owner: string, at: number): Reward => ({ id, owner, item: "plush-bear", at, from: "", note: "" });
 
-describe("grab odds", () => {
-  it("is 1 at the centre, falls with distance, 0 beyond the reach", () => {
+describe("grab rule", () => {
+  it("grabs whenever the claw lands within the reach, never beyond it", () => {
     expect(grabChance(0)).toBe(1);
-    expect(grabChance(CLAW.reach / 2)).toBeLessThan(1);
-    expect(grabChance(CLAW.reach / 2)).toBeGreaterThan(grabChance(CLAW.reach * 0.9));
+    expect(grabChance(CLAW.reach * 0.99)).toBe(1);
     expect(grabChance(CLAW.reach)).toBe(0);
     expect(grabChance(5)).toBe(0);
     expect(grabChance(NaN)).toBe(0);
@@ -35,10 +34,8 @@ describe("claw round", () => {
     for (let i = 0; i < 1000 && sim.phase !== "done"; i++) sim.step(0.05);
     return sim;
   };
-  it("a perfect aim grabs; the carry may still drop it (rng decides)", () => {
-    const wins = (carryRoll: number) => { let n = 0; const seq = [0, carryRoll]; const sim = run(new ClawSim(() => seq.shift() ?? carryRoll, plush), 0.5, 0.5); n = sim.won ? 1 : 0; return n; };
-    expect(wins(0.9)).toBe(1);   // carry roll above the drop chance: delivered
-    expect(wins(0.1)).toBe(0);   // below: slipped out
+  it("landing on a prize always wins it (no dice, no slipping)", () => {
+    for (let seed = 1; seed < 20; seed++) expect(run(new ClawSim(mulberry32(seed), plush), 0.5, 0.5).won).toBe("rubber-duck");
   });
   it("a far miss never wins", () => {
     for (let s = 1; s < 20; s++) expect(run(new ClawSim(mulberry32(s), plush), 0.05, 0.95).won).toBeNull();

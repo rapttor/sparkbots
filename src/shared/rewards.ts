@@ -62,14 +62,13 @@ export function pickPrize(rnd: number, items: ItemDef[] = ITEMS): ItemDef {
 }
 
 // ---------------------------------------------------------------- claw machine
-export const CLAW = { W: 1, H: 1, speed: 0.55, reach: 0.18, drop: 0.5, carryDrop: 0.5 } as const;
+export const CLAW = { W: 1, H: 1, speed: 0.55, reach: 0.18, drop: 0.5 } as const;
 export interface Plush { item: string; x: number; z: number }
 export type ClawPhase = "x" | "z" | "drop" | "carry" | "done";
 
-/** Chance the claw closes on a prize when it lands `d` away from its centre (1 at the centre, 0 at the reach). */
+/** The claw closes on a prize when it lands within `reach` of it (no dice: if you are over the icon, you get it). */
 export function grabChance(d: number, reach: number = CLAW.reach): number {
-  if (!(d >= 0) || d >= reach) return 0;
-  return Math.round((1 - d / reach) ** 1.2 * 1000) / 1000;
+  return d >= 0 && d < reach ? 1 : 0;
 }
 
 /** Bouncing position 0..1 for a time `t` (triangle wave), so "wait for the right moment" is a pure function of time. */
@@ -121,12 +120,11 @@ export class ClawSim {
   }
   private grab(): void {
     const n = this.nearest();
-    if (n && this.rng() < grabChance(n.d)) { this.grabbed = n.p; this.phase = "carry"; this.clock = CLAW.drop; this.log = "Got one!"; }
+    if (n && grabChance(n.d) > 0) { this.grabbed = n.p; this.phase = "carry"; this.clock = CLAW.drop; this.log = "Got one!"; }
     else { this.phase = "done"; this.log = "Missed."; }
   }
   private finishCarry(): void {
     this.phase = "done";
-    if (this.grabbed && this.rng() < CLAW.carryDrop) { this.log = "It slipped out of the claw…"; this.grabbed = null; return; }
     this.won = this.grabbed?.item ?? null; this.log = "It dropped into the chute!";
   }
 }
