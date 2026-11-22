@@ -25,6 +25,11 @@ import { createInterface } from "node:readline";
 
 /** Context size at the last model call: everything sent as input (fresh + cache read + cache write). */
 const ctxOf = (rows: [number, string, number, number, number, number][]) => { const r = rows[rows.length - 1]; return r ? r[2] + r[4] + r[5] : 0; };
+/** The model of the latest real model call in a session (synthetic "<...>" markers, e.g. for API errors, are skipped). */
+export const lastModelOf = (rows: [number, string, number, number, number, number][]): string | undefined => {
+  for (let i = rows.length - 1; i >= 0; i--) { const m = rows[i]![1]; if (m && !m.startsWith("<")) return m; }
+  return undefined;
+};
 const ACTIVE_GAP_MS = 5 * 60_000;
 const lighter = (hex: string, amount = 0.22) => {
   const n = Number.parseInt(hex.slice(1), 16);
@@ -36,6 +41,8 @@ export class Company {
   sessions = new Map<string, SessionRef>();
   runtimes = new Map<string, Runtime>();
   live = new Map<string, LiveInfo>();
+  /** PIDs of long-lived `claude` processes SparkBots itself started (live approval): they are not "a terminal" holding the session. */
+  ownPids: () => ReadonlySet<number> = () => new Set();
   tailer = new Tailer();
   stats = new StatsAggregator();
   db = new AppDb();
@@ -83,6 +90,8 @@ export class Company {
   }
   async refreshLiveness() {
     const [claude, codex] = await Promise.all([readLiveness(), codexLiveness(this.sessions.values()).catch(() => new Map())]);
+    const own = this.ownPids();
+    for (const [id, info] of claude) if (own.has(info.pid)) claude.set(id, { ...info, kind: "headless" });
     this.live = new Map([...claude, ...codex]);
   }
 
@@ -142,7 +151,7 @@ export class Company {
       }
       if (e.source !== (s.source ?? "claude") || e.project !== s.cwd) { e.source = s.source ?? "claude"; e.project = s.cwd; changed = true; } // remembered so history outlives the transcript file
       files[s.file] = e;
-      this.sessionStats.set(s.id, { turns: e.turns ?? 0, tools: e.tools ?? 0, workMs: e.workMs ?? 0, tokens: e.rows.reduce((n, r) => n + r[2] + r[3], 0), ctx: ctxOf(e.rows) });
+      this.sessionStats.set(s.id, { turns: e.turns ?? 0, tools: e.tools ?? 0, workMs: e.workMs ?? 0, tokens: e.rows.reduce((n, r) => n + r[2] + r[3], 0), ctx: ctxOf(e.rows), model: lastModelOf(e.rows) });
       if (e.start) agg.sessionStarted(s.id, s.cwd, e.start);
       if (reread || !stored.has(s.id)) this.db.replaceSession(s.id, hourly(s.id, e.source!, s.cwd, e.rows)); // kept forever, even after the transcript is deleted
     }
@@ -188,7 +197,7 @@ export class Company {
       const bot = chosen ?? (s.source === "opencode" ? OPENCODE_DEFAULT_COLOR : lighter(this.botColors.forTeam(team)));
       const w: Worker = { id: s.id, source: s.source ?? "claude", team, cwd: s.cwd, title: s.title, name: this.botColors.names[s.id], state: r.state, activity: r.activity,
         lastEventAt: Math.max(r.lastEventAt, s.mtimeMs), liveInTerminal: liveInfo?.kind === "interactive",
-        helpers: r.helpers.size, model: s.model, preview: this.cfg.streamingMode ? undefined : r.preview, said: this.cfg.streamingMode ? undefined : r.said, stats: this.sessionStats.get(s.id), color: bot };
+        helpers: r.helpers.size, model: s.model ?? this.sessionStats.get(s.id)?.model, preview: this.cfg.streamingMode ? undefined : r.preview, said: this.cfg.streamingMode ? undefined : r.said, stats: this.sessionStats.get(s.id), color: bot };
       let t = byTeam.get(team);
       if (!t) byTeam.set(team, t = { name: team, color: teamColor(team, this.teams.colors), workers: [], lastActivityAt: 0, labels: this.labels.forTeam(team), botColor: this.botColors.forTeam(team) });
       t.workers.push(w); t.lastActivityAt = Math.max(t.lastActivityAt, w.lastEventAt);
