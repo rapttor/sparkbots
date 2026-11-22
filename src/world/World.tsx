@@ -652,7 +652,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       return;
     }
     const p = pos.current;
-    if (frozen.current) return; // a laptop close-up owns the camera and the focus
+    if (frozen.current) { if (handGroup.current) handGroup.current.visible = false; return; } // a laptop close-up owns the camera and the focus; the hand would only cover the screen
     if (controllerRef.current === "hand") {
       // Hand: WASD pans the camera, the hand sits where the mouse points, and the camera follows the hand only when it nears the edge.
       const ks = keys.current;
@@ -678,7 +678,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
         }
       }
       p.copy(handPos.current); p.y = 0;
-      handGroup.current?.position.set(p.x, 0, p.z);
+      if (handGroup.current) { handGroup.current.visible = true; handGroup.current.position.set(p.x, 0, p.z); }
     } else {
       const ks = keys.current;
       let dx = (ks.has("d") || ks.has("arrowright") ? 1 : 0) - (ks.has("a") || ks.has("arrowleft") ? 1 : 0);
@@ -1133,10 +1133,10 @@ export default function World({ active = true }: { active?: boolean }) {
   return (
     <div style={{ display: "flex", width: "100%", height: "100%", minHeight: 240 }}>
     <div ref={frame} onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); lastPtr.current = { x: e.clientX - r.left, y: e.clientY - r.top }; }} style={{ position: "relative", flex: 1, minWidth: 0, height: "100%" }}>
-      <Canvas style={{ cursor: controller === "hand" && !handMenu && !labelsOnly ? "none" : undefined }} onPointerMissed={() => { setMenu(null); setRoomMenu(null); }} frameloop={hidden || !active ? "never" : "always"} dpr={[1, maxDpr]} camera={{ position: [0, 40, 20], fov: 50, near: 0.1, far: 1000 }}>
+      <Canvas style={{ cursor: controller === "hand" && !handMenu && !labelsOnly && !inCloseup ? "none" : undefined }} onPointerMissed={() => { setMenu(null); setRoomMenu(null); }} frameloop={hidden || !active ? "never" : "always"} dpr={[1, maxDpr]} camera={{ position: [0, 40, 20], fov: 50, near: 0.1, far: 1000 }}>
         <Scene mode={mode} layout={layout} jump={jump} onNearby={setNearby} onEnter={enterTeam} ctl={{ onScreen: startCloseup, closeup, closeupExit, onCloseup: setInCloseup, onReady, saveView: saveN, clearView: clearN, labels: labelsApi, active, subs, tags, api: sceneApi, onPick, pan, angle, zoom, reset, locked, warp, view, skipFrame, closeupWalk, handZoomCmd: { save: handSave, restore: handRestore }, handMenuOpen: handMenuOpenRef, onOverview: setLabelsOnly }} />
       </Canvas>
-      {mode === "walk" && controller === "hand" && (
+      {mode === "walk" && controller === "hand" && !inCloseup && (
         <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }}>
           <button onClick={() => setHandSave((n) => n + 1)} style={{ padding: "4px 10px", cursor: "pointer", fontSize: 12 }} title="Remember the current zoom">Save zoom</button>
           <button onClick={() => setHandRestore((n) => n + 1)} style={{ padding: "4px 10px", cursor: "pointer", fontSize: 12 }} title="Go back to the saved zoom">Restore zoom</button>

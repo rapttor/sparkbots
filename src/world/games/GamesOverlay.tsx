@@ -5,7 +5,7 @@ import { GAMES, GAME_IDS } from "./registry";
 import type { GameId, RankRow } from "./types";
 
 const CSS = `
-.games-bar{position:absolute;z-index:7;top:8px;left:0;right:0;padding:0 15%;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;pointer-events:none}
+.games-bar{position:absolute;z-index:6;top:46px;left:0;right:0;padding:0 15%;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;pointer-events:none}
 .games-bar>*{pointer-events:auto}
 .games-chip{display:flex;gap:6px;align-items:center;padding:3px 8px;background:#151b27ee;border:1px solid #3a4558;border-radius:999px;font-size:12px;color:#e7ecf5}
 .games-chip button{border:0;background:#0000;color:#e7ecf5;cursor:pointer;padding:0 2px;font-size:12px}
