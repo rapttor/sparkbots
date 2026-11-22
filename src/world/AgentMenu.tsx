@@ -52,10 +52,11 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
   const openChat = useStore((s) => s.openChat);
   const followers = useStore((s) => s.followers);
   const toggleFollower = useStore((s) => s.toggleFollower);
-  const [open, setOpen] = useState<"" | "perform" | "look" | "idle" | "go" | "cards">("perform") // the Perform (actions) section starts expanded;
+  const [open, setOpen] = useState<"" | "look" | "idle" | "go" | "cards">("");
   const [cards, setCards] = useState<Card[]>([]);
   useEffect(() => { if (open === "cards") api.board().then((c) => setCards(c.filter((x) => x.team === w.team && (x.column === "backlog" || x.column === "ready")))).catch(() => {}); }, [open, w.team]);
   const [detail, setDetail] = useState(false);
+  const [perfInfo, setPerfInfo] = useState(false);
   const [note, setNote] = useState("");
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const ref = useRef<HTMLDivElement>(null);
@@ -104,11 +105,21 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
       {item("☕ Bring a coffee", () => { requestCoffee(w.id); onClose(); })}
       {item(followers.includes(w.id) ? "👥 Stop following" : "👥 Follow me", () => { toggleFollower(w.id); onClose(); }, "F")}
       {ACTIONS.filter((a) => a.kind === "real").map((a) => item(`${a.label} …`, () => { scene.act(a.key, w.id); onClose(); }, a.key.toUpperCase(), a.can?.(w) ?? undefined))}
-      {item(`🎬 Perform ${open === "perform" ? "▾" : "▸"}`, () => setOpen(open === "perform" ? "" : "perform"))}
-      {open === "perform" && <div className="am-sub">
-        <p className="muted small">Cosmetic animations only; the real status does not change.</p>
-        {ACTIONS.filter((a) => a.kind === "fx" && a.key !== "f").map((a) => item(a.label, () => { scene.act(a.key, w.id); onClose(); }))}
-      </div>}
+      <div className="am-perform">
+        <div className="am-perform-title">
+          🎬 Perform
+          <button type="button" className={`am-info ${perfInfo ? "on" : ""}`} aria-expanded={perfInfo} aria-label="About Perform" title="What is Perform?" onClick={() => setPerfInfo(!perfInfo)}>ⓘ</button>
+        </div>
+        {perfInfo && <p className="am-perform-help small">Fun animations for this robot, just for show. Nothing is sent to the agent and its real status does not change.</p>}
+        <div className="am-tiles">
+          {ACTIONS.filter((a) => a.kind === "fx" && a.key !== "f").map((a) => (
+            <button key={a.key} className="am-tile" style={{ "--c": a.color ?? "#94a3b8" } as React.CSSProperties} title={a.hint} onClick={() => { scene.act(a.key, w.id); onClose(); }}>
+              <span className="am-tile-icon">{a.icon ?? "✨"}</span>
+              <b>{a.label}</b>
+            </button>
+          ))}
+        </div>
+      </div>
       {item(`🎭 Show as… ${open === "look" || open === "idle" ? "▾" : "▸"}`, () => setOpen(open === "look" || open === "idle" ? "" : "look"))}
       {(open === "look" || open === "idle") && (
         <div className="am-sub">

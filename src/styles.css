@@ -422,3 +422,18 @@ button.primary{background:var(--accent);color:#06201d;border-color:var(--accent)
 .kb-body{font-size:12px}
 .kb input,.kb select{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
 .kb input[type=checkbox]{padding:0}
+
+/* Perform: cosmetic animations as one joined row of coloured tiles (no gaps) with a small caption under each icon */
+.am-perform{margin:4px 0}
+.am-perform-title{display:flex;align-items:center;gap:6px;font-weight:600;padding:4px 8px}
+.am-info{padding:0 4px;border:0;background:none;cursor:pointer;font-weight:400;color:var(--muted);border-radius:50%;line-height:1}
+.am-info:hover,.am-info.on{color:var(--accent)}
+.am-perform-help{margin:0 8px 6px;padding:6px 8px;border-left:2px solid var(--accent);background:#ffffff08;color:var(--muted)}
+.am-tiles{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:0 4px}
+.am-tile{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 1px;text-align:center;border:0;border-radius:0;box-shadow:-1px -1px 0 var(--line);font-size:9px;min-width:0;font-weight:500;background:none}
+.am-tile b{font-weight:500;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.am-tile:hover{background:var(--line)}
+.am-tile small{font-size:9px;line-height:1.15;color:var(--muted);font-weight:400}
+.am-tile-icon{width:24px;height:24px;display:grid;place-items:center;font-size:13px;border:1px solid var(--line);border-radius:50%;filter:grayscale(1);opacity:.55;transition:filter .15s,opacity .15s,background .15s,border-color .15s}
+.am-tile:hover .am-tile-icon,.am-tile:focus-visible .am-tile-icon,.am-tile:active .am-tile-icon{filter:none;opacity:1;background:color-mix(in srgb,var(--c) 22%,transparent);border-color:var(--c)}
+.am-tile:hover b,.am-tile:focus-visible b{color:var(--c)}

@@ -1,2 +1,2 @@
 import { fxAction } from "../fxAction";
-export default fxAction({ key: "h", label: "High-five", hint: "raise a hand, yellow sparks", fx: "high-five" });
+export default fxAction({ key: "h", label: "High-5", hint: "raise a hand, yellow sparks", icon: "🖐️", color: "#facc15", fx: "high-five" });

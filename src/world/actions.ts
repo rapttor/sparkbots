@@ -10,6 +10,8 @@ export interface BotAction {
   key: string;                                  // single lowercase key
   label: string;
   hint: string;
+  icon?: string;                                // cosmetic actions: emoji shown on the Perform tile
+  color?: string;                               // cosmetic actions: tile colour
   kind: "fx" | "real";
   run: (workerId: string, worker?: Worker) => void | Promise<unknown>;
   confirm?: (w: Worker) => string;              // real actions: the exact text shown before running

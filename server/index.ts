@@ -72,9 +72,11 @@ hub = new Hub(wss, company);
 company.indexSessions().catch((e) => console.log(`(search index: ${(e as Error).message})`));
 setInterval(() => { company.indexSessions().catch(() => {}); }, 60_000);
 // Stats are rebuilt every 30 s (unchanged transcripts come from the per-file cache, so only changed sessions are re-read).
-let building = false;
-const rebuildStats = () => { if (building) return; building = true; company.buildStats().then(() => { push(); ping("stats"); }).catch(() => {}).finally(() => { building = false; }); };
-rebuildStats(); setInterval(rebuildStats, 30_000);
+let building: Promise<void> | null = null;
+const rebuildStats = (): Promise<void> => building ??= company.buildStats()
+  .then(() => { push(); ping("stats"); }).catch(() => {}).finally(() => { building = null; }); // a call during a rebuild joins it
+app.post("/api/stats/refresh", async () => { await rebuildStats(); return company.stats.snapshot(); }); // the Stats panel's Refresh button
+void rebuildStats(); setInterval(() => void rebuildStats(), 30_000);
 chokidar.watch(join(claudeDir(), "projects"), { depth: 1, ignoreInitial: true, ignored: /observer-sessions/ })
   .on("add", async () => { await company.refreshSessions(); })
   .on("change", async (f) => {

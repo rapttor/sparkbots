@@ -1,3 +1,4 @@
+import type { StatsSnapshot } from "../server/stats/aggregate";
 import type { BacklogItem } from "../server/backlog";
 import type { RunRecord } from "../server/adapters/claude-code/command";
 import type { Config, Teams } from "../server/config";
@@ -51,6 +52,7 @@ export const api = {
   opencodeModels: () => call<{ models: OpenCodeModel[] }>("GET", "/api/opencode/models"),
   stop: (runId: string) => call<{ ok: true }>("POST", "/api/stop", { runId }),
   board: () => call<Card[]>("GET", "/api/board"),
+  refreshStats: () => call<StatsSnapshot>("POST", "/api/stats/refresh"),
   backlog: (team: string) => call<{ file: string; items: BacklogItem[] } | null>("GET", `/api/backlog?team=${encodeURIComponent(team)}`),
   createBacklog: (team: string) => call<{ file: string }>("POST", "/api/backlog/create", { team }),
   importTasks: (team: string) => call<{ added: number; skipped: number; file: string }>("POST", "/api/board/import", { team }),

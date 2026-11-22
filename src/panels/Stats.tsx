@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { NerdStats } from "./NerdStats";
-import { call } from "../api";
+import { api, call } from "../api";
 import { useLive } from "../state/live";
 import { useStore } from "../state/store";
 import type { Tokens } from "../../server/stats/aggregate";
@@ -105,6 +105,8 @@ function AgentStates() {
 export function Stats() {
   const stats = useStore((s) => s.stats);
   const [range, setRange] = useState<number>(() => loadPref("ao.statsRange", 30, (v) => RANGES.includes(v as 7)));
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = async () => { setRefreshing(true); try { useStore.setState({ stats: await api.refreshStats() }); } catch { /* the next automatic pass will catch up */ } finally { setRefreshing(false); } };
   const [off, setOff] = useState<string[]>(() => loadPref("ao.statsOff", [], Array.isArray)); // services switched off in the toggle
   if (!stats) return <section className="panel"><h1>Stats</h1><AgentStates /><p className="muted">Loading…</p></section>;
   const present = SERVICES.filter((x) => stats.bySource?.[x.id]);
@@ -118,7 +120,9 @@ export function Stats() {
   const grand = Math.max(1, present.reduce((n, x) => n + total(stats.bySource[x.id]!), 0));
   return (
     <section className="panel">
-      <h1>Stats</h1>
+      <div className="tb-row"><h1 style={{ margin: 0 }}>Stats</h1><span className="spacer" />
+        <button className="small" disabled={refreshing} title="Re-read changed sessions now instead of waiting for the next automatic pass (every 30 s)" onClick={() => void refresh()}>{refreshing ? "Refreshing…" : "↻ Refresh"}</button>
+      </div>
       <AgentStates />
       <div className="tb-row stats-toggle" role="group" aria-label="Chart filters">
         {present.map((x) => (
