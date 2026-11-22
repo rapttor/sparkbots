@@ -6,6 +6,7 @@ import { nav } from "./nav";
 import { followerIndex, followerList, followTarget, poiExists, pickVisit, releaseVisit, slotPos, conductors, isHeld } from "./roam";
 import { roams, looks, effectiveState, occupiedAt, steerAround, separate, player, type BotMode, type Roam } from "./roam";
 import { fxPose } from "./fx";
+import { caffeineBand, caffeineJitter } from "./caffeine";
 import { IDLE_CLIPS, STATE_ICON, clipById, statusClip, type Clip } from "./clips";
 
 export const WHITE = new Color("#ffffff");
@@ -181,7 +182,7 @@ export function poseBot(m: Meshes, i: number, d: DeskSlot, t: number, animate: b
   if (!clip && animate && real === "idle" && !r.moving && !r.lying && IDLE_CLIPS.length) {
     if (r.clip && now > r.clip.until) r.clip = null;
     if (!r.clip && Math.random() < 0.012) { // about once every 5 s per robot at 60 fps
-      const pick = IDLE_CLIPS[Math.floor(Math.random() * IDLE_CLIPS.length)]!;
+      const pick = (caffeineBand(d.worker.id) === "sleepy" && Math.random() < 0.5 ? clipById("yawn") : undefined) ?? IDLE_CLIPS[Math.floor(Math.random() * IDLE_CLIPS.length)]!; // low caffeine: more yawns
       const [lo, hi] = pick.seconds ?? [3, 5];
       r.clip = { id: pick.id, t0: now, until: now + lo + Math.random() * (hi - lo) };
     }
@@ -193,6 +194,7 @@ export function poseBot(m: Meshes, i: number, d: DeskSlot, t: number, animate: b
     bob += cp.bob ?? 0; sway += cp.sway ?? 0; wave += cp.wave ?? 0; swing += cp.swing ?? 0; lean = cp.lean ?? 0; cspin = cp.spin ?? 0;
     hop0 = cp.hop ?? 0;
   }
+  if (animate && !r.lying) { const cj = caffeineJitter(d.worker.id, t); sway += cj.sway; bob += cj.bob; } // high caffeine: twitchy
   r.icon = r.mode === "follow" ? "👥" : r.lying ? (STATE_ICON.asleep ?? "") : (clip?.icon ?? STATE_ICON[real] ?? "");
   const c = chairOf(d);
   if (real === "waiting") beacon = animate ? 0.8 + 0.4 * Math.sin(t * 5 + ph) : 1;

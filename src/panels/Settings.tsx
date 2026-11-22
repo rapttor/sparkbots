@@ -3,6 +3,7 @@ import { api, type ArchivedItem, type Config, type Teams } from "../api";
 import { useLive } from "../state/live";
 import { useWidth } from "../dock/useLayout";
 import { runProblem } from "../world/runStatus";
+import { rateLimitedAt } from "../world/rateLimit";
 import { useStore } from "../state/store";
 import { KEYMAP } from "../world/keymap";
 import { listAvatars } from "../world/avatar";
@@ -302,6 +303,9 @@ export function Settings() {
     { id: "data-center", section: "3D office", label: "Data center and Data room names", words: "data center datacenter data room server room rack alias rename label search conversations",
       desc: "The Data center is the 3D room with one rack per project; the Data room is its search panel; the Server room panel lists live processes. Rename the room or a rack by clicking its title in the Data room panel.",
       body: <button onClick={() => useStore.getState().setPanel("data")}>Open the Data room</button> },
+    { id: "rate-limited", section: "General", label: "Rate limited (nervous mode)", words: "429 usage limit quota nervous red bubbles jitter anxious cosmetic",
+      desc: "Switches on automatically when a run hits a 429 / usage limit. Turn it on by hand to see the office nervous: bubbles turn red and robots twitch. Cosmetic only; working agents keep working. Lasts 2 hours unless switched off.",
+      body: <label><input type="checkbox" checked={rateLimitedAt(snapshot?.rateLimitedUntil)} onChange={(e) => void api.setRateLimit(e.target.checked).catch(() => {})} /> {rateLimitedAt(snapshot?.rateLimitedUntil) ? "Rate limited" : "Not limited"}</label> },
     { id: "reset-filters", section: "General", label: "Reset header filters", words: "search status labels sort open tasks clear",
       desc: "Clear the search, status, label and task filters shown in the header.",
       body: <button onClick={() => setFilters(DEFAULT_FILTERS)}>Reset filters</button> },

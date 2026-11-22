@@ -261,13 +261,13 @@ Do this first: games, rewards, caffeine and rankings all write here.
 - [x] [H] 13.2.7 Data console: click the console computer in the Data center, or press E near it (hint "E · open Data room"), or "Use the data console" in the hand Actions menu, to open the Data room panel. `datacenter.tsx`, `World.tsx`
 
 ### 13.4 Cubicles, identity, caffeine, rate limit
-- [ ] [S] 13.4.1 **Simplified:** cubicle = two see-through wall boxes + a small shelf of slot instances around the existing desk (instanced meshes, no new collision: walls are click-through). *How:* one `world/cubicles.tsx` fed by the desk list; archive overflow comes later with 13.4.3
-- [ ] [S] 13.4.2 Render cubicles/shelves; keep laptop and status screen; walls stay click-through
+- [x] [S] 13.4.1 **Simplified:** cubicle = two see-through wall boxes + a small shelf of slot instances around the existing desk (instanced meshes, no new collision: walls are click-through). *How:* one `world/cubicles.tsx` fed by the desk list; archive overflow comes later with 13.4.3 *(done; not yet checked in the browser)*
+- [x] [S] 13.4.2 Render cubicles/shelves; keep laptop and status screen; walls stay click-through *(done; not yet checked in the browser)*
 - [ ] [S] 13.4.3 Rewards/trophies: SQLite rewards, wall slots, archive overflow; claw items can be given to an agent
 - [ ] [S] 13.4.4 Project-colour hat/visor accent (after 9.3); project badge in Teams, agent menu and chat header
-- [ ] [H] 13.4.5 Caffeine: SQLite value per agent, decay, coffee/food bump, shown in the agent menu; jitter/yawn clip modifiers only
-- [ ] [H] 13.4.6 **Simplified:** rate limit = reuse the 429 / usage-limit detection already in `runProblem` (`server/`); store a flag `rateLimited{until}` in the store + a manual toggle row in Settings. *How:* new server field in the snapshot meta, no transcript scanning at first
-- [ ] [H] 13.4.7 **Cosmetic only:** nervous mode = `fx` file that tints bubbles red and plays a jitter clip while `rateLimited`; one data file under `world/fx/`
+- [x] [H] 13.4.5 Caffeine: SQLite value per agent, decay, coffee/food bump, shown in the agent menu; jitter/yawn clip modifiers only *(done; not yet checked in the browser)*
+- [x] [H] 13.4.6 **Simplified:** rate limit = reuse the 429 / usage-limit detection already in `runProblem` (`server/`); store a flag `rateLimited{until}` in the store + a manual toggle row in Settings. *How:* new server field in the snapshot meta, no transcript scanning at first *(done; not yet checked in the browser)*
+- [x] [H] 13.4.7 **Cosmetic only:** nervous mode = `fx` file that tints bubbles red and plays a jitter clip while `rateLimited`; one data file under `world/fx/` *(done; not yet checked in the browser)*
 - [ ] [H] 13.4.8 "Play while limited" entries in the agent menu (delegate to 13.7)
 
 ### 13.5 Simulated chat

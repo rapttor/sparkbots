@@ -44,6 +44,9 @@ export async function call<T>(method: string, path: string, body?: unknown): Pro
 }
 
 export const api = {
+  caffeine: () => call<{ start: number; levels: Record<string, number> }>("GET", "/api/caffeine"),
+  bumpCaffeine: (id: string, kind: "coffee" | "food") => call<{ level: number }>("POST", `/api/caffeine/${encodeURIComponent(id)}/bump`, { kind }),
+  setRateLimit: (on: boolean) => call<{ until: number }>("POST", "/api/rate-limit", { on }),
   runs: () => call<RunRecord[]>("GET", "/api/runs"),
   runLog: (id: string) => call<StreamLine[]>("GET", `/api/runs/${id}/log`),
   retryRun: (runId: string, tools: string[]) => call<SendResult>("POST", `/api/runs/${runId}/retry`, { tools }),

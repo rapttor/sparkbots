@@ -65,4 +65,4 @@ export interface Worker {
 export interface WorkStats { turns: number; tools: number; tokens: number; workMs: number; ctx: number }
 export interface LabelDef { id: string; name: string; color: string; onMap: boolean }
 export interface Team { name: string; color: string; workers: Worker[]; lastActivityAt: Ts; labels: string[]; botColor: string }
-export interface Snapshot { at: Ts; teams: Team[]; skippedLines: number; labelDefs: LabelDef[] }
+export interface Snapshot { at: Ts; teams: Team[]; skippedLines: number; labelDefs: LabelDef[]; rateLimitedUntil?: Ts } // rateLimitedUntil: set while the model service is rate limited (cosmetic: nervous mode)

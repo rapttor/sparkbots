@@ -9,6 +9,20 @@ import { fmtDuration, fmtNum, relTime, displayName } from "../util";
 import { ACTIONS } from "./actions";
 import { poiChoices } from "./roam";
 import { requestCoffee } from "./servicebots";
+import { bumpCaffeine, caffeineBand, caffeineLevel, refreshCaffeine } from "./caffeine";
+
+/** Caffeine meter (cosmetic: wired agents twitch, sleepy ones yawn). A snack bumps it a little. */
+function CaffeineRow({ id }: { id: string }) {
+  const [, tick] = useState(0);
+  useEffect(() => { void refreshCaffeine().then(() => tick((n) => n + 1)); }, [id]);
+  const v = Math.round(caffeineLevel(id)), b = caffeineBand(id);
+  return (
+    <div className="am-row small" title="Caffeine level. Coffee and snacks raise it, it fades over hours. Only changes how the robot twitches or yawns.">
+      <span>☕ Caffeine</span> <meter min={0} max={100} value={v} style={{ width: 90 }} /> <b>{v}</b> <span className="muted">{b === "wired" ? "wired" : b === "sleepy" ? "sleepy" : "fine"}</span>{" "}
+      <button onClick={() => { bumpCaffeine(id, "food"); setTimeout(() => tick((n) => n + 1), 300); }}>🍪 Snack</button>
+    </div>
+  );
+}
 
 /** What the 3D scene offers the menu (cosmetic things happen inside the scene). */
 export interface SceneApi {
@@ -101,6 +115,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
         <StateBadge state={w.state} />
         <button className="icon-btn" aria-label="Close" onClick={onClose}>×</button>
       </header>
+      <CaffeineRow id={w.id} />
       {item("💬 Talk", () => { openChat(w.id); onClose(); }, "E")}
       {item("☕ Bring a coffee", () => { requestCoffee(w.id); onClose(); })}
       {item(followers.includes(w.id) ? "👥 Stop following" : "👥 Follow me", () => { toggleFollower(w.id); onClose(); }, "F")}
