@@ -274,6 +274,7 @@ Do this first: games, rewards, caffeine and rankings all write here.
 - [x] [S] 13.1.36 Sidebar colour per tab: every tab has a default colour (`state/dockColors.ts`) that tints the sidebar (edge, glow, header, title, background) and fades between tabs; Settings > 3D office "Sidebar colours" has a picker per tab + Reset (stored in `ao.dockColors`). Test in `test/dockcolors.test.ts`
 - [x] [H] 13.8.2d Header Stop / reception Exit end the whole smashing session: run, countdown timer and queued items are cleared and the points banked; the Stop button also shows during the countdown (`smashCtl.hasSession`). Race merged as a special mode (setup in Games > New game, missiles straight, rocket kart faster; 13.7.10g)
 - [x] [S] 13.1.37 Agent dialog (click a bot) has two tabs, ⚡ Actions and 📜 History: History shows the agent's messages read-only (from `/api/sessions/:id/messages`), newest at the bottom, with a search box and an "Open chat" button; the dialog widens for it. `AgentMenu.tsx`
+- [x] [H] 13.1.38 Desks are no longer obstacles: removed from the player collision boxes and the robots'' walking grid, so you and the agents walk straight through them (room furniture still blocks). `World.tsx`
 - [x] [H] 13.1.32 Fix: games chips covered the hand-mode buttons; laptop close-up hides the hand and its buttons and shows the real cursor (hand + walk both keep "Back to the office")
 
 ### 13.4 Cubicles, identity, caffeine, rate limit

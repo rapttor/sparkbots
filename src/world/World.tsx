@@ -10,7 +10,7 @@ import type { Worker as BotWorker } from "../../server/adapters/types";
 import { useStore } from "../state/store";
 import { api, type SubagentInfo } from "../api";
 import { useLive } from "../state/live";
-import { DESK_D, DESK_W, PLAYER_RADIUS, deskBoxes, resolveMove } from "./collide";
+import { DESK_D, DESK_W, PLAYER_RADIUS, resolveMove } from "./collide";
 import { advance, fitDistance, flyDurationFor, maxZoomDistance, pairSpot, REDUCED_MAX, smooth, worldPerPixel } from "./camera";
 import { getAvatar, sparkParts, type PartRefs, type PoseClip } from "./avatar";
 import { avatarTextures } from "./avatarTextures";
@@ -95,7 +95,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   const playerInit = useRef(false);
   const layoutRef = useRef(layout);
   const boxes = useMemo(() => [
-    ...deskBoxes(layout.desks),
+    // desks are NOT obstacles: you and the robots walk straight through them (only room furniture blocks)
     ...layout.zones.flatMap((z) => z.props.filter((p) => p.solid).map((p) => ({ minX: p.x - p.w / 2, maxX: p.x + p.w / 2, minZ: p.z - p.d / 2, maxZ: p.z + p.d / 2 }))),
   ], [layout]);
   // shared navigation + the spots idle robots can visit follow the layout
