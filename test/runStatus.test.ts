@@ -6,7 +6,7 @@ const retry = (attempt: number, error_status = 401) => ({ type: "system", subtyp
 describe("runProblem", () => {
   it("reports the latest retry with a readable reason", () => {
     expect(runProblem([{ type: "system", subtype: "init" }, retry(1), retry(3)])).toEqual({
-      level: "retry", text: "Authentication failed (401): sign in again or check the API credentials, retrying 3/10",
+      level: "retry", text: "Authentication failed (401): sign in again or check the API credentials, retrying 3/10", kind: "auth",
     });
   });
   it("names a usage limit", () => {

@@ -30,7 +30,7 @@ function Bubble({ m, color }: { m: ChatMessage; color: string }) {
 }
 
 /** The run failed because the endpoint does not know the model. Say where the run is going and offer the likely fixes. */
-function ModelHelp({ onTry }: { onTry: (m: string) => void }) {
+function ModelHelp({ onTry, what = "model" }: { onTry: (m: string) => void; what?: "model" | "auth" }) {
   const [setup, setSetup] = useState<Awaited<ReturnType<typeof api.claudeSetup>> | null>(null);
   const [models, setModels] = useState<string[]>([]);
   const [done, setDone] = useState("");
@@ -42,13 +42,16 @@ function ModelHelp({ onTry }: { onTry: (m: string) => void }) {
   return (
     <div className="wc-help">
       <p className="small">
-        The service this run talks to does not know that model.
+        {what === "auth"
+          ? <>The service this run talks to rejected its login (401). Nothing is wrong with your files: SparkBots starts the <b>claude</b> command on this computer, and that command sends the request on to <b>{setup?.inheritedGatewayHost ?? setup?.settingsGatewayHost ?? "Anthropic (your own Claude login)"}</b>
+            {setup?.inheritedGatewayHost ? " (from the environment SparkBots was started in, for example a shell or the desktop app)" : setup?.settingsGatewayHost ? " (from the env block in ~/.claude/settings.json)" : ""}. That service wants a login or token that is no longer valid, for example one that belonged to an app you closed.</>
+          : <>The service this run talks to does not know that model.</>}
         {setup?.inheritedGatewayHost ? <> SparkBots' server has <b>ANTHROPIC_BASE_URL</b> set, so runs go to <b>{setup.inheritedGatewayHost}</b>{/11434/.test(setup.inheritedGatewayHost) ? " (that is Ollama's port)" : ""}, not to Anthropic.</> : null}
       </p>
       <div className="wc-help-actions">
-        {setup?.inheritedGatewayHost && !setup.cleanEnv && <button className="small" onClick={() => void clean()}>Use real Claude (drop ANTHROPIC_* variables)</button>}
-        {models.length > 0 && <span className="small muted">or pick a model that service has:</span>}
-        {models.map((m) => <button key={m} className="chip" onClick={() => onTry(m)}>{m}</button>)}
+        {(setup?.inheritedGatewayHost || setup?.settingsGatewayHost) && !setup.cleanEnv && <button className="small" onClick={() => void clean()}>Use my own Claude login (clean environment)</button>}
+        {what === "model" && models.length > 0 && <span className="small muted">or pick a model that service has:</span>}
+        {what === "model" && models.map((m) => <button key={m} className="chip" onClick={() => onTry(m)}>{m}</button>)}
       </div>
       {done && <p className="small">{done}</p>}
     </div>
@@ -364,7 +367,7 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
           </button>}
           {!isCodex && !isOpenCode && <ModelPicker value={model} sessionModel={w.model} serviceModels={svcModels} onPick={setModel} />}
         </div>
-        {problem?.kind === "model" && <ModelHelp onTry={(m) => { setModel(m); }} />}
+        {(problem?.kind === "model" || problem?.kind === "auth") && <ModelHelp what={problem.kind} onTry={(m) => { setModel(m); }} />}
         {problem && (run?.status === "running" || problem.level === "error") && (
           <p className="wc-note wc-err" role="status">{problem.level === "retry" ? "⚠ " : "✖ "}{problem.text}{problem.level === "retry" ? " — use Stop to cancel" : ""}</p>
         )}

@@ -15,6 +15,7 @@ import { registerUploads, resolveAttachments, withAttachments } from "./uploads"
 import { registerServices } from "./services/routes";
 import { registerGames } from "./games";
 import { registerRewards } from "./rewards";
+import { claudeDir } from "./adapters/claude-code/discover";
 import { listSubagents } from "./adapters/claude-code/subagents";
 import { recentMessages } from "./adapters/claude-code/transcript";
 import { recentMessages as recentCodexMessages } from "./adapters/codex/transcript";
@@ -25,8 +26,8 @@ import { listModels as listOpenCodeModels, OpenCodeCommandError, queueMessage as
 import { listMcp } from "./mcp";
 import { runPrompt, taskInfo, type TaskInfo } from "./tasks";
 import { saveJson, type Config, type TeamOverride, type Teams } from "./config";
-import { statSync } from "node:fs";
-import { isAbsolute } from "node:path";
+import { readFileSync, statSync } from "node:fs";
+import { isAbsolute, join } from "node:path";
 import type { AgentSource } from "./adapters/types";
 import { CAFFEINE_START } from "./caffeine";
 import { hookToEvents, isInstalled, readSettings, settingsPath } from "./adapters/claude-code/hooks";
@@ -279,7 +280,10 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     const env = c.cfg.cleanEnv ? cleanEnv(process.env) : process.env;
     let host: string | null = null;
     try { host = env.ANTHROPIC_BASE_URL ? new URL(env.ANTHROPIC_BASE_URL).host : null; } catch { host = "(invalid URL)"; }
-    return { cleanEnv: c.cfg.cleanEnv, model: c.cfg.runModel || "(Claude Code default)", inheritedGatewayHost: host, inheritedToken: !!(env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_API_KEY) };
+    // Where ~/.claude/settings.json would send runs (read-only; the clean environment skips that file). Only the host, never a header or token.
+    let settingsHost: string | null = null;
+    if (!c.cfg.cleanEnv) { try { const u = (JSON.parse(readFileSync(join(claudeDir(), "settings.json"), "utf8")) as { env?: Record<string, unknown> }).env?.ANTHROPIC_BASE_URL; if (typeof u === "string") settingsHost = new URL(u).host; } catch { /* no file or no gateway */ } }
+    return { cleanEnv: c.cfg.cleanEnv, model: c.cfg.runModel || "(Claude Code default)", inheritedGatewayHost: host, settingsGatewayHost: settingsHost, inheritedToken: !!(env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_API_KEY) };
   });
   /** "Test run": a tiny prompt in a known project, so the Settings page can show whether the setup works. */
   app.post("/api/test-run", async () => {

@@ -1,5 +1,5 @@
 /** What went wrong with the latest run, read from its stream-json lines. Pure: easy to test. */
-export interface RunProblem { level: "retry" | "error"; text: string; kind?: "model" } // kind "model": the endpoint does not know the chosen model
+export interface RunProblem { level: "retry" | "error"; text: string; kind?: "model" | "auth" } // kind "model": the endpoint does not know the chosen model
 
 const label = (status: unknown, error: unknown): string => {
   if (status === 401) return "Authentication failed (401): sign in again or check the API credentials";
@@ -22,7 +22,7 @@ export function runProblem(lines: unknown[]): RunProblem | null {
       return null;
     }
     if (l.type === "system" && l.subtype === "api_retry") {
-      return { level: "retry", text: `${label(l.error_status, l.error)}, retrying ${String(l.attempt)}/${String(l.max_retries)}` };
+      return { level: "retry", text: `${label(l.error_status, l.error)}, retrying ${String(l.attempt)}/${String(l.max_retries)}`, ...(l.error_status === 401 ? { kind: "auth" as const } : {}) };
     }
   }
   return null;
