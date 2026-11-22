@@ -14,6 +14,7 @@ export const KEYMAP: KeyDef[] = [
   { id: "talk", keys: "E", label: "Talk to the nearby agent", actionable: true },
   ...ACTIONS.filter((a) => a.kind === "real" || a.key === "f").map((a): KeyDef => ({ id: `action:${a.key}`, keys: a.key.toUpperCase(), label: `${a.label}: ${a.hint}`, actionable: true })),
   { id: "minimap", keys: "M", label: "Open the Map tab (the minimap)", actionable: true },
+  { id: "teleport", keys: "Space", label: "Quick map: click anywhere to fly there", actionable: true },
   { id: "lock", keys: "L", label: "Lock / unlock zoom", actionable: true },
   { id: "coffee", keys: "O", label: "Order a coffee (the barista sends a robot to you)", actionable: true },
   { id: "rally", keys: "R", label: "Rally: every agent waiting for you comes to you", actionable: true },

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useStore } from "../state/store";
 import { StateBadge } from "../panels/Badge";
 import { BotIcon } from "../panels/BotIcon";
+import { ProjectBadge } from "../panels/ProjectBadge";
 import { api, call, type ChatMessage, type RunRecord, type Teams } from "../api";
 import { useLive } from "../state/live";
 import { runProblem, type RunProblem } from "./runStatus";
@@ -199,7 +200,7 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
                 onKeyUp={stopProp} onBlur={(e) => saveName(e.currentTarget.value)} />
             : <strong title="Click to rename" style={{ cursor: "text" }} onClick={() => setRenaming(true)}>{w.name || w.title || "(untitled)"} ✎</strong>}
           {w.name && <span className="wc-sub muted" title={w.title}>Session: {w.title}</span>}
-          <span className="wc-sub"><StateBadge state={w.state} /> <span>{w.activity}</span>{w.source === "opencode" && <span className="muted"> · opencode{w.model ? ` · ${w.model}` : ""}</span>}{w.source === "codex" && <span className="muted"> · codex</span>}</span>
+          <span className="wc-sub"><ProjectBadge team={w.team} /> <StateBadge state={w.state} /> <span>{w.activity}</span>{w.source === "opencode" && <span className="muted"> · opencode{w.model ? ` · ${w.model}` : ""}</span>}{w.source === "codex" && <span className="muted"> · codex</span>}</span>
         </div>
         {onDock && (
           <span className="wc-dockbtns">

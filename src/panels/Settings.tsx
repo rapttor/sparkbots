@@ -287,6 +287,9 @@ export function Settings() {
     { id: "zoom-max", section: "3D office", label: "Maximum zoom-out", words: "zoom max limit distance campus fit readout camera",
       desc: "How far the camera can pull back, and the distance at which the whole campus fits. Measured from the current layout.",
       body: <span>{viewInfo.maxDist} m max (campus fits at about {viewInfo.fitDist} m; now {viewInfo.zoomPct}%)</span> },
+    { id: "space-map", section: "3D office", label: "Space opens the quick map", words: "teleport map minimap space bar click go fly hotkey",
+      desc: "Press Space in the 3D office for a map overlay: click anywhere to fly there. Ignored while you type.",
+      body: <label><input type="checkbox" checked={ls.get("ao.spaceMap") !== "0"} onChange={(e) => { ls.set("ao.spaceMap", e.target.checked ? "1" : "0"); bump((n) => n + 1); }} /> Enable Space</label> },
     { id: "fly-speed", section: "3D office", label: "Camera fly speed", words: "camera move transition flight smooth animated go there reset close-up fast normal",
       desc: "How fast the camera flies to its next spot (Go there, reset, close-up). Fast is fine; it never jumps.",
       body: <select value={ls.get("ao.flySpeed") ?? "normal"} onChange={(e) => { ls.set("ao.flySpeed", e.target.value); bump((n) => n + 1); }}>

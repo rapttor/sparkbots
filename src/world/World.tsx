@@ -11,7 +11,7 @@ import { useStore } from "../state/store";
 import { api, type SubagentInfo } from "../api";
 import { useLive } from "../state/live";
 import { DESK_D, DESK_W, PLAYER_RADIUS, deskBoxes, resolveMove } from "./collide";
-import { advance, flyDurationFor, REDUCED_MAX, smooth, worldPerPixel } from "./camera";
+import { advance, fitDistance, flyDurationFor, maxZoomDistance, pairSpot, REDUCED_MAX, smooth, worldPerPixel } from "./camera";
 import { getAvatar, sparkParts, type PartRefs, type PoseClip } from "./avatar";
 import { avatarTextures } from "./avatarTextures";
 import { DeskScreens } from "./screens";
@@ -19,7 +19,7 @@ import { SpeechBubbles } from "./bubbles";
 import { AgentMenu, type SceneApi } from "./AgentMenu";
 import { KeymapLegend, type KeyEntry } from "./KeymapLegend";
 import { KEYMAP } from "./keymap";
-import { viewState, type PanReq, type ViewState, type Warp, type ZoomReq } from "./controls3d";
+import { Minimap, viewState, type PanReq, type ViewState, type Warp, type ZoomReq } from "./controls3d";
 import { applyFilters } from "../panels/teamFilters";
 import { MAX_DESKS, computeLayout, visibleTeams, type Layout, type TeamArea } from "./layout";
 import { nav, Flow, buildNav } from "./nav";
@@ -57,7 +57,7 @@ interface Nearby { id: string; title: string }
 
 const WALK_SPEED = 5, SPRINT_SPEED = 11, SPRINT_ACCEL = 1.8; // units per second; accel = how quickly the sprint builds up (higher = faster)
 // One continuous camera: zoom in = first-person (behind the character/hand), zoom out = near top-down overview.
-const DIST_IN = 3.2, DIST_OUT = 200; // camera distance at max zoom in / max zoom out
+const DIST_IN = 3.2; // camera distance at max zoom in; max zoom out comes from the campus bounds (maxZoomDistance, 13.1.4)
 const PITCH_IN = 0.1, PITCH_OUT = 1.5; // tilt at max zoom in (nearly flat) / max zoom out (near top-down)
 const DEFAULT_ZOOM_T = 0.32; // the "story" angle: behind you, a bit low
 const startMode = (): "saved" | "plaza" => { try { return localStorage.getItem("ao.startMode") === "plaza" ? "plaza" : "saved"; } catch { return "saved"; } };
@@ -122,6 +122,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     if (controllerRef.current === "hand") { handPos.current.set(pt.x, 0, pt.z); clampHand(); return; }
     dest.current = new Vector3(pt.x, 0, pt.z);
   };
+  const distOut = useRef(200); distOut.current = maxZoomDistance(layout); // max zoom-out from the campus bounds (13.1.4)
   // One zoom value drives both distance and tilt: 0 = first-person, 1 = near top-down overview.
   const zoomT = useRef((() => { try { const v = Number(localStorage.getItem("ao.camZoom")); return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_ZOOM_T; } catch { return DEFAULT_ZOOM_T; } })());
   const [labelsOnly, setLabelsOnly] = useState(() => zoomT.current >= OVERVIEW_ZOOM);
@@ -231,7 +232,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   }, []);
 
   /** Camera distance for the current zoom (0 = FPV, 1 = whole campus). */
-  const zoomDist = useCallback((t = zoomT.current) => Math.exp(Math.log(DIST_IN) + (Math.log(DIST_OUT) - Math.log(DIST_IN)) * Math.min(1, Math.max(0, t))), []);
+  const zoomDist = useCallback((t = zoomT.current) => Math.exp(Math.log(DIST_IN) + (Math.log(distOut.current) - Math.log(DIST_IN)) * Math.min(1, Math.max(0, t))), []);
 
   /** The one camera pose for both controllers: centred on `focus`, tilted by the zoom (flat up close, top-down far out). */
   const officePose = useCallback((focus: Vector3, focusY: number) => {
@@ -318,7 +319,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     flyTo(new Vector3(tgt.x, h, tgt.z + h * 0.45), tgt);
   }, [jump, flyTo, officePose]);
 
-  // Laptop close-up: freeze the follow camera, fly in front of the screen, and fly back to where we were.
+  // Laptop close-up: freeze the follow camera, fly to a pair-programming spot beside the agent, and fly back to where we were.
   const prevView = useRef<{ cam: Vector3; target: Vector3 } | null>(null);
   useEffect(() => {
     const c = ctl.closeup;
@@ -328,7 +329,8 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     if (!prevView.current) prevView.current = { cam: camera.position.clone(), target: look.current.clone() };
     frozen.current = true;
     const screenAt = new Vector3(d.x, 1.36, d.z - 0.33);
-    flyTo(new Vector3(screenAt.x, screenAt.y + 0.1, screenAt.z + 1.35), screenAt, { duration: 0.55 });
+    const spot = pairSpot(d, { x: camera.position.x, z: camera.position.z }); // pair-programming spot beside the agent (13.1.8)
+    flyTo(new Vector3(spot.cam.x, screenAt.y + 0.25, spot.cam.z), screenAt.clone().add(new Vector3(-spot.side * 0.15, 0, 0)));
     ctl.onCloseup(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctl.closeup, flyTo]);
@@ -1026,10 +1028,12 @@ export default function World({ active = true }: { active?: boolean }) {
 
   // One list of things the keyboard (and the clickable keymap) can do from here.
   const toggleMode = () => setMode("walk"); // legacy: the view no longer switches to a separate overview
+  const [mapOverlay, setMapOverlay] = useState(false); // Space: quick teleport map (13.1.5)
+  const toggleMapOverlay = () => setMapOverlay((v) => !v);
   const openMap = () => useStore.getState().setPanel("map"); // the minimap lives in the Map tab
   const toggleLock = () => { lsSet("ao.zoomLock", !locked); setLocked(!locked); };
   const resetView = () => setReset((n) => n + 1);
-  const closeOverlays = () => { if (inCloseup) setCloseupExit((n) => n + 1); else if (menu) setMenu(null); else if (chatId) openChat(undefined); };
+  const closeOverlays = () => { if (mapOverlay) setMapOverlay(false); else if (inCloseup) setCloseupExit((n) => n + 1); else if (menu) setMenu(null); else if (chatId) openChat(undefined); };
   const toggleTags = () => { lsSet("ao.nametags", !tags); setTags(!tags); };
   // the View and Projects panels (in the dock) drive the office through this bus; the office mirrors its state back for them
   const busRef = useRef<(c: import("./viewBus").ViewCmd) => void>(() => {});
@@ -1051,7 +1055,7 @@ export default function World({ active = true }: { active?: boolean }) {
   // Camera distance at which the whole campus fits the 50-degree view; the zoom-out limit (DIST_OUT) must cover it.
   useEffect(() => {
     const ext = Math.max(layout.maxX - layout.minX, layout.maxZ - layout.minZ);
-    useStore.getState().setViewInfo({ fitDist: Math.round(ext / (2 * Math.tan((50 / 2) * Math.PI / 180))), maxDist: DIST_OUT });
+    useStore.getState().setViewInfo({ fitDist: Math.round(fitDistance(ext)), maxDist: maxZoomDistance(layout) });
   }, [layout]);
   const clearFollowers = useStore((st) => st.clearFollowers);
   const meetingOpen = useStore((st) => st.meetingOpen);
@@ -1085,12 +1089,13 @@ export default function World({ active = true }: { active?: boolean }) {
     const p = lastPtr.current ?? { x: w / 2, y: h / 2 };
     setHandMenu({ x: Math.max(8, Math.min(p.x, w - 258)), y: Math.max(8, Math.min(p.y, h - 260)) });
   };
-  const hotkeys = { e: () => { if (nearby) sceneApi.current?.talk(); else if (consoleSpot.near) openDataRoom(); else if (controller === "hand") openHandMenu(); }, o: orderCoffee, r: rally, u: bossComing, i: lunch, x: clearFollowers, q: () => setMeetingOpen(!meetingOpen), c: resetView, m: openMap, l: toggleLock, t: toggleTags, "0": resetView };
+  const hotkeys = { e: () => { if (nearby) sceneApi.current?.talk(); else if (consoleSpot.near) openDataRoom(); else if (controller === "hand") openHandMenu(); }, o: orderCoffee, r: rally, u: bossComing, i: lunch, x: clearFollowers, q: () => setMeetingOpen(!meetingOpen), c: resetView, m: openMap, " ": () => { try { if (localStorage.getItem("ao.spaceMap") === "0") return; } catch { /* private mode */ } toggleMapOverlay(); }, l: toggleLock, t: toggleTags, "0": resetView };
   const hotRef = useRef(hotkeys); hotRef.current = hotkeys;
   const activeRef2 = useRef(active); activeRef2.current = active;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!activeRef2.current || typing(e) || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      if (e.key === " ") e.preventDefault(); // Space opens the map: no page scroll / focused-button click
       (hotRef.current as Record<string, (() => void) | undefined>)[e.key.toLowerCase()]?.();
     };
     window.addEventListener("keydown", onKey);
@@ -1103,7 +1108,7 @@ export default function World({ active = true }: { active?: boolean }) {
   const entries: KeyEntry[] = KEYMAP.map((def) => {
     const act = def.id.startsWith("action:") ? def.id.slice(7) : "";
     const run: Record<string, [() => void, string | null]> = {
-      camera: [resetView, null], talk: [() => sceneApi.current?.talk(), nearWhy], minimap: [openMap, null],
+      camera: [resetView, null], talk: [() => sceneApi.current?.talk(), nearWhy], minimap: [openMap, null], teleport: [toggleMapOverlay, null],
       rally: [rally, ids((w) => w.state === "waiting").length || rallying ? null : "Nobody is waiting for you"],
       wake: [bossComing, ids((w) => w.state === "asleep").length ? null : "Nobody is asleep"],
       lunch: [lunch, ids((w) => w.state === "idle").length ? null : "Nobody is idle"],
@@ -1155,6 +1160,14 @@ export default function World({ active = true }: { active?: boolean }) {
           onGo={() => setJump((j) => ({ area: roomMenu.item.area, n: (j?.n ?? 0) + 1 }))} onClose={() => setRoomMenu(null)} />
       )}
       {inCloseup && <button className="closeup-back" onClick={() => setCloseupExit((n) => n + 1)}>← Back to the office</button>}
+      {mapOverlay && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 8, display: "grid", placeItems: "center", background: "rgba(8,10,18,0.55)" }} onClick={() => setMapOverlay(false)}>
+          <div style={{ background: "#12151f", border: "1px solid #2b3145", borderRadius: 10, padding: 12 }} onClick={(e) => e.stopPropagation()}>
+            <div className="muted small" style={{ marginBottom: 6 }}>Click anywhere to fly there · Space or Esc closes</div>
+            <Minimap layout={layout} view={{ current: viewState }} size={Math.min(520, (frame.current?.clientHeight ?? 600) - 90)} onGo={(x, z) => { setMapOverlay(false); useStore.getState().focusPoint(x, z); }} />
+          </div>
+        </div>
+      )}
       <FollowBar />
       <SimChatHost />
       {meetingOpen && <div style={{ position: "absolute", right: 10, bottom: 10, zIndex: 6 }}><MeetingChat onClose={() => setMeetingOpen(false)} /></div>}

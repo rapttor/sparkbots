@@ -197,7 +197,7 @@ export function Teams() {
               <span className="caret">{open ? "▾" : "▸"}</span>
               <BotIcon color={t.botColor} size={34} title="Project bot color: recolors this project's robots in the 3D room (click to change)"
                 onPick={(c) => { void api.setTeamBotColor(t.name, c).catch(() => {}); }} />
-              {t.name}
+              <span className="swatch" style={{ background: t.color }} title="Project colour (floor area and agent hats in the 3D office)" /> {t.name}
               {t.labels.map((id) => defs.find((d) => d.id === id)).filter((d): d is LabelDef => !!d).map((d) => <LabelChip key={d.id} d={d} />)}
               <button className="small" title="Fly the 3D camera to this project" onClick={(e) => { e.stopPropagation(); useStore.getState().focusTeam(t.name); }}>📍</button>
               <button className="small" title="Search this project's conversations in the Data room" onClick={(e) => { e.stopPropagation(); useDataCenter.getState().openFor(t.name); useStore.getState().setPanel("data"); }}>🗄</button>
