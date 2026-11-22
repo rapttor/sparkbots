@@ -183,8 +183,12 @@ th,td{text-align:left;padding:5px 10px;border-bottom:1px solid var(--line)}th{co
 .agent-menu{position:absolute;z-index:9;width:250px;max-height:80%;overflow:auto;display:flex;flex-direction:column;gap:2px;padding:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.55);font-size:13px}
 /* the agent action menu is a centered dialog so it never grows the page or hides behind the dock */
 .agent-dialog-backdrop{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:max(16px,3vh) max(16px,3vw);background:rgba(0,0,0,.58)}
-.agent-dialog{position:relative;width:min(480px,100%);max-height:min(84vh,760px);overflow:auto;padding:12px;gap:3px;font-size:14px}
-.agent-dialog .am-head{position:sticky;top:-12px;z-index:1;padding:10px 2px 7px;margin-top:-10px;background:var(--panel)}
+.agent-dialog{position:relative;display:flex;flex-direction:column;width:min(520px,100%);height:min(78vh,680px);min-width:380px;min-height:360px;max-width:96vw;max-height:94vh;resize:both;overflow:hidden;padding:12px;gap:3px;font-size:14px}
+.am-body{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:3px}
+.am-body.chat{overflow:hidden;gap:0}
+.am-body.chat .wc-root{flex:1;min-height:0;width:100%;max-height:none;height:100%}
+@media (max-width:600px){.agent-dialog{min-width:0;resize:none}}
+.agent-dialog .am-head{flex:none;padding:2px 2px 7px;background:var(--panel)}
 .agent-dialog .am-item{padding:8px 10px}
 .agent-dialog .am-sub{margin-left:14px}
 .agent-dialog .am-quick{position:sticky;bottom:-12px;z-index:1;padding:8px 0 12px;margin-bottom:-12px;background:var(--panel)}
@@ -529,7 +533,6 @@ button.project-link:hover{background:#ffffff10}
 .stop-modes small{font-size:9px;letter-spacing:.08em;text-transform:uppercase;line-height:1}
 
 /* agent dialog: Actions / History tabs */
-.agent-dialog.wide{width:min(760px,100%)}
 .am-tabs{display:flex;gap:4px;margin:2px 0 6px;border-bottom:1px solid var(--line)}
 .am-tabs button{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;padding:5px 10px;color:var(--muted)}
 .am-tabs button.on{color:var(--text);border-bottom-color:var(--accent)}
@@ -538,3 +541,4 @@ button.project-link:hover{background:#ffffff10}
 .am-msg{padding:6px 9px;border-radius:8px;border:1px solid var(--line);white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}
 .am-msg.mine{background:#4fd1c514;border-color:#4fd1c544;align-self:flex-end;max-width:90%}
 .am-msg.bot{background:#ffffff08;max-width:94%}
+.am-tabs{flex:none}

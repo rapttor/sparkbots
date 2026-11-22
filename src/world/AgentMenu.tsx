@@ -16,6 +16,7 @@ import { requestCoffee } from "./servicebots";
 import { SimChatUnread } from "../simchat/SimChat";
 import { useSimChat } from "../simchat/store";
 import { getSettings } from "../simchat/settings";
+import { WorkerChat } from "./WorkerChat";
 import { RewardsSection } from "./rewards/RewardsSection";
 import { bumpCaffeine, caffeineBand, caffeineLevel, refreshCaffeine } from "./caffeine";
 
@@ -69,32 +70,22 @@ function Detail({ w }: { w: Worker }) {
   );
 }
 
-/** The agent's messages (read-only, newest at the bottom) with a search box; the chat itself is one click away. */
-function AgentHistory({ w, onOpenChat }: { w: Worker; onOpenChat: () => void }) {
-  const [msgs, setMsgs] = useState<ChatMessage[] | null>(null);
-  const [q, setQ] = useState("");
-  const [err, setErr] = useState("");
-  const end = useRef<HTMLDivElement>(null);
-  useEffect(() => { let live = true; api.sessionMessages(w.id).then((r) => { if (live) setMsgs(r.messages); }).catch((e: Error) => { if (live) setErr(e.message); }); return () => { live = false; }; }, [w.id]);
-  useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [msgs]);
-  const shown = (msgs ?? []).filter((m) => !q.trim() || m.text.toLowerCase().includes(q.trim().toLowerCase()));
-  return (
-    <div className="am-history">
-      <div className="tb-row"><input aria-label="Search this agent's messages" placeholder="Search messages…" value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1 }} /><button className="small" onClick={onOpenChat}>💬 Open chat</button></div>
-      {err && <p role="alert" className="s-error small">{err}</p>}
-      {msgs === null && !err && <p className="muted small">Loading…</p>}
-      {msgs && shown.length === 0 && <p className="muted small">{q ? "No message matches." : "No messages yet."}</p>}
-      <div className="am-history-list">
-        {shown.map((m, i) => (
-          <div key={i} className={`am-msg ${m.role === "user" ? "mine" : "bot"}`}>
-            <span className="muted small">{m.role === "user" ? "You" : displayName(w)}{m.at ? ` · ${relTime(m.at)}` : ""}</span>
-            <div>{m.text.length > 1500 ? `${m.text.slice(0, 1500)}…` : m.text}</div>
-          </div>
-        ))}
-        <div ref={end} />
-      </div>
-    </div>
-  );
+const SIZE_KEY = "ao.agentDialogSize", MIN_W = 380, MIN_H = 360;
+/** The dialog is resizable (drag the bottom-right corner) and remembers its size; every tab uses the same size. */
+function useDialogSize(ref: React.RefObject<HTMLDivElement>): { style: React.CSSProperties } {
+  const [size] = useState<{ w: number; h: number } | null>(() => { try { const o = JSON.parse(localStorage.getItem(SIZE_KEY) ?? "null") as { w?: number; h?: number } | null; return o && o.w && o.h ? { w: Math.max(MIN_W, o.w), h: Math.max(MIN_H, o.h) } : null; } catch { return null; } });
+  useEffect(() => {
+    const el = ref.current; if (!el || typeof ResizeObserver === "undefined") return;
+    let first = true, t: ReturnType<typeof setTimeout> | undefined;
+    const ro = new ResizeObserver(() => {
+      if (first) { first = false; return; } // the initial layout is not a user resize
+      clearTimeout(t);
+      t = setTimeout(() => { try { localStorage.setItem(SIZE_KEY, JSON.stringify({ w: Math.round(el.offsetWidth), h: Math.round(el.offsetHeight) })); } catch { /* private mode */ } }, 300);
+    });
+    ro.observe(el);
+    return () => { ro.disconnect(); clearTimeout(t); };
+  }, [ref]);
+  return { style: size ? { width: size.w, height: size.h } : {} };
 }
 
 /** Centered dialog that opens when you click an agent: talk, actions, show-as (visual only), and quick actions. */
@@ -106,11 +97,12 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
   const [cards, setCards] = useState<Card[]>([]);
   useEffect(() => { if (open === "cards") api.board().then((c) => setCards(c.filter((x) => x.team === w.team && (x.column === "backlog" || x.column === "ready")))).catch(() => {}); }, [open, w.team]);
   const [detail, setDetail] = useState(false);
-  const [tab, setTab] = useState<"actions" | "history">("actions");
+  const [tab, setTab] = useState<"actions" | "chat">("actions");
   const [perfInfo, setPerfInfo] = useState(false);
   const [note, setNote] = useState("");
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const ref = useRef<HTMLDivElement>(null);
+  const dlgSize = useDialogSize(ref); // the dialog keeps the size you gave it (same on every tab, remembered)
   useLive(async () => { try { setRuns(await api.runs()); } catch { /* ignore */ } }, ["runs"]);
   useEffect(() => {
     const away = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) onClose(); };
@@ -144,7 +136,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
 
   return (
     <div className="agent-dialog-backdrop">
-      <div className={`agent-menu agent-dialog ${tab === "history" ? "wide" : ""}`} ref={ref} role="dialog" aria-modal="true" aria-label={`Actions for ${displayName(w)}`} onWheel={(e) => e.stopPropagation()}>
+      <div className="agent-menu agent-dialog" ref={ref} style={dlgSize.style} role="dialog" aria-modal="true" aria-label={`Actions for ${displayName(w)}`} onWheel={(e) => e.stopPropagation()}>
       <header className="am-head">
         <BotIcon color={w.color} size={22} title="Robot color: click to choose (recolors this agent in the 3D office)" onPick={(c) => { void api.setBotColor(w.id, c).catch((e: Error) => setNote(e.message)); }} />
         <strong title={w.title}>{displayName(w)}</strong>
@@ -155,9 +147,10 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
       </header>
       <div className="am-tabs" role="tablist" aria-label="Agent">
         <button role="tab" aria-selected={tab === "actions"} className={tab === "actions" ? "on" : ""} onClick={() => setTab("actions")}>⚡ Actions</button>
-        <button role="tab" aria-selected={tab === "history"} className={tab === "history" ? "on" : ""} onClick={() => setTab("history")}>📜 History</button>
+        <button role="tab" aria-selected={tab === "chat"} className={tab === "chat" ? "on" : ""} onClick={() => setTab("chat")}>💬 Chat &amp; history</button>
       </div>
-      {tab === "history" ? <AgentHistory w={w} onOpenChat={() => { openChat(w.id); onClose(); }} /> : <>
+      <div className={`am-body ${tab}`}>
+      {tab === "chat" ? <WorkerChat workerId={w.id} onClose={() => setTab("actions")} dock="right" /> : <>
       <CaffeineRow id={w.id} />
       <RewardsSection id={w.id} />
       {item("💬 Talk", () => { openChat(w.id); onClose(); }, "E")}
@@ -223,6 +216,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
       {note && <p className="small am-note">{note}</p>}
       {detail && <Detail w={w} />}
       </>}
+      </div>
       </div>
     </div>
   );
