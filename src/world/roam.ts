@@ -14,7 +14,10 @@ export interface Roam {
   followFace?: number; // where a follower should face once it has arrived
   errand: { x: number; z: number; done: () => void; hold?: number; arrivedAt?: number } | null; // a walk with a purpose (e.g. filing itself into the archive); done() runs on arrival
   visit: { poi: PlacedPoi; slot: number; arrived: boolean; until: number } | null; // idle trip to a zone (see pickVisit)
+  game?: GameIntent | null; // idle agent on its way to / playing at a game table (src/world/games); dropped as soon as real work calls
 }
+/** Where an agent should stand for a game and which way to face. Owned by the games hub, which keeps x/z up to date. */
+export interface GameIntent { instance: string; x: number; z: number; face: number; arrived: boolean }
 export const roams = new Map<string, Roam>();
 
 /** Agents with an open action menu: they stand still until it closes, so the thing you clicked does not wander away. */

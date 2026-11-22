@@ -1,0 +1,214 @@
+import { describe, expect, it } from "vitest";
+import { AppDb } from "../server/db";
+import { parseGameResult } from "../server/games";
+import { GameHub, GATHER_TIMEOUT, OVER_SHOW, type HubEnv } from "../src/world/games/hub";
+import { RallySim, TABLE } from "../src/world/games/rally";
+import { GAMES, pickGame } from "../src/world/games/registry";
+import { RoundSim, diceWinner, rpsWinner } from "../src/world/games/rounds";
+import { SLOTS, placeSlots, seatSpots } from "../src/world/games/tables";
+import { mulberry32, type GameResult } from "../src/world/games/types";
+
+const run = (sim: { over: boolean; step(dt: number): void }, secs = 600) => { for (let t = 0; t < secs * 60 && !sim.over; t++) sim.step(1 / 60); };
+
+describe("rock paper scissors and dice rules", () => {
+  it("paper beats rock, scissors beat paper, rock beats scissors", () => {
+    expect(rpsWinner(1, 0)).toBe(0); expect(rpsWinner(0, 1)).toBe(1);
+    expect(rpsWinner(2, 1)).toBe(0); expect(rpsWinner(0, 2)).toBe(0); expect(rpsWinner(1, 1)).toBeNull();
+  });
+  it("higher dice sum wins", () => { expect(diceWinner(9, 4)).toBe(0); expect(diceWinner(3, 8)).toBe(1); expect(diceWinner(7, 7)).toBeNull(); });
+  it.each(["rps", "dice"] as const)("%s ends with a winner at the target", (kind) => {
+    const s = new RoundSim(kind, mulberry32(7), 3);
+    run(s);
+    expect(s.over).toBe(true);
+    expect(s.winner === 0 || s.winner === 1).toBe(true);
+    expect(s.score[s.winner!]).toBe(3);
+    expect(s.score[s.winner === 0 ? 1 : 0]).toBeLessThan(3);
+  });
+});
+
+describe("pong and air hockey", () => {
+  it.each(["pong", "hockey"] as const)("%s finishes, the ball stays on the table, scores add up", (mode) => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const s = new RallySim(mode, mulberry32(seed), 5);
+      let guard = 0;
+      while (!s.over && guard++ < 60 * 900) {
+        s.step(1 / 60);
+        expect(Math.abs(s.ball.z)).toBeLessThanOrEqual(TABLE.W / 2 + 1e-6);
+        expect(Number.isFinite(s.ball.x)).toBe(true);
+      }
+      expect(s.over).toBe(true);
+      expect(s.score[s.winner!]).toBe(5);
+      expect(s.hits).toBeGreaterThan(0);
+    }
+  });
+  it("pong: standing further back hits harder but reaches less far", () => {
+    const s = new RallySim("pong", mulberry32(1));
+    expect(s.reach(1.2)).toBeLessThan(s.reach(0));
+    const speed = (depth: number) => {
+      const g = new RallySim("pong", mulberry32(2)); g.pause = 0;
+      g.paddles[1].depth = depth; g.paddles[1].z = 0;
+      g.ball = { x: TABLE.L / 2 + 0.01, z: 0.05, vx: 2, vz: 0 }; g.step(0.001);
+      return Math.abs(g.ball.vx);
+    };
+    expect(speed(1.2)).toBeGreaterThan(speed(0));
+  });
+  it("pong: a ball out of reach is a point for the other side", () => {
+    const g = new RallySim("pong", mulberry32(3)); g.pause = 0; g.paddles[1].z = -0.7; g.paddles[1].skill = 0;
+    g.ball = { x: TABLE.L / 2 + 0.01, z: 0.7, vx: 2, vz: 0 };
+    for (let i = 0; i < 120 && g.score[0] === 0; i++) g.step(1 / 60);
+    expect(g.score[0]).toBe(1);
+  });
+  it("hockey: the puck through the centre of the end is a goal, off-centre it bounces", () => {
+    const goal = new RallySim("hockey", mulberry32(4)); goal.pause = 0; goal.paddles[1].x = 0.1; goal.paddles[0].x = -0.1;
+    goal.ball = { x: TABLE.L / 2 - 0.02, z: 0, vx: 3, vz: 0 }; goal.step(0.05);
+    expect(goal.score[0]).toBe(1);
+    const miss = new RallySim("hockey", mulberry32(4)); miss.pause = 0;
+    miss.ball = { x: TABLE.L / 2 - 0.02, z: 0.6, vx: 3, vz: 0 }; miss.step(0.05);
+    expect(miss.score).toEqual([0, 0]); expect(miss.ball.vx).toBeLessThan(0);
+  });
+});
+
+describe("registry and tables", () => {
+  it("picks only allowed games, by weight", () => {
+    expect(pickGame(0.5, ["dice"])).toBe("dice");
+    expect(pickGame(0.5, [])).toBeNull();
+    expect(Object.keys(GAMES).sort()).toEqual(["dice", "hockey", "pong", "rps"]);
+  });
+  it("seats face each other across the table", () => {
+    const [a, b] = seatSpots("large", 10, 5);
+    expect(a.x).toBeLessThan(10); expect(b.x).toBeGreaterThan(10);
+    expect(placeSlots(100, 50)[0]!.x).toBe(100 + SLOTS[0]!.rel[0]);
+  });
+});
+
+/** A fake world: agents are idle until `busy`; walking takes `walk` seconds. */
+function world(ids: string[], walk = 1) {
+  const busy = new Set<string>(), at = new Map<string, { inst: string; since: number }>(), recs: GameResult[] = [];
+  let clock = 0;
+  const env: HubEnv = {
+    rng: mulberry32(11),
+    idle: () => ids.filter((a) => !busy.has(a) && !at.has(a)),
+    free: (a) => !busy.has(a) && !at.has(a),
+    alive: (a, i) => !busy.has(a) && at.get(a)?.inst === i,
+    send: (a, spot, i) => { if (spot) { if (!at.has(a)) at.set(a, { inst: i, since: clock }); } else at.delete(a); },
+    arrived: (a) => clock - (at.get(a)?.since ?? Infinity) >= walk,
+    name: (a) => `Bot ${a}`,
+    record: (r) => recs.push(r),
+  };
+  const hub = new GameHub(env);
+  hub.setSlots(placeSlots(0, 0));
+  hub.auto = false;
+  const tick = (secs: number) => { for (let i = 0; i < secs * 20; i++) { clock += 0.05; hub.tick(0.05); } };
+  return { hub, busy, at, recs, tick };
+}
+
+describe("game hub: instances, seats, state machine", () => {
+  it("seats two agents, plays, records the result, then removes the table", () => {
+    const w = world(["a", "b"]);
+    const inst = w.hub.open("pong", ["a", "b"])!;
+    expect(inst.phase).toBe("gathering");
+    expect(inst.slot.id).toBe("pp"); // the real ping-pong table first
+    w.tick(2);
+    expect(inst.phase).toBe("playing");
+    w.tick(300);
+    expect(w.recs).toHaveLength(1);
+    const r = w.recs[0]!;
+    expect(r.game).toBe("pong"); expect([r.a, r.b]).toContain(r.winner);
+    expect(Math.max(r.scoreA, r.scoreB)).toBe(5);
+    w.tick(OVER_SHOW * 5 + 5);
+    expect(w.hub.instances.length === 0 || w.recs.length > 1).toBe(true); // closed, or continued with a rematch
+    w.hub.stopAll();
+    expect(w.hub.instances).toHaveLength(0);
+    expect(w.at.size).toBe(0); // everyone released
+  });
+  it("makes a new table when the first is taken, and refuses when none is left", () => {
+    const w = world(["a", "b", "c", "d", "e", "f", "g", "h"]);
+    const t1 = w.hub.open("pong", ["a", "b"])!, t2 = w.hub.open("pong", ["c", "d"])!, t3 = w.hub.open("pong", ["e", "f"])!, t4 = w.hub.open("pong", ["g", "h"]);
+    expect([t1.slot.id, t2.slot.id, t3.slot.id]).toEqual(["pp", "L1", "L2"]);
+    expect(t4?.slot.id).toBe("L3");
+    expect(w.hub.open("pong", ["x"])).toBeNull(); // no free large table (and x is not even in the world)
+  });
+  it("reserves seats: an agent cannot be at two tables; invite fills the empty seat", () => {
+    const w = world(["a", "b", "c"]);
+    const inst = w.hub.open("rps", ["a"])!;
+    expect(inst.slot.size).toBe("small");
+    expect(w.hub.open("dice", ["a", "b"])).toBeNull();
+    expect(w.hub.invite(inst.id, "a")).toBe(false);
+    expect(w.hub.invite(inst.id, "b")).toBe(true);
+    expect(w.hub.invite(inst.id, "c")).toBe(false); // table is full
+    w.tick(2);
+    expect(inst.phase).toBe("playing");
+  });
+  it("cancels without a result when an agent goes back to work", () => {
+    const w = world(["a", "b"]);
+    const inst = w.hub.open("hockey", ["a", "b"])!;
+    w.tick(3);
+    expect(inst.phase).toBe("playing");
+    w.busy.add("b");
+    w.tick(0.2);
+    expect(w.hub.instances).toHaveLength(0);
+    expect(w.recs).toHaveLength(0);
+    expect(w.at.size).toBe(0);
+  });
+  it("removes a table nobody reached or joined, and a stopped game records nothing", () => {
+    const slow = world(["a", "b"], 1e9);
+    slow.hub.open("dice", ["a", "b"]);
+    slow.tick(GATHER_TIMEOUT + 2);
+    expect(slow.hub.instances).toHaveLength(0);
+    const w = world(["a", "b"]);
+    const inst = w.hub.open("pong", ["a", "b"])!;
+    w.tick(3);
+    w.hub.stop(inst.id);
+    expect(w.hub.instances).toHaveLength(0);
+    expect(w.recs).toHaveLength(0);
+  });
+  it("idle agents pair up by themselves, but never take busy agents, and respect the switch", () => {
+    const w = world(["a", "b", "c"]);
+    w.busy.add("c");
+    w.tick(20);
+    expect(w.hub.instances).toHaveLength(0); // auto is off
+    w.hub.auto = true;
+    w.tick(15);
+    expect(w.hub.instances.length).toBeGreaterThan(0);
+    for (const i of w.hub.instances) expect(i.seats.map((s) => s.agent)).not.toContain("c");
+  });
+});
+
+describe("game rankings in SQLite", () => {
+  const res = (o: Partial<GameResult>): GameResult => ({ uuid: Math.random().toString(36), at: 1, game: "pong", a: "a", b: "b", aName: "Ann", bName: "Bob", scoreA: 5, scoreB: 2, winner: "a", ...o });
+  it("counts wins, losses and matches per agent and game, and ignores a repeated uuid", () => {
+    const db = new AppDb(":memory:");
+    expect(db.recordGame(res({ uuid: "1" }))).toBe(true);
+    expect(db.recordGame(res({ uuid: "1" }))).toBe(false);
+    db.recordGame(res({ uuid: "2", winner: "b", scoreA: 1, scoreB: 5 }));
+    db.recordGame(res({ uuid: "3", game: "dice", scoreA: 3, scoreB: 0, at: 5, aName: "Ann (renamed)" }));
+    const pong = db.gameRankings("pong");
+    expect(pong).toHaveLength(2);
+    expect(pong.find((r) => r.agent === "a")).toMatchObject({ wins: 1, losses: 1, plays: 2, game: "pong" });
+    const all = db.gameRankings();
+    expect(all.find((r) => r.agent === "a")).toMatchObject({ wins: 2, losses: 1, plays: 3, game: "all", name: "Ann (renamed)" });
+    expect(all[0]!.agent).toBe("a");
+  });
+  it("keeps data across reopening the same file (migration is idempotent)", async () => {
+    const { mkdtempSync, rmSync } = await import("node:fs"), { tmpdir } = await import("node:os"), { join } = await import("node:path");
+    const dir = mkdtempSync(join(tmpdir(), "games-"));
+    try {
+      process.env.AGENT_OFFICE_HOME = dir;
+      const f = join(dir, "x.db");
+      const a = new AppDb(f); a.recordGame(res({ uuid: "p" })); a.close();
+      const b = new AppDb(f);
+      expect(b.gameRankings("pong")[0]).toMatchObject({ plays: 1 });
+      b.close();
+    } finally { delete process.env.AGENT_OFFICE_HOME; rmSync(dir, { recursive: true, force: true }); }
+  });
+  it("validates posted results", () => {
+    const ok = { uuid: "u", game: "pong", a: "a", b: "b", aName: "A", bName: "B", scoreA: 5, scoreB: 1, winner: "a" };
+    expect(parseGameResult(ok)).toMatchObject({ winner: "a", game: "pong" });
+    expect(parseGameResult({ ...ok, game: "chess" })).toBeNull();
+    expect(parseGameResult({ ...ok, winner: "zzz" })).toBeNull();
+    expect(parseGameResult({ ...ok, b: "a" })).toBeNull();
+    expect(parseGameResult({ ...ok, scoreA: -1 })).toBeNull();
+    expect(parseGameResult({ ...ok, winner: null })?.winner).toBeNull();
+    expect(parseGameResult(undefined)).toBeNull();
+  });
+});

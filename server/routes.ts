@@ -12,6 +12,7 @@ import { cleanEnv } from "./adapters/claude-code/command";
 import { registerNotes } from "./notes";
 import { registerUploads, resolveAttachments, withAttachments } from "./uploads";
 import { registerServices } from "./services/routes";
+import { registerGames } from "./games";
 import { listSubagents } from "./adapters/claude-code/subagents";
 import { recentMessages } from "./adapters/claude-code/transcript";
 import { recentMessages as recentCodexMessages } from "./adapters/codex/transcript";
@@ -301,5 +302,6 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
   registerNotes(app, () => ping("notes"));
   registerUploads(app);
   registerServices(app, () => ping("services"));
+  registerGames(app, () => c.db);
   return runs;
 }
