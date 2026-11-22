@@ -71,3 +71,45 @@ describe("no network at runtime", () => {
     }
   });
 });
+
+import { step, typedChars, typingMs, AUTO_DELAY_MS, distanceStep, optionForKey, revealFrom, NEAR, FAR, ARM_TIMEOUT_MS } from "../src/simchat/pacing";
+
+describe("pacing", () => {
+  const base = { len: 30, speed: "normal" as const, auto: true, hasOptions: false };
+  it("types at the configured speed (30 chars/s normal, instant shows all)", () => {
+    expect(typedChars(1000, 100, "normal")).toBe(30);
+    expect(typedChars(0, 100, "normal")).toBe(0);
+    expect(typedChars(5, 100, "instant")).toBe(100);
+    expect(typingMs(30, "normal")).toBe(1000);
+  });
+  it("auto-advances to the next agent line 3 s after typing finished, not before", () => {
+    expect(step({ ...base, elapsedMs: 1000 + AUTO_DELAY_MS - 1, next: "bot" }).advance).toBe(false);
+    expect(step({ ...base, elapsedMs: 1000 + AUTO_DELAY_MS, next: "bot" }).advance).toBe(true);
+  });
+  it("manual mode never auto-advances but offers continue", () => {
+    const o = step({ ...base, auto: false, elapsedMs: 60_000, next: "bot" });
+    expect(o.advance).toBe(false); expect(o.canContinue).toBe(true);
+  });
+  it("my own line follows as soon as the previous one is done; no continue while typing", () => {
+    expect(step({ ...base, elapsedMs: 1000, next: "me" }).advance).toBe(true);
+    expect(step({ ...base, elapsedMs: 200, next: "bot" }).canContinue).toBe(false);
+  });
+  it("shows options only on the last, finished line", () => {
+    expect(step({ ...base, hasOptions: true, elapsedMs: 5000, next: null }).showOptions).toBe(true);
+    expect(step({ ...base, hasOptions: true, elapsedMs: 100, next: null }).showOptions).toBe(false);
+    expect(step({ ...base, hasOptions: true, elapsedMs: 5000, next: "bot" }).showOptions).toBe(false);
+  });
+  it("distance rule has hysteresis and a grace period", () => {
+    expect(distanceStep(FAR + 1, false, 1000)).toEqual({ armed: false, end: false });   // opened from afar, still flying in
+    expect(distanceStep(NEAR - 1, false, 1000)).toEqual({ armed: true, end: false });
+    expect(distanceStep((NEAR + FAR) / 2, true, 1000).end).toBe(false);                   // between: no flicker
+    expect(distanceStep(FAR + 0.1, true, 1000).end).toBe(true);
+    expect(distanceStep(FAR + 1, false, ARM_TIMEOUT_MS + 1).end).toBe(true);
+  });
+  it("keys 1-9 pick options; others do not", () => {
+    expect(optionForKey("2", 3)).toBe(1); expect(optionForKey("4", 3)).toBe(-1); expect(optionForKey("0", 3)).toBe(-1); expect(optionForKey("a", 3)).toBe(-1);
+  });
+  it("reveals unread lines one by one, else repeats the last line", () => {
+    expect(revealFrom(10, 3)).toBe(7); expect(revealFrom(10, 0)).toBe(9); expect(revealFrom(0, 0)).toBe(0);
+  });
+});

@@ -1,97 +1,144 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Html } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
+import type { Group } from "three";
 import { useStore } from "../state/store";
-import { displayName } from "../util";
+import { registerMode } from "../state/modes";
+import { player, roams } from "../world/roam";
+import { useSwallowEvents } from "../world/games/swallow";
 import { isRateLimited, useSimChat, type ChatLine } from "./store";
-import { getSettings, SPEED_MS, subscribeSettings } from "./settings";
+import { getSettings, subscribeSettings } from "./settings";
+import { distanceStep, optionForKey, step } from "./pacing";
 import { shouldInitiate } from "./engine";
 import { threadById } from "./data";
-import { holdAgent, releaseAgent } from "../world/roam";
+import { useSyncExternalStore } from "react";
 import "./simchat.css";
 
 const useSettings = () => useSyncExternalStore(subscribeSettings, getSettings);
+const AGENT_Y = 2.7, ME_Y = 2.6;
 
-/** Reveals `text` char by char (instantly when speed is 0). Calls onDone once finished. */
-function Typed({ text, msPerChar, onDone }: { text: string; msPerChar: number; onDone: () => void }) {
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    if (n >= text.length) { onDone(); return; }
-    const t = setTimeout(() => setN((x) => x + 1), msPerChar);
-    return () => clearTimeout(t);
-  }, [n, text, msPerChar, onDone]);
-  return <>{text.slice(0, n)}</>;
+/** A chat bubble drawn as DOM at a 3D point. Follows `at()` every frame (an agent walks, the hand moves). */
+function Anchored({ at, y, children }: { at: () => { x: number; z: number } | null; y: number; children: React.ReactNode }) {
+  const g = useRef<Group>(null);
+  useFrame(() => { const p = at(); if (g.current && p) g.current.position.set(p.x, y, p.z); });
+  return <group ref={g}><Html center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>{children}</Html></group>;
 }
 
-function ChatWindow({ id }: { id: string }) {
-  const worker = useStore((s) => s.snapshot?.teams.flatMap((t) => t.workers).find((w) => w.id === id));
-  const chat = useSimChat((s) => s.chats[id]);
-  const { close, choose, next } = useSimChat.getState();
-  const { speed } = useSettings();
-  const [mountAt] = useState(() => Date.now());
-  const [done, setDone] = useState<Set<number>>(() => new Set()); // fresh bot lines that finished typing
-  const log = useRef<HTMLDivElement>(null);
-  const lines = chat?.lines ?? [];
-  const ms = SPEED_MS[speed];
-  // Lines that arrived while the window is open are revealed one after another: every earlier line is shown, the first
-  // unfinished fresh bot line is typing, and everything after it waits.
-  const isFresh = (l: ChatLine) => l.who === "bot" && ms > 0 && l.at >= mountAt - 50 && !done.has(l.id);
-  const firstPending = lines.findIndex(isFresh);
-  const shown = firstPending < 0 ? lines : lines.slice(0, firstPending + 1);
-  const busy = firstPending >= 0;
-  const finish = useCallback((id: number) => setDone((d) => (d.has(id) ? d : new Set(d).add(id))), []);
-  useEffect(() => { log.current?.scrollTo({ top: log.current.scrollHeight }); });
-  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") close(); }; document.addEventListener("keydown", k); return () => document.removeEventListener("keydown", k); }, [close]);
-  const thread = chat?.threadId ? threadById(chat.threadId) : undefined;
-  const options = chat?.nodeId && thread ? thread.nodes[chat.nodeId]?.options ?? [] : [];
-  const render = (l: ChatLine, i: number) => (
-    <div key={l.id} className={`sc-row ${l.who}`}><div className="sc-bubble">
-      {i === firstPending ? <Typed text={l.text} msPerChar={ms} onDone={() => finish(l.id)} /> : l.text}
-    </div></div>
-  );
+/** Everything inside a clickable bubble part stays there: no click reaches the 3D scene (the hand would move). */
+function Clickable({ className, children }: { className?: string; children: React.ReactNode }) {
+  const ref = useSwallowEvents();
+  return <div ref={ref} className={className} style={{ pointerEvents: "auto", cursor: "pointer" }}>{children}</div>;
+}
+
+function Bubble({ who, line, prev, typed, onContinue }: { who: "bot" | "me"; line: ChatLine; prev?: ChatLine; typed: number; onContinue?: () => void }) {
   return (
-    <div className="sc-panel" role="dialog" aria-label="Water cooler chat">
-      <div className="sc-head"><span>☕</span><strong>{worker ? displayName(worker) : "Agent"} · water cooler</strong><button className="icon-btn" aria-label="Close" onClick={close}>×</button></div>
-      <div className="sc-log" ref={log}>{shown.map(render)}</div>
-      <p className="sc-note">Simulated and offline: not the real agent, nothing is sent anywhere.</p>
-      <div className="sc-opts">
-        {!busy && options.map((o) => <button key={o.id} onClick={() => choose(id, o.id)}>{o.label}</button>)}
-        {!busy && options.length === 0 && lines.length > 0 && <button onClick={() => next(id)}>Another topic…</button>}
-      </div>
+    <div className={`sc-bub ${who}`}>
+      {prev && <div className="sc-prev">{prev.text}</div>}
+      <div className="sc-text">{line.text.slice(0, typed)}<span className="sc-ghost">{line.text.slice(typed)}</span></div>
+      {onContinue && <Clickable className="sc-cont"><button onClick={onContinue}>continue ▸</button></Clickable>}
     </div>
   );
 }
 
-/** Mounted once in the 3D scene: shows the open chat window and lets idle / rate-limited agents start a thread. */
-export function SimChatHost() {
+/** The conversation: the active chat's lines shown one by one as bubbles above the speakers, the options offered under ours. */
+function ActiveChat({ id }: { id: string }) {
+  const chat = useSimChat((s) => s.chats[id]);
+  const from = useSimChat((s) => s.from);
+  const { choose, next, close } = useSimChat.getState();
+  const settings = useSettings();
+  const lines = useMemo(() => chat?.lines ?? [], [chat]);
+  const [idx, setIdx] = useState(Math.min(from, Math.max(0, lines.length - 1)));
+  const [t0, setT0] = useState(() => performance.now());
+  const [now, setNow] = useState(() => performance.now());
+  const opened = useRef(performance.now()); const armed = useRef(false);
+  const worker = useStore((s) => s.snapshot?.teams.flatMap((t) => t.workers).find((w) => w.id === id));
+  const shownIdx = Math.min(idx, lines.length - 1);
+  const cur = lines[shownIdx];
+  const nextWho = lines[shownIdx + 1]?.who ?? null;
+  const thread = chat?.threadId ? threadById(chat.threadId) : undefined;
+  const options = chat?.nodeId && thread ? thread.nodes[chat.nodeId]?.options ?? [] : [];
+  const out = cur ? step({ elapsedMs: now - t0, len: cur.text.length, speed: settings.speed, auto: settings.advance === "auto", next: nextWho, hasOptions: options.length > 0 }) : null;
+  const goNext = () => { setIdx(shownIdx + 1); setT0(performance.now()); };
+
+  useEffect(() => { const h = setInterval(() => setNow(performance.now()), 50); return () => clearInterval(h); }, []);
+  useEffect(() => { if (out?.advance) goNext(); }); // eslint-disable-line react-hooks/exhaustive-deps
+  // the agent started real work, or went away: the chat ends by itself
+  useEffect(() => { if (worker && (worker.state === "working" || worker.state === "waiting")) close(); }, [worker?.state]); // eslint-disable-line react-hooks/exhaustive-deps
+  // walking away from the agent ends the chat (with hysteresis)
+  useEffect(() => {
+    const h = setInterval(() => {
+      const r = roams.get(id); if (!r || !player.on) return;
+      const d = distanceStep(Math.hypot(player.x - r.x, player.z - r.z), armed.current, performance.now() - opened.current);
+      armed.current = d.armed; if (d.end) close();
+    }, 300);
+    return () => clearInterval(h);
+  }, [id, close]);
+  // keys: 1-9 pick an option, Enter continues
+  const keys = useRef({ options, canContinue: false, pick: (_: string) => {}, go: () => {} });
+  keys.current = { options, canContinue: !!out?.canContinue, pick: (o) => choose(id, o), go: goNext };
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement | null)?.closest?.("input,textarea,select")) return;
+      const { options: o, canContinue, pick, go } = keys.current;
+      const i = optionForKey(e.key, o.length);
+      if (i >= 0) { e.stopImmediatePropagation(); e.preventDefault(); pick(o[i].id); setIdx((x) => x + 1); setT0(performance.now()); }
+      else if (e.key === "Enter" && canContinue) { e.stopImmediatePropagation(); e.preventDefault(); go(); }
+    };
+    window.addEventListener("keydown", k, true);
+    return () => window.removeEventListener("keydown", k, true);
+  }, []);
+
+  if (!cur) return null;
+  const lastOf = (who: "bot" | "me"): number => { for (let i = shownIdx; i >= 0; i--) if (lines[i].who === who) return i; return -1; };
+  const bi = lastOf("bot"), mi = lastOf("me");
+  const prevOf = (i: number): ChatLine | undefined => { for (let k = i - 1; k >= 0 && k > i - 4; k--) if (lines[k].who === lines[i].who) return lines[k]; return undefined; };
+  const agentAt = () => { const r = roams.get(id); return r ? { x: r.x, z: r.z } : null; };
+  const meAt = () => { const r = roams.get(id); return player.on ? { x: player.x, z: player.z } : r ? { x: r.x + 1.6, z: r.z + 1.6 } : null; };
+  const typedFor = (i: number) => (i === shownIdx && out ? out.typed : lines[i].text.length);
+  const pickOpt = (oid: string) => { choose(id, oid); setIdx(shownIdx + 1); setT0(performance.now()); };
+  return (
+    <>
+      {bi >= 0 && <Anchored at={agentAt} y={AGENT_Y}><Bubble who="bot" line={lines[bi]} prev={prevOf(bi)} typed={typedFor(bi)} onContinue={bi === shownIdx && out?.canContinue ? goNext : undefined} /></Anchored>}
+      {mi >= 0 && <Anchored at={meAt} y={ME_Y}><Bubble who="me" line={lines[mi]} prev={prevOf(mi)} typed={typedFor(mi)} /></Anchored>}
+      {(out?.showOptions || (out?.done && nextWho === null && options.length === 0)) && (
+        <Anchored at={meAt} y={ME_Y - 0.9}>
+          <Clickable className="sc-opts3">
+            {options.length > 0 && <div className="sc-ask">What do you say?</div>}
+            {options.map((o, i) => <button key={o.id} onClick={() => pickOpt(o.id)}><kbd>{i + 1}</kbd> {o.label}</button>)}
+            {options.length === 0 && <button onClick={() => { next(id); setIdx(shownIdx + 1); setT0(performance.now()); }}>Another topic…</button>}
+            <button className="sc-bye" onClick={close}>Bye for now</button>
+          </Clickable>
+        </Anchored>
+      )}
+    </>
+  );
+}
+
+/** Mounted once inside the 3D canvas: registers the "Chat" special mode (header Stop ends it), shows the active chat as bubbles, and lets idle / rate-limited agents start a thread. */
+export function SimChatBubbles() {
   const openFor = useSimChat((s) => s.openFor);
   const settings = useSettings();
   const snapshot = useStore((s) => s.snapshot);
   const idleSince = useRef<Record<string, number>>({});
   const workers = useMemo(() => snapshot?.teams.flatMap((t) => t.workers) ?? [], [snapshot]);
-  // The agent you are chatting with stays put (no games, no wandering off) while the window is open.
-  useEffect(() => {
-    if (!openFor || !settings.enabled) return;
-    holdAgent(openFor);
-    return () => releaseAgent(openFor);
-  }, [openFor, settings.enabled]);
-  const workersRef = useRef(workers);
-  workersRef.current = workers; // the timer must not restart on every snapshot (they arrive every few seconds, the tick is 20 s)
+  useEffect(() => registerMode({ id: "simchat", label: "Chat", active: () => !!useSimChat.getState().openFor, stop: () => useSimChat.getState().close() }), []);
   useEffect(() => {
     if (!settings.enabled || !settings.idleStart) return;
-    const tick = async () => {
-      const limited = await isRateLimited(); // rate-limit mode: agents are more talkative
+    const tick = () => {
+      const limited = isRateLimited(); // rate-limit mode: agents are more talkative
       const now = Date.now(); const st = useSimChat.getState();
-      for (const w of workersRef.current) {
+      for (const w of workers) {
         if (w.state !== "idle" && !limited) { delete idleSince.current[w.id]; continue; }
         const since = (idleSince.current[w.id] ??= now);
         const last = st.chats[w.id]?.lastStartedAt ?? 0;
-        if (shouldInitiate({ idleMs: now - since, sinceLastMs: now - last, roll: Math.random(), minIdleMs: limited ? 15_000 : 90_000, cooldownMs: limited ? 120_000 : 600_000 })) { st.initiate(w.id); break; }
+        if (st.openFor !== w.id && shouldInitiate({ idleMs: now - since, sinceLastMs: now - last, roll: Math.random(), minIdleMs: limited ? 15_000 : 90_000, cooldownMs: limited ? 120_000 : 600_000 })) { st.initiate(w.id); break; }
       }
     };
-    const t = setInterval(() => void tick(), 20_000);
+    const t = setInterval(tick, 20_000);
     return () => clearInterval(t);
-  }, [settings.enabled, settings.idleStart]);
+  }, [workers, settings.enabled, settings.idleStart]);
   if (!settings.enabled || !openFor) return null;
-  return <ChatWindow id={openFor} />;
+  return <ActiveChat key={openFor} id={openFor} />;
 }
 
 /** Unread dot for the agent menu item. */

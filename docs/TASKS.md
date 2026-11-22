@@ -290,6 +290,7 @@ Do this first: games, rewards, caffeine and rankings all write here.
 - [x] [S] 13.5.4 Idle initiation + rate-limit mode; close/reopen; no external requests (`SimChatHost` mounted in World; reads `rateLimited` defensively; hook not wired to a real rate-limit source yet)
 - [x] [H] 13.5.5 Settings: enable, speed, content filter; docs (Settings > Water cooler chat; docs not written)
 - [x] [H] 13.5.6 Tests: schema, unique option ids, reachability, no network (`test/simchat.test.ts`)
+- [x] [S] 13.5.7 Casual 3D chat: lines as slow typewriter bubbles above agent and you (auto-advance 3 s or continue ▸, Advance setting auto/manual), replies as 1-9 option overlay, "Chat" special mode (header Stop), ends on walking away (>6) or real work; side window removed (`src/simchat/SimChat.tsx`, `pacing.ts`)
 
 ### 13.6 Restaurant and drones
 - [x] [O] 13.6.1 Convert Veranda into the restaurant; move the BBQ grill/picnic to the yard; zone layout + menu data

@@ -3,6 +3,9 @@ import type { SimThread } from "./schema";
 import { allowedThreads, threadById } from "./data";
 import { chainTarget, follow, pickThread } from "./engine";
 import { getSettings } from "./settings";
+import { rateLimitedAt } from "../world/rateLimit";
+import { useStore } from "../state/store";
+import { revealFrom } from "./pacing";
 
 export interface ChatLine { id: number; who: "bot" | "me"; text: string; at: number }
 interface AgentChat {
@@ -16,7 +19,8 @@ interface AgentChat {
 }
 interface SimChatState {
   chats: Record<string, AgentChat>;
-  openFor: string | null;      // agent whose chat window is open
+  openFor: string | null;      // agent whose chat is active (3D bubbles)
+  from: number;                // index of the first line to reveal when the chat opened
   open: (agentId: string) => void;
   close: () => void;
   start: (agentId: string, threadId?: string) => void;
@@ -37,10 +41,8 @@ function save(c: Record<string, AgentChat>) { try { localStorage.setItem(KEY, JS
 const pool = (): SimThread[] => allowedThreads(getSettings().filter);
 const add = (c: AgentChat, who: "bot" | "me", text: string): ChatLine => { const l = { id: ++n, who, text, at: Date.now() }; c.lines = [...c.lines, l].slice(-MAX_LINES); return l; };
 
-/** Whether the rate-limit mode is on. The flag may not exist in the store yet, so read it defensively. */
-export async function isRateLimited(): Promise<boolean> {
-  try { const m = await import("../state/store"); return Boolean((m.useStore.getState() as unknown as { rateLimited?: unknown }).rateLimited); } catch { return false; }
-}
+/** Rate-limit mode: the model service is limiting us, so simulated chat is what is left to do. */
+export const isRateLimited = (): boolean => rateLimitedAt(useStore.getState().snapshot?.rateLimitedUntil);
 
 export const useSimChat = create<SimChatState>((set, get) => {
   const update = (agentId: string, fn: (c: AgentChat) => void, extra?: Partial<SimChatState>) => {
@@ -55,8 +57,13 @@ export const useSimChat = create<SimChatState>((set, get) => {
     if (get().openFor !== agentId) c.unread += node.say.length;
   };
   return {
-    chats: load(), openFor: null,
-    open: (agentId) => { update(agentId, (c) => { c.unread = 0; }, { openFor: agentId }); if (!get().chats[agentId]?.lines.length) get().start(agentId); },
+    chats: load(), openFor: null, from: 0,
+    open: (agentId) => {
+      const c0 = get().chats[agentId]; const total = c0?.lines.length ?? 0;
+      const fresh = !c0 || total === 0 || !c0.nodeId; // nothing to continue: begin a new thread
+      update(agentId, (c) => { c.unread = 0; }, { openFor: agentId, from: fresh ? total : revealFrom(total, c0?.unread ?? 0) });
+      if (fresh) get().start(agentId);
+    },
     close: () => set({ openFor: null }),
     start: (agentId, threadId) => update(agentId, (c) => {
       const t = (threadId ? threadById(threadId) : undefined) ?? pickThread(pool(), c.seen);

@@ -55,7 +55,7 @@ import { Icons } from "./icons";
 import { ConferenceLayer } from "./conference";
 import { FollowBar } from "./FollowBar";
 import { MeetingChat } from "./MeetingChat";
-import { SimChatHost } from "../simchat/SimChat";
+import { SimChatBubbles } from "../simchat/SimChat";
 import { NameTags } from "./nametags";
 import { dummy, modeOf, poseBot, stepRoam, writeStatic, type Meshes } from "./bots";
 import { onView } from "./viewBus";
@@ -1182,6 +1182,7 @@ export default function World({ active = true }: { active?: boolean }) {
     <div style={{ display: "flex", width: "100%", height: "100%", minHeight: 240 }}>
     <div ref={frame} onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); lastPtr.current = { x: e.clientX - r.left, y: e.clientY - r.top }; }} style={{ position: "relative", flex: 1, minWidth: 0, height: "100%" }}>
       <Canvas style={{ cursor: controller === "hand" && !handMenu && !labelsOnly && !inCloseup ? "none" : undefined }} onPointerMissed={() => { setMenu(null); setRoomMenu(null); }} frameloop={hidden || !active ? "never" : "always"} dpr={[1, maxDpr]} camera={{ position: [0, 40, 20], fov: 50, near: 0.1, far: 1000 }}>
+        <SimChatBubbles />
         <Scene mode={mode} layout={layout} jump={jump} onNearby={setNearby} onEnter={enterTeam} ctl={{ onScreen: startCloseup, closeup, closeupExit, onCloseup: setInCloseup, onReady, saveView: saveN, clearView: clearN, labels: labelsApi, active, subs, tags, api: sceneApi, onPick, pan, angle, zoom, reset, locked, warp, view, skipFrame, closeupWalk, handZoomCmd: { save: handSave, restore: handRestore }, handMenuOpen: handMenuOpenRef, onOverview: setLabelsOnly }} />
       </Canvas>
       {mode === "walk" && controller === "hand" && !inCloseup && (
@@ -1226,7 +1227,6 @@ export default function World({ active = true }: { active?: boolean }) {
         </div>
       )}
       <FollowBar />
-      <SimChatHost />
       <GamesHud layout={layout} />
       {meetingOpen && <div style={{ position: "absolute", right: "calc(10px + var(--dock-r, 0px))", bottom: 10, zIndex: 6 }}><MeetingChat onClose={() => setMeetingOpen(false)} /></div>}
       {showKeymap && <KeymapLegend entries={entries} onHide={() => setShowKeymap(false)} />}
