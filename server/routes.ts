@@ -17,9 +17,7 @@ import { registerGames } from "./games";
 import { registerRewards } from "./rewards";
 import { claudeDir } from "./adapters/claude-code/discover";
 import { listSubagents } from "./adapters/claude-code/subagents";
-import { recentMessages } from "./adapters/claude-code/transcript";
-import { recentMessages as recentCodexMessages } from "./adapters/codex/transcript";
-import { recentMessages as recentOpenCodeMessages } from "./adapters/opencode/transcript";
+import { ADAPTERS, adapterOf } from "./adapters/registry";
 import { listArchived as listCodexArchived, loadArchived as loadCodexArchived } from "./adapters/codex/archive";
 import { CodexCommandError, queueMessage as queueCodexMessage } from "./adapters/codex/command";
 import { listModels as listOpenCodeModels, OpenCodeCommandError, queueMessage as queueOpenCodeMessage, setRunTracker as setOpenCodeTracker, spawnSession as spawnOpenCodeSession } from "./adapters/opencode/command";
@@ -34,7 +32,7 @@ import { hookToEvents, isInstalled, readSettings, settingsPath } from "./adapter
 
 const str = (v: unknown): string | undefined => (typeof v === "string" && v.length > 0 && v.length < 100_000 ? v : undefined);
 const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,100}$/;
-const SOURCES: readonly AgentSource[] = ["claude", "codex", "opencode"];
+const SOURCES: readonly AgentSource[] = ADAPTERS.map((a) => a.id);
 
 /** Lets index.ts ask whether the task lists changed (it pings browsers when the signature differs). */
 export const tasks: { fn: () => string } = { fn: () => "" };
@@ -188,7 +186,7 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
   app.get<{ Params: { id: string } }>("/api/sessions/:id/messages", async (r) => {
     const s = c.sessions.get(r.params.id);
     if (!s) throw Object.assign(new Error("unknown session"), { statusCode: 404 });
-    const read = s.source === "codex" ? recentCodexMessages : s.source === "opencode" ? recentOpenCodeMessages : recentMessages;
+    const read = adapterOf(s.source).recentMessages;
     return { messages: await read(s.file).catch(() => []) };
   });
   app.get("/api/history", async () => ({ spans: c.history.list() }));

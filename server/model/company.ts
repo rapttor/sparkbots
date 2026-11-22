@@ -1,17 +1,11 @@
-import { toolActivity, parseLine } from "../adapters/claude-code/parse";
-import { discoverSessions, teamFor, teamColor } from "../adapters/claude-code/discover";
-import { discoverSessions as discoverCodexSessions } from "../adapters/codex/discover";
-import { parseLine as parseCodexLine, toolActivity as codexToolActivity, type CodexParseCtx } from "../adapters/codex/parse";
-import { codexLiveness } from "../adapters/codex/liveness";
-import { discoverSessions as discoverOpenCodeSessions } from "../adapters/opencode/discover";
-import { parseLine as parseOpenCodeLine, toolActivity as opencodeToolActivity } from "../adapters/opencode/parse";
-import { readLiveness } from "../adapters/claude-code/liveness";
+import { teamFor, teamColor } from "../adapters/claude-code/discover";
+import { ADAPTERS, adapterOf } from "../adapters/registry";
+import type { ParsedLine } from "../adapters/claude-code/parse";
 import { Tailer } from "../adapters/claude-code/tail";
 import { StatsAggregator } from "../stats/aggregate";
 import { applyEvent, initialRuntime, tick, thresholdsFrom, type Runtime } from "./state";
 import type { AgentEvent, LiveInfo, SessionRef, Snapshot, Team, Worker, WorkStats } from "../adapters/types";
 import { loadJson, saveJson, type Config, type Teams } from "../config";
-import { OPENCODE_DEFAULT_COLOR } from "../../src/shared/opencode";
 import { LabelStore } from "../labels";
 import { BotColors } from "../botColors";
 import { History } from "../history";
@@ -71,12 +65,12 @@ export class Company {
 
   async refreshSessions() {
     const now = Date.now();
-    const [claude, codex, opencode] = await Promise.all([discoverSessions(), discoverCodexSessions(), discoverOpenCodeSessions()]);
-    for (const s of [...claude.map((x) => ({ ...x, source: "claude" as const })), ...codex, ...opencode]) { this.sessions.set(s.id, s); this.rt(s.id, now, s.mtimeMs); }
+    const lists = await Promise.all(ADAPTERS.map((a) => a.discover().catch(() => [] as SessionRef[])));
+    for (const s of lists.flat()) { this.sessions.set(s.id, s); this.rt(s.id, now, s.mtimeMs); }
   }
   /** OpenCode is a live database: poll it cheaply, mirror changed chats, and return the ids that need ingesting. */
   async refreshOpenCodeSessions(): Promise<string[]> {
-    const list = await discoverOpenCodeSessions();
+    const list = await adapterOf("opencode").discover();
     const seen = new Set(list.map((s) => s.id));
     const changed: string[] = [];
     for (const s of list) {
@@ -85,14 +79,15 @@ export class Company {
       this.rt(s.id, Date.now(), s.mtimeMs);
       if (!old || old.mtimeMs !== s.mtimeMs || old.sizeBytes !== s.sizeBytes) { this.tailer.forget(s.file); changed.push(s.id); }
     }
-    for (const [id, s] of this.sessions) if (s.source === "opencode" && !seen.has(id)) { this.sessions.delete(id); this.runtimes.delete(id); this.live.delete(id); }
+    for (const [id, s] of this.sessions) if (adapterOf(s.source).mirrored && !seen.has(id)) { this.sessions.delete(id); this.runtimes.delete(id); this.live.delete(id); }
     return changed;
   }
   async refreshLiveness() {
-    const [claude, codex] = await Promise.all([readLiveness(), codexLiveness(this.sessions.values()).catch(() => new Map())]);
+    const maps = await Promise.all(ADAPTERS.map((a) => a.liveness?.(this.sessions.values()).catch(() => new Map<string, LiveInfo>()) ?? new Map<string, LiveInfo>()));
     const own = this.ownPids();
-    for (const [id, info] of claude) if (own.has(info.pid)) claude.set(id, { ...info, kind: "headless" });
-    this.live = new Map([...claude, ...codex]);
+    const live = new Map<string, LiveInfo>();
+    for (const [i, m] of maps.entries()) for (const [id, info] of m) live.set(id, ADAPTERS[i]!.id === "claude" && own.has(info.pid) ? { ...info, kind: "headless" } : info);
+    this.live = live;
   }
 
   /** Tail one file and feed events into the state machine. Returns number of events. */
@@ -113,15 +108,16 @@ export class Company {
     e = { ...e, session: s.id };
     const r = this.rt(s.id, Date.now());
     if (initial && e.kind !== "tool" && e.kind !== "message") { /* history: only track last-seen */ }
-    applyEvent(r, e, (t, target) => s.source === "codex" ? codexToolActivity(t) : s.source === "opencode" ? opencodeToolActivity(t, target) : toolActivity(t, { command: target }));
+    applyEvent(r, e, (t, target) => adapterOf(s.source).toolActivity(t, target));
     if (!initial) this.history.record(e);
     if (initial) { r.state = "asleep"; r.since = Date.now(); r.helpers.clear(); } // history never implies "working"
   }
 
-  private codexCtx = new Map<string, CodexParseCtx>(); // the model name comes from turn_context records, so it is remembered per session
-  private parse(s: SessionRef, line: string, ctx?: CodexParseCtx) {
-    if (s.source === "codex") { let c = ctx ?? this.codexCtx.get(s.id); if (!c) this.codexCtx.set(s.id, c = {}); return parseCodexLine(line, c); }
-    return s.source === "opencode" ? parseOpenCodeLine(line) : parseLine(line);
+  private parsers = new Map<string, (line: string) => ParsedLine>(); // per session: a parser may remember things between lines (the Codex model name)
+  private parse(s: SessionRef, line: string) {
+    let p = this.parsers.get(s.id);
+    if (!p) this.parsers.set(s.id, p = adapterOf(s.source).lineParser());
+    return p(line);
   }
 
   /** Lazy full-history stats pass (background). Per-file results cached in ~/.agent-office/cache/stats.json by size+mtime. */
@@ -136,10 +132,10 @@ export class Company {
       let e = cache.files?.[s.file], reread = false;
       if (!e || e.size !== s.sizeBytes || e.mtimeMs !== s.mtimeMs || e.turns === undefined) {
         e = { size: s.sizeBytes, mtimeMs: s.mtimeMs, start: 0, rows: [], turns: 0, tools: 0, workMs: 0 }; changed = true; reread = true;
-        let prev = 0; const ctx: CodexParseCtx = {};
+        let prev = 0; const parseLine = adapterOf(s.source).lineParser(); // a fresh parser: this pass reads the file from the start
         try {
           const rl = createInterface({ input: createReadStream(s.file), crlfDelay: Infinity });
-          for await (const line of rl) for (const ev of this.parse(s, line, ctx).events) {
+          for await (const line of rl) for (const ev of parseLine(line).events) {
             if (!e.start) e.start = ev.at;
             if (ev.kind === "turn_start") e.turns!++;
             if (ev.kind === "tool") e.tools!++;
@@ -171,7 +167,7 @@ export class Company {
       if (!this.sessions.has(e.session)) await this.refreshSessions();
       const s = this.sessions.get(e.session); if (!s) continue;
       const r = this.rt(s.id, e.at); r.hooked = true;
-      applyEvent(r, e, (t, target) => toolActivity(t, { command: target })); // not counted in history: the transcript tail reports the same tool calls
+      applyEvent(r, e, (t, target) => adapterOf(s.source).toolActivity(t, target)); // not counted in history: the transcript tail reports the same tool calls
     }
   }
 
@@ -194,7 +190,7 @@ export class Company {
       const team = teamFor(s.cwd, this.teams.merges);
       const chosen = this.botColors.colors[s.id];
       // Every uncustomized agent inherits a softer version of its project's color; a user-picked agent color is exact.
-      const bot = chosen ?? (s.source === "opencode" ? OPENCODE_DEFAULT_COLOR : lighter(this.botColors.forTeam(team)));
+      const bot = chosen ?? (adapterOf(s.source).defaultColor ?? lighter(this.botColors.forTeam(team)));
       const w: Worker = { id: s.id, source: s.source ?? "claude", team, cwd: s.cwd, title: s.title, name: this.botColors.names[s.id], state: r.state, activity: r.activity,
         lastEventAt: Math.max(r.lastEventAt, s.mtimeMs), liveInTerminal: liveInfo?.kind === "interactive",
         helpers: r.helpers.size, model: s.model ?? this.sessionStats.get(s.id)?.model, preview: this.cfg.streamingMode ? undefined : r.preview, said: this.cfg.streamingMode ? undefined : r.said, stats: this.sessionStats.get(s.id), color: bot };
