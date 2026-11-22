@@ -10,6 +10,7 @@ import { BotColorError } from "./botColors";
 import { ArchiveError } from "./archive";
 import { cleanEnv, CLEAN_SETTINGS_ARGS } from "./adapters/claude-code/command";
 import { registerNotes } from "./notes";
+import { listSlashCommands } from "./slashCommands";
 import { registerUploads, resolveAttachments, withAttachments } from "./uploads";
 import { registerServices } from "./services/routes";
 import { registerGames } from "./games";
@@ -58,6 +59,8 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     const model = o.source === "claude" && o.model ? o.model : c.cfg.runModel;
     return { ...(model ? { model } : {}), ...(o.allowedTools ? { allowedTools: o.allowedTools } : {}), ...(o.permissionMode ? { permissionMode: o.permissionMode } : {}) };
   };
+  c.ownPids = () => runs.livePids();
+  runs.liveMode = () => c.cfg.liveApproval === true;
   runs.envProvider = () => (c.cfg.cleanEnv ? cleanEnv(process.env) : process.env);
   runs.extraArgs = () => (c.cfg.cleanEnv ? CLEAN_SETTINGS_ARGS : []);
   const wrap = <T>(fn: () => T) => { try { return fn(); } catch (e) { if (e instanceof CommandError) throw Object.assign(new Error(e.message), { statusCode: e.status }); throw e; } };
@@ -78,6 +81,17 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     if (!asked.length || !asked.every((t) => denied.has(t))) throw Object.assign(new Error("tools must be ones this run was denied"), { statusCode: 400 });
     const cwd = runs.runs.find((r) => r.runId === req.params.id)?.cwd;
     return wrap(() => runs.retryWithTools(req.params.id, asked, cwd ? overrides(cwd) : {}));
+  });
+  /** Live approval: answer a permission question of a running turn (allow once / deny). */
+  app.post<{ Params: { id: string }; Body: { requestId?: unknown; allow?: unknown } }>("/api/runs/:id/approve", async (req) => {
+    const rid = req.body?.requestId, allow = req.body?.allow;
+    if (typeof rid !== "string" || !rid || typeof allow !== "boolean") throw bad("requestId and allow (boolean) required");
+    return wrap(() => { runs.respondApproval(req.params.id, rid, allow); return { ok: true }; });
+  });
+  app.get<{ Querystring: { cwd?: string } }>("/api/slash-commands", async (r) => {
+    const cwd = str(r.query?.cwd);
+    if (!cwd || ![...c.sessions.values()].some((s) => s.cwd === cwd)) throw bad("a known project cwd is required");
+    return listSlashCommands(cwd);
   });
   app.post<{ Body: { session?: string; prompt?: string; fork?: boolean; model?: string; attachments?: unknown } }>("/api/send", async (req) => {
     const session = str(req.body?.session), prompt = str(req.body?.prompt);
@@ -281,6 +295,7 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     if (b.runModel !== undefined) { if (typeof b.runModel !== "string" || (b.runModel !== "" && !/^[A-Za-z0-9][A-Za-z0-9._:\-\[\]]{0,79}$/.test(b.runModel))) throw bad("runModel must be empty or a model name"); next.runModel = b.runModel; }
     if (b.opencodeModel !== undefined) { if (typeof b.opencodeModel !== "string" || (b.opencodeModel !== "" && !MODEL.test(b.opencodeModel))) throw bad("opencodeModel must be empty or provider/model"); next.opencodeModel = b.opencodeModel; }
     if (b.cleanEnv !== undefined) { if (typeof b.cleanEnv !== "boolean") throw bad("cleanEnv must be boolean"); next.cleanEnv = b.cleanEnv; }
+    if (b.liveApproval !== undefined) { if (typeof b.liveApproval !== "boolean") throw bad("liveApproval must be boolean"); next.liveApproval = b.liveApproval; if (!b.liveApproval) runs.closeLive(); }
     if (b.streamingMode !== undefined) { if (typeof b.streamingMode !== "boolean") throw bad("streamingMode must be boolean"); next.streamingMode = b.streamingMode; }
     Object.assign(c.cfg, next); saveJson("config.json", c.cfg); onChange(); return c.cfg;
   });

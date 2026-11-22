@@ -7,16 +7,23 @@ import { useLive } from "../state/live";
 import { runProblem, type RunProblem } from "./runStatus";
 import { OpenCodeModelPicker } from "./OpenCodeModelPicker";
 import { displayName } from "../util";
-import { partialText, permissionDenials, type PermissionDenial } from "../shared/claudeStream";
+import { partialText, permissionDenials, pendingApprovals, describeToolInput, type PermissionDenial, type ApprovalLine } from "../shared/claudeStream";
+import { slashQuery, filterSlash, type SlashItem } from "../shared/slash";
+import { modelChoices, modelLabel } from "../shared/models";
+import { attachedImageIds, imageType, stripAttachmentList } from "../shared/attachments";
 
 const stopProp = (e: React.SyntheticEvent) => e.stopPropagation();
 
 function Bubble({ m, color }: { m: ChatMessage; color: string }) {
   const mine = m.role === "user";
+  const images = mine ? attachedImageIds(m.text) : [];
   return (
     <div className={`wc-row ${mine ? "wc-user" : "wc-bot"}`}>
       {!mine && <span className="wc-avatar"><BotIcon color={color} onPick={() => {}} size={22} title="" /></span>}
-      <div className="wc-bubble" style={{ whiteSpace: "pre-wrap" }}>{m.text}</div>
+      <div className="wc-bubble" style={{ whiteSpace: "pre-wrap" }}>
+        {mine ? stripAttachmentList(m.text) : m.text}
+        {images.length > 0 && <div className="wc-thumbs">{images.map((i) => <a key={i.id} href={api.uploadImageUrl(i.id)} target="_blank" rel="noreferrer" title={i.name}><img src={api.uploadImageUrl(i.id)} alt={i.name} loading="lazy" /></a>)}</div>}
+      </div>
     </div>
   );
 }
@@ -43,6 +50,49 @@ function ModelHelp({ onTry }: { onTry: (m: string) => void }) {
         {models.map((m) => <button key={m} className="chip" onClick={() => onTry(m)}>{m}</button>)}
       </div>
       {done && <p className="small">{done}</p>}
+    </div>
+  );
+}
+
+/** Per-chat model choice: a button showing the chat's current model, opening a short list (plus a box for any other name). */
+function ModelPicker({ value, sessionModel, serviceModels, onPick }: { value: string; sessionModel?: string; serviceModels: string[]; onPick: (m: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [custom, setCustom] = useState("");
+  const choices = modelChoices(value, sessionModel, serviceModels);
+  const pick = (m: string) => { onPick(m); setOpen(false); setCustom(""); };
+  return (
+    <span className="wc-mp">
+      <button type="button" className="wc-model-open" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}
+        title="Model used for the next message. Switching models mid-conversation is fine: the session keeps its history.">
+        <span className="muted">Model</span> <b>{modelLabel(value, sessionModel)}</b> <span aria-hidden>▾</span>
+      </button>
+      {open && (
+        <div className="wc-mp-pop" role="listbox" aria-label="Model" onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Escape") setOpen(false); }}>
+          {choices.map((c) => (
+            <button key={c.value || "default"} type="button" role="option" aria-selected={c.value === value} className={`wc-mp-opt ${c.value === value ? "on" : ""}`} onClick={() => pick(c.value)}>
+              <b>{c.label}</b>{c.hint && <span className="muted small"> · {c.hint}</span>}
+            </button>
+          ))}
+          <form className="wc-mp-custom" onSubmit={(e) => { e.preventDefault(); if (custom.trim()) pick(custom.trim()); }}>
+            <input value={custom} placeholder="other model name" maxLength={80} onChange={(e) => setCustom(e.target.value)} onKeyUp={stopProp} aria-label="Other model name" />
+            <button className="small" disabled={!custom.trim()}>Use</button>
+          </form>
+        </div>
+      )}
+    </span>
+  );
+}
+
+/** A live permission question: Claude wants to use a tool and waits for Allow once / Deny. */
+function ApprovalCard({ a, onAnswer }: { a: ApprovalLine; onAnswer: (allow: boolean) => void }) {
+  const detail = describeToolInput(a.tool_name, a.input);
+  return (
+    <div className="wc-help wc-approve" role="alert">
+      <p className="small">Claude wants to use <b>{a.tool_name}</b>{detail && detail !== a.tool_name ? <>: <code className="wc-approve-in">{detail}</code></> : null}</p>
+      <div className="wc-help-actions">
+        <button className="small" onClick={() => onAnswer(true)} title="Allows this one use only">Allow once</button>
+        <button className="small" onClick={() => onAnswer(false)}>Deny</button>
+      </div>
     </div>
   );
 }
@@ -86,9 +136,16 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
   const [problem, setProblem] = useState<RunProblem | null>(null);
   const [streaming, setStreaming] = useState(""); // reply text streamed so far, replaced by the real message when the turn ends
   const [denials, setDenials] = useState<PermissionDenial[]>([]);
+  const [approvals, setApprovals] = useState<ApprovalLine[]>([]); // live permission questions of the running turn (opt-in in Settings)
+  const [slash, setSlash] = useState<SlashItem[]>([]); // commands/skills of this project, for the "/" picker
+  const [slashIdx, setSlashIdx] = useState(0);
+  const [slashOff, setSlashOff] = useState(false);
+  const [thumbs, setThumbs] = useState<Record<string, string>>({}); // upload id -> local preview URL of an attached image
   const [svcModels, setSvcModels] = useState<string[]>([]); // models of the services you added (Ollama, ...): usable names for the Model box
   useEffect(() => { call<{ status?: { models?: string[] } }[]>("GET", "/api/services").then((l) => setSvcModels([...new Set(l.flatMap((s) => s.status?.models ?? []))].slice(0, 30))).catch(() => {}); }, []);
   const [teams, setTeams] = useState<Teams | null>(null);
+  const cwd = w?.cwd;
+  useEffect(() => { setSlash([]); if (cwd && w?.source !== "codex" && w?.source !== "opencode") api.slashCommands(cwd).then(setSlash).catch(() => {}); }, [cwd, w?.source]);
   const [modelPicker, setModelPicker] = useState(false);
   useEffect(() => { api.teams().then(setTeams).catch(() => {}); }, []);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -106,6 +163,7 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
       setProblem(mine ? runProblem(lines) : null);
       setStreaming(mine?.status === "running" ? partialText(lines) : "");
       setDenials(mine && mine.status !== "running" ? permissionDenials(lines) : []);
+      setApprovals(mine?.status === "running" ? pendingApprovals(lines) : []);
     } catch { /* transient */ }
   }, ["messages", "runs"], workerId);
 
@@ -154,7 +212,7 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
   const send = (fork: boolean, text: string) => guard(async () => {
     const r = await api.send(w.id, text || "Please look at the attached file(s).", fork, model || undefined, files.map((f) => f.id));
     setNote(r.queued ? `Queued (position ${r.position})` : fork ? "Forked to a new agent" : "opencode" in r ? "Sent to OpenCode" : "Sent");
-    setPrompt(""); setFiles([]);
+    setPrompt(""); setFiles([]); Object.values(thumbs).forEach((u) => URL.revokeObjectURL(u)); setThumbs({});
   });
   // Files are read in the browser, saved by the server in SparkBots' own folder, and listed in the message (Claude reads them).
   const attach = async (list: FileList | File[]) => {
@@ -166,6 +224,7 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
       try {
         const u = await api.upload(f.name || "pasted-file", await toBase64(f));
         setFiles((cur) => [...cur, u]);
+        if (imageType(f.name)) setThumbs((cur) => ({ ...cur, [u.id]: URL.createObjectURL(f) }));
       } catch (e) { setErr(`${f.name}: ${(e as Error).message}`); }
       setUploading((n) => n - 1);
     }
@@ -185,6 +244,18 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
   // you press it, and "Send as fork" starts a new agent that continues from this conversation.
   const hasContent = prompt.trim().length > 0 || files.length > 0;
   const terminalNote = "Live in terminal: sending into it directly could corrupt its transcript (two writers), so use “Send as fork”.";
+  const sq = slashQuery(prompt);
+  const sMatches = sq !== null && !slashOff && !isCodex && !isOpenCode ? filterSlash(slash, sq) : [];
+  const pickSlash = (i: SlashItem) => { setPrompt(`/${i.name} `); setSlashOff(true); };
+  const onComposeKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (sMatches.length) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); setSlashIdx((i) => (i + (e.key === "ArrowDown" ? 1 : sMatches.length - 1)) % sMatches.length); return; }
+      if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) { e.preventDefault(); e.stopPropagation(); pickSlash(sMatches[Math.min(slashIdx, sMatches.length - 1)]!); return; }
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setSlashOff(true); return; }
+    }
+    onEnter(e, onSend, true);
+  };
+  const answer = (a: ApprovalLine, allow: boolean) => { if (run) void guard(async () => { await api.approveRun(run.runId, a.request_id, allow); setApprovals((c) => c.filter((x) => x.request_id !== a.request_id)); setNote(allow ? `Allowed ${a.tool_name} once` : `Denied ${a.tool_name}`); }); };
   const onSend = () => { if (!isCodex && w.liveInTerminal) { setNote(terminalNote); return; } if (hasContent) void send(false, prompt); };
   const onFork = () => { if (hasContent) void send(true, prompt); };
 
@@ -226,16 +297,27 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
       <footer className="wc-foot" onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); }} onDrop={(e) => { if (e.dataTransfer.files.length) { e.preventDefault(); void attach(e.dataTransfer.files); } }}>
         {(files.length > 0 || uploading > 0) && (
           <div className="wc-files">
-            {files.map((f) => <span key={f.id} className="chip on" title={`${f.name} (${Math.round(f.size / 1024)} KB)`}>📎 {f.name}<button className="icon-btn" aria-label={`Remove ${f.name}`} onClick={() => setFiles((c) => c.filter((x) => x.id !== f.id))}>×</button></span>)}
+            {files.map((f) => <span key={f.id} className="chip on" title={`${f.name} (${Math.round(f.size / 1024)} KB)`}>{thumbs[f.id] ? <img className="wc-thumb" src={thumbs[f.id]} alt="" /> : "📎"} {f.name}<button className="icon-btn" aria-label={`Remove ${f.name}`} onClick={() => setFiles((c) => c.filter((x) => x.id !== f.id))}>×</button></span>)}
             {uploading > 0 && <span className="muted small">uploading…</span>}
           </div>
         )}
         <div className="wc-compose">
+          {sMatches.length > 0 && (
+            <div className="wc-slash" role="listbox" aria-label="Slash commands">
+              {sMatches.map((i, n) => (
+                <button key={i.name} type="button" role="option" aria-selected={n === Math.min(slashIdx, sMatches.length - 1)} className={`wc-slash-opt ${n === Math.min(slashIdx, sMatches.length - 1) ? "on" : ""}`}
+                  onMouseDown={(e) => { e.preventDefault(); pickSlash(i); }} onMouseEnter={() => setSlashIdx(n)}>
+                  <b>/{i.name}</b>{i.argumentHint && <span className="muted"> {i.argumentHint}</span>}
+                  <span className="muted small"> · {i.source === "builtin" ? "built-in" : i.source}{i.description ? ` · ${i.description}` : ""}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <textarea
             value={prompt}
             rows={3}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => onEnter(e, onSend, true)}
+            onChange={(e) => { setPrompt(e.target.value); setSlashOff(false); setSlashIdx(0); }}
+            onKeyDown={onComposeKey}
             onKeyUp={stopProp}
             onPaste={(e) => { if (e.clipboardData.files.length) { e.preventDefault(); void attach(e.clipboardData.files); } }}
             placeholder={isCodex ? "Message this Codex agent (Enter to send)" : isOpenCode ? "Message this OpenCode agent (Enter to send)" : "Message this agent (Enter to send, Shift+Enter for a new line). Drop or paste files to attach."}
@@ -270,16 +352,13 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
           {isOpenCode && <button type="button" className="wc-model-open" onClick={() => setModelPicker(true)} title="Browse OpenCode models with provider, version, context and cost">
             <span className="muted">Model</span> <b>{model || "project / global default"}</b> <span aria-hidden>▾</span>
           </button>}
-          {!isCodex && !isOpenCode && <label className="wc-forkopt" title="Model used for the next message. Switching models mid-conversation is fine: the session keeps its history.">
-            Model:{" "}
-            <input list="wc-models" className="wc-model" value={model} placeholder="default" maxLength={100} onChange={(e) => setModel(e.target.value.trim())} onKeyDown={(e) => e.stopPropagation()} onKeyUp={stopProp} />
-            <datalist id="wc-models"><option value="opus" /><option value="sonnet" /><option value="haiku" />{svcModels.map((m) => <option key={m} value={m} />)}</datalist>
-          </label>}
+          {!isCodex && !isOpenCode && <ModelPicker value={model} sessionModel={w.model} serviceModels={svcModels} onPick={setModel} />}
         </div>
         {problem?.kind === "model" && <ModelHelp onTry={(m) => { setModel(m); }} />}
         {problem && (run?.status === "running" || problem.level === "error") && (
           <p className="wc-note wc-err" role="status">{problem.level === "retry" ? "⚠ " : "✖ "}{problem.text}{problem.level === "retry" ? " — use Stop to cancel" : ""}</p>
         )}
+        {run?.status === "running" && approvals.map((a) => <ApprovalCard key={a.request_id} a={a} onAnswer={(allow) => answer(a, allow)} />)}
         {run && denials.length > 0 && (
           <div className="wc-help" role="status">
             <p className="small">The last run was denied permission to use: <b>{[...new Set(denials.map((d) => d.tool))].join(", ")}</b>.</p>

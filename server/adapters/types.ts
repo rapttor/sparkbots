@@ -55,14 +55,14 @@ export interface Worker {
   lastEventAt: Ts;
   liveInTerminal: boolean;
   helpers: number;
-  model?: string;      // provider/model when known (OpenCode)
+  model?: string;      // provider/model when known (OpenCode), else the model of the latest call in the transcript
   preview?: string;
   said?: { text: string; at: Ts }; // latest assistant message; hidden in streaming mode
   color: string; // bot color: own choice, else the project's, else default orange
   stats?: WorkStats; // filled once the background stats pass has read this session
 }
 /** What a worker has processed in total (from its whole transcript). tokens = input+output (no cache). */
-export interface WorkStats { turns: number; tools: number; tokens: number; workMs: number; ctx: number }
+export interface WorkStats { turns: number; tools: number; tokens: number; workMs: number; ctx: number; model?: string }
 export interface LabelDef { id: string; name: string; color: string; onMap: boolean }
 export interface Team { name: string; color: string; workers: Worker[]; lastActivityAt: Ts; labels: string[]; botColor: string }
 export interface Snapshot { at: Ts; teams: Team[]; skippedLines: number; labelDefs: LabelDef[]; rateLimitedUntil?: Ts } // rateLimitedUntil: set while the model service is rate limited (cosmetic: nervous mode)

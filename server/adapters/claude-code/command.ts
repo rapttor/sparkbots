@@ -2,7 +2,8 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { loadJson, saveJson } from "../../config";
 import type { SendOpts } from "../types";
-import { SAFE_TOOL } from "../../../src/shared/claudeStream";
+import { SAFE_TOOL, describeToolInput, type ApprovalResolvedLine } from "../../../src/shared/claudeStream";
+import { LiveProcess } from "./live";
 
 export interface RunRecord {
   runId: string; session?: string; cwd: string; prompt: string; pid: number;
@@ -22,6 +23,21 @@ export function buildArgs(prompt: string, session: string | undefined, opts: Sen
   const a = ["-p", safePrompt, "--output-format", "stream-json", "--verbose", "--include-partial-messages"];
   if (session) a.push("--resume", session);
   if (session && opts.fork) a.push("--fork-session");
+  return [...a, ...optionArgs(opts)];
+}
+
+/**
+ * Argv for a live (long-lived, stdin stream-json) process: permission questions come back to us as control requests.
+ * Same validation as `buildArgs`; bypassPermissions is refused, no `--dangerously-*` flag ever appears.
+ */
+export function buildLiveArgs(session: string, opts: SendOpts): string[] {
+  if (opts.permissionMode && FORBIDDEN_MODES.has(opts.permissionMode)) throw new CommandError(400, "bypassPermissions is never allowed");
+  return ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--include-partial-messages", "--permission-prompt-tool", "stdio", "--resume", session, ...optionArgs(opts)];
+}
+
+/** The `--model`, `--add-dir`, `--permission-mode` and `--allowedTools` arguments, validated. */
+function optionArgs(opts: SendOpts): string[] {
+  const a: string[] = [];
   if (opts.model !== undefined && opts.model !== "") {
     // alias (opus, sonnet, haiku) or a model id; never anything that could be read as a flag
     if (!/^[A-Za-z0-9][A-Za-z0-9._:\-\[\]]{0,79}$/.test(opts.model)) throw new CommandError(400, "invalid model name");
@@ -58,6 +74,10 @@ export class RunManager {
   runs: RunRecord[];
   /** Options each run was started with (memory only), so "Allow this tool & retry" can repeat the run. */
   private optsByRun = new Map<string, SendOpts>();
+  /** Opt-in (Settings): keep one `claude` process per chat so permission questions can be answered from the chat. Default off. */
+  liveMode: () => boolean = () => false;
+  /** Live processes by session; `cur` is the turn (run) in progress, `open` the unanswered permission questions. */
+  private lives = new Map<string, { lp: LiveProcess; cur?: RunRecord; open: Set<string> }>();
 
   /** `isLiveInTerminal(sessionId)` comes from liveness; `bin` is injectable for tests. */
   constructor(private isLiveInTerminal: (s: string) => boolean, private bin = "claude", private pidAlive = (p: number) => { try { process.kill(p, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; } }) {
@@ -78,6 +98,7 @@ export class RunManager {
   spawnNew(cwd: string, prompt: string, opts: SendOpts = {}) { return this.start(undefined, cwd, prompt, opts); }
 
   private start(session: string | undefined, cwd: string, prompt: string, opts: SendOpts): RunRecord {
+    if (session && !opts.fork && this.liveMode()) return this.startLive(session, cwd, prompt, opts);
     const args = [...buildArgs(prompt, session, opts), ...this.extraArgs()];
     const child = spawn(this.bin, args, { cwd, shell: false, stdio: ["ignore", "pipe", "pipe"], env: this.envProvider() });
     const rec: RunRecord = { runId: randomUUID(), session: opts.fork ? undefined : session, cwd, prompt, pid: child.pid ?? -1, status: "running", startedAt: Date.now() };
@@ -99,6 +120,66 @@ export class RunManager {
     child.on("error", () => end(null, true)); child.on("close", (c) => end(c));
     return rec;
   }
+  /** One turn of a chat through its long-lived process (spawned on demand, resumed by session id). */
+  private startLive(session: string, cwd: string, prompt: string, opts: SendOpts): RunRecord {
+    const args = buildLiveArgs(session, opts), key = JSON.stringify([cwd, args]);
+    let e = this.lives.get(session);
+    if (e && (e.lp.exited || e.lp.key !== key)) { if (!e.lp.exited) e.lp.close(); this.lives.delete(session); e = undefined; } // options changed: resume in a fresh process
+    if (!e) {
+      const entry = { open: new Set<string>() } as { lp: LiveProcess; cur?: RunRecord; open: Set<string> };
+      const say = (line: unknown) => { if (entry.cur) this.emit({ runId: entry.cur.runId, session, line }); };
+      entry.lp = new LiveProcess(this.bin, args, cwd, this.envProvider(), {
+        onLine: say,
+        onApproval: (req) => {
+          if (!entry.cur || req.tool === "AskUserQuestion") { entry.lp.respond(req.requestId, false, req.tool === "AskUserQuestion" ? "Questions are not supported in the SparkBots chat; decide yourself and say what you assumed." : "No active run"); return; }
+          entry.open.add(req.requestId);
+          say({ type: "approval_request", request_id: req.requestId, tool_name: req.tool, input: req.input, description: req.description || describeToolInput(req.tool, req.input) });
+        },
+        onCancel: (id) => { entry.open.delete(id); say({ type: "approval_resolved", request_id: id, decision: "cancelled" } satisfies ApprovalResolvedLine); },
+        onResult: (line) => { this.endTurn(session, entry, line.is_error === true ? 1 : 0); },
+        onExit: (code, err) => {
+          if (this.lives.get(session) === entry) this.lives.delete(session);
+          for (const id of entry.open) say({ type: "approval_resolved", request_id: id, decision: "cancelled" } satisfies ApprovalResolvedLine);
+          entry.open.clear();
+          this.endTurn(session, entry, err ? null : code, err);
+        },
+      }, key);
+      this.lives.set(session, entry); e = entry;
+    }
+    const entry = e;
+    const rec: RunRecord = { runId: randomUUID(), session, cwd, prompt, pid: entry.lp.pid, status: "running", startedAt: Date.now() };
+    this.optsByRun.set(rec.runId, opts); if (this.optsByRun.size > 200) this.optsByRun.delete(this.optsByRun.keys().next().value!);
+    this.runs.push(rec); this.children.set(rec.runId, entry.lp.child); this.busy.add(session); entry.cur = rec; this.persist();
+    entry.lp.sendPrompt(prompt);
+    return rec;
+  }
+  /** The turn in progress finished (result line) or its process ended: close its record, then start the next queued message. */
+  private endTurn(session: string, entry: { lp: LiveProcess; cur?: RunRecord }, code: number | null, err = false) {
+    const rec = entry.cur; if (!rec) return;
+    entry.cur = undefined;
+    rec.endedAt = Date.now(); rec.exitCode = code;
+    if (rec.status === "running") rec.status = err || code !== 0 ? "error" : "done";
+    this.children.delete(rec.runId); this.busy.delete(session); this.persist();
+    if (!entry.lp.exited) entry.lp.closeWhenIdle();
+    const next = this.queues.get(session)?.shift();
+    if (next) { try { this.start(session, next.cwd, next.prompt, next.opts); } catch { /* ignore */ } }
+  }
+  /** Answer a permission question of a running live turn (from the chat's Allow / Deny buttons). Allow once; never persisted. */
+  respondApproval(runId: string, requestId: string, allow: boolean) {
+    for (const [session, e] of this.lives) {
+      if (e.cur?.runId !== runId) continue;
+      if (!e.open.has(requestId) || !e.lp.respond(requestId, allow, "Denied in the SparkBots chat")) throw new CommandError(404, "That question is no longer open");
+      e.open.delete(requestId);
+      this.emit({ runId, session, line: { type: "approval_resolved", request_id: requestId, decision: allow ? "allow" : "deny" } satisfies ApprovalResolvedLine });
+      return;
+    }
+    throw new CommandError(404, "That run is not waiting for an answer");
+  }
+  /** PIDs of the live processes we own (so liveness does not mistake them for a terminal). */
+  livePids(): Set<number> { return new Set([...this.lives.values()].filter((e) => !e.lp.exited).map((e) => e.lp.pid)); }
+  /** Close every live process (graceful: stdin ends, the CLI exits). */
+  closeLive() { for (const e of this.lives.values()) e.lp.close(); }
+
   /**
    * Re-send a finished run's prompt with extra tools allowed for this one run only (`--allowedTools`, never persisted, never bypassPermissions).
    * `base` is used when the original options are no longer known (server restart).
