@@ -12,5 +12,10 @@ Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest f
 - **Data console:** click the computer in the Data center, or press E near it, to open the Data room panel [13.2.7].
 - **Merged from parallel sessions:** live reply streaming + "Allow this tool & retry" [7.41 a/b]; OpenCode Stop, run registry and board cards [14.3]; Data center rack aliases, click-a-rack search and renamed strings [13.2.3/5/6]; cubicles, caffeine, rate limit and nervous mode [13.4]; simulated water-cooler chat with 120 threads [13.5]; restaurant, gym extras, anger room and sponsor room [13.6, 13.8]; Codex liveness, stats/search and archived sessions [12.3/5/7]; MCP servers in the Server room [10.6].
 - **Games:** framework with table instances and seats, per-agent rankings in SQLite, idle agents pair up and play pong, rock-paper-scissors, dice and air hockey, plus a scoreboard [13.7.1-6, 13.7.11].
+- **Launch material:** new README, single-file `landing.html` with a sponsor section, and a `presskit/` with articles and SVG artwork [13.9].
+- **Landing page v2:** floating Claude / Codex / OpenCode bots, an animated office with a coffee robot and data-center inspectors, "Supporting", real screenshots, project story, big GitHub button, sponsor last [13.9.5]; screenshot capture script and nicer `?fixture=N` demo data [13.9.6].
+- **Teams tab:** redesigned as a ledger with status lights per agent, plain-language flags, a state summary and keyboard-operable rows [13.9.7].
+- **Perform menu:** one joined row of seven grey-until-hover icon tiles with a click-to-open explanation; every Perform action wakes a sleeping agent first.
+- **Stats:** Refresh button (`POST /api/stats/refresh`).
 - **Fix:** API calls with a query string no longer produce a bad token [13.3.8].
 - **Tasks:** 13.0 reduced to a small `app.db` for new data; sync, card links and other tasks simplified or deferred; 7.41 split.

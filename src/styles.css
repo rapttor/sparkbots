@@ -437,3 +437,55 @@ button.primary{background:var(--accent);color:#06201d;border-color:var(--accent)
 .am-tile-icon{width:24px;height:24px;display:grid;place-items:center;font-size:13px;border:1px solid var(--line);border-radius:50%;filter:grayscale(1);opacity:.55;transition:filter .15s,opacity .15s,background .15s,border-color .15s}
 .am-tile:hover .am-tile-icon,.am-tile:focus-visible .am-tile-icon,.am-tile:active .am-tile-icon{filter:none;opacity:1;background:color-mix(in srgb,var(--c) 22%,transparent);border-color:var(--c)}
 .am-tile:hover b,.am-tile:focus-visible b{color:var(--c)}
+
+/* Teams: a ledger of projects. Each row has a rail in the project colour and a row of status lights, one per awake agent. */
+.tm h1{margin-bottom:10px}
+.tm-sum{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.tm-sum-counts{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px}
+.tm-sum-count{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+.tm-sum-count i{width:9px;height:9px;border-radius:2px}
+.tm-sum-count b{font-weight:650}
+.tm-sum-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}
+.tm-btn{padding:4px 10px;font-size:12.5px;border-radius:7px}
+.tm-link{background:none;border:0;padding:6px 0;color:var(--accent);font-size:12.5px;cursor:pointer}
+.tm-link:hover{text-decoration:underline;border:0}
+.tm-icon{padding:2px 7px;font-size:14px;line-height:1.4;background:none;border-color:transparent;border-radius:7px}
+.tm-icon:hover{background:var(--line);border-color:var(--line)}
+.tm-list{display:flex;flex-direction:column}
+.tm-team{border-bottom:1px solid var(--line);border-left:3px solid var(--rail,var(--line));transition:background .12s}
+.tm-team.open{background:#ffffff07}
+.tm-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"icon title tools" "icon lights lights" "icon meta meta";gap:3px 10px;padding:11px 8px 11px 12px;cursor:pointer;user-select:none;align-items:center}
+.tm-head:hover{background:#ffffff05}
+.tm-head:focus-visible,.tm-agent:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.tm-head>.bot-icon{grid-area:icon;align-self:start;margin-top:2px}
+.tm-title{grid-area:title;display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}
+.tm-name{font-weight:650;font-size:15px;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.tm-tools{grid-area:tools;display:flex;align-items:center;gap:2px}
+.tm-caret{width:14px;text-align:center;color:var(--muted)}
+.tm-lights{grid-area:lights;min-width:0}
+.tm-meta{grid-area:meta;display:flex;flex-wrap:wrap;align-items:center;gap:2px 12px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tm-time{margin-left:auto}
+.tm-flag{font-weight:600}
+.tm-flag.wait{color:var(--amber)}.tm-flag.err{color:var(--red)}.tm-flag.ok{color:var(--green)}
+.tm-tasks{display:inline-flex;align-items:center;gap:6px}
+.tm-tasks b{color:var(--text);font-weight:600}
+.tm-tasks .bar{display:inline-block;width:44px;height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.tm-tasks .bar i{display:block;height:100%;background:var(--accent)}
+.tm-pips{display:flex;flex-wrap:wrap;align-items:center;gap:3px;min-height:12px}
+.tm-pip{width:10px;height:10px;border-radius:2.5px;display:inline-block}
+.tm-more,.tm-asleep{font-size:12px;color:var(--muted);margin-left:5px}
+.pulse{animation:tmPulse 1.6s ease-in-out infinite}
+@keyframes tmPulse{50%{opacity:.35;transform:scale(.8)}}
+.tm-body{padding:2px 8px 12px 12px}
+.tm-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:2px 0 8px}
+.tm-facts{margin:0 0 8px}
+.tm-agents{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.tm-agent{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:7px 6px;border-top:1px solid #ffffff0d;cursor:pointer;border-radius:6px}
+.tm-agent:hover{background:var(--line)}
+.tm-agent.dim{opacity:.55}
+.tm-agent-main{display:flex;flex-direction:column;min-width:0}
+.tm-agent-name{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tm-agent-sub{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tm-agent-state{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tm-agent-state i{width:9px;height:9px;border-radius:50%}
+@media(prefers-reduced-motion:reduce){.pulse{animation:none}.tm-team{transition:none}}
