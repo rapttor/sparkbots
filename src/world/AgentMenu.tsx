@@ -119,7 +119,8 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
       <header className="am-head">
         <BotIcon color={w.color} size={22} title="Robot color: click to choose (recolors this agent in the 3D office)" onPick={(c) => { void api.setBotColor(w.id, c).catch((e: Error) => setNote(e.message)); }} />
         <strong title={w.title}>{displayName(w)}</strong>
-        <ProjectBadge team={w.team} />
+        <ProjectBadge team={w.team} onClick={() => { useStore.getState().focusTeam(w.team); onClose(); }} />
+        {w.state !== "asleep" && <button className="small" title="Send home: back to its desk in its project" aria-label="Send home" onClick={() => { scene.look(w.id, "idle", true, 5 * 60_000); onClose(); }}>🏠</button>}
         <StateBadge state={w.state} />
         <button className="icon-btn" aria-label="Close" onClick={onClose}>×</button>
       </header>
@@ -155,6 +156,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
           ))}
         </div>
       </div>
+      {w.state !== "asleep" && item("🪑 Call to the desk", () => { scene.look(w.id, "idle", true, 5 * 60_000); onClose(); }, undefined, undefined)}
       {item(`🎭 Show as… ${open === "look" || open === "idle" ? "▾" : "▸"}`, () => setOpen(open === "look" || open === "idle" ? "" : "look"))}
       {(open === "look" || open === "idle") && (
         <div className="am-sub">

@@ -514,3 +514,5 @@ button.primary{background:var(--accent);color:#06201d;border-color:var(--accent)
 .wc-thumb{width:22px;height:22px;object-fit:cover;border-radius:3px;vertical-align:middle}
 .wc-thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .wc-thumbs img{max-width:160px;max-height:120px;border-radius:6px;display:block;border:1px solid var(--line)}
+button.project-link{cursor:pointer;background:none;padding:1px 8px;font:inherit;font-size:11px}
+button.project-link:hover{background:#ffffff10}

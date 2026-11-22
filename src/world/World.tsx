@@ -63,6 +63,8 @@ const DIST_IN = 3.2; // camera distance at max zoom in; max zoom out comes from 
 const PITCH_IN = 0.1, PITCH_OUT = 1.5; // tilt at max zoom in (nearly flat) / max zoom out (near top-down)
 const DEFAULT_ZOOM_T = 0.32; // the "story" angle: behind you, a bit low
 const startMode = (): "saved" | "plaza" => { try { return localStorage.getItem("ao.startMode") === "plaza" ? "plaza" : "saved"; } catch { return "saved"; } };
+const CALL_RADIUS = 2.5;  // an agent farther than this from its desk is "away": clicking the desk calls it
+const CALL_MS = 5 * 60_000; // a called agent stays at its desk this long (menu: "Back to the real status" releases it)
 const HAND_DIST = 16; // kept for the hand's world-per-pixel speed; zoom uses the same DIST_IN..DIST_OUT curve
 // At the far end of the zoom the camera is near top-down and the room slabs z-fight at that distance. From here on,
 // hide the 3D world and leave only the project titles (stacked as usual) so picking a project is calm and reliable.
@@ -778,10 +780,13 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       ))}
 
       <instancedMesh ref={refs.desk} args={[assets.deskG, undefined, MAX_DESKS]} frustumCulled={false}
-        onClick={(e) => {
+        onClick={(e) => { // the desk itself calls its agent back to it; with the agent already there it opens the agent menu
           e.stopPropagation();
           const d = e.instanceId !== undefined ? layoutRef.current.desks[e.instanceId] : undefined;
-          if (d) pick(d.worker.id, e.nativeEvent);
+          if (!d) return;
+          const r = roams.get(d.worker.id);
+          if (!e.nativeEvent.shiftKey && d.worker.state !== "asleep" && r && Math.hypot(r.x - d.x, r.z - d.z) > CALL_RADIUS) { setLook(d.worker.id, "idle", true, CALL_MS); ensureAnimated(d.worker.id); return; }
+          pick(d.worker.id, e.nativeEvent);
         }}>
         <meshStandardMaterial color="#3a4256" roughness={0.8} />
       </instancedMesh>

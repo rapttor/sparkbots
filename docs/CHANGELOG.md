@@ -19,5 +19,6 @@ Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest f
 - **Teams tab:** redesigned as a ledger with status lights per agent, plain-language flags, a state summary and keyboard-operable rows [13.9.7].
 - **Perform menu:** one joined row of seven grey-until-hover icon tiles with a click-to-open explanation; every Perform action wakes a sleeping agent first.
 - **Stats:** Refresh button (`POST /api/stats/refresh`).
+- **Call to desk / send home:** click a desk to call its agent back, "Call to the desk" in the agent menu, clickable project badge and 🏠 in the menu header [13.1.31].
 - **Fix:** API calls with a query string no longer produce a bad token [13.3.8].
 - **Tasks:** 13.0 reduced to a small `app.db` for new data; sync, card links and other tasks simplified or deferred; 7.41 split.
