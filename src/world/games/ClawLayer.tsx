@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Html } from "@react-three/drei";
+import { useSwallowEvents } from "./swallow";
 import { ClawSim, USER, itemDef } from "../../shared/rewards";
 import { displayName } from "../../util";
 import type { Layout } from "../layout";
@@ -51,20 +52,6 @@ function Cabinet({ x, z }: { x: number; z: number }) {
       {[[-0.2, -0.2], [0.2, 0.1], [0, 0.25], [-0.25, 0.2]].map(([px, pz], i) => <mesh key={i} position={[px!, 0.98, pz!]}><sphereGeometry args={[0.1, 10, 8]} /><meshStandardMaterial color={["#ff8fab", "#ffd23f", "#7aa8ff", "#8fd694"][i]} /></mesh>)}
     </group>
   );
-}
-
-/** Everything inside the claw window stays in the window: no click, drag or wheel reaches the 3D scene behind it (the character would walk off).
- *  Native listeners on purpose: the scene listens natively on a parent element, and React's own stopPropagation runs too late to stop it. */
-function useSwallowEvents(): React.RefObject<HTMLDivElement> {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current; if (!el) return;
-    const stop = (e: Event) => e.stopPropagation();
-    const types = ["click", "dblclick", "pointerdown", "pointerup", "pointermove", "mousedown", "mouseup", "contextmenu", "wheel", "touchstart", "touchend"];
-    for (const t of types) el.addEventListener(t, stop);
-    return () => { for (const t of types) el.removeEventListener(t, stop); };
-  }, []);
-  return ref;
 }
 
 function ClawPanel({ layout }: { layout: Layout }) {

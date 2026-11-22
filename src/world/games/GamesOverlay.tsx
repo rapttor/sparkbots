@@ -5,6 +5,7 @@ import { GAMES, GAME_IDS } from "./registry";
 import type { GameId, RankRow } from "./types";
 import { goTo, spotBehindTable } from "./goto";
 import { openRacePanel } from "./race/RaceLayer";
+import { useSwallowEvents } from "./swallow";
 
 const CSS = `
 .games-bar{position:absolute;z-index:6;top:46px;left:0;right:0;padding:0 15%;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;pointer-events:none}
@@ -24,6 +25,8 @@ const CSS = `
 export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string }) {
   useSyncExternalStore((cb) => hub.subscribe(cb), () => hub.version);
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState<"rank" | "new">("rank");
+  const popRef = useSwallowEvents(); // clicks inside the popover never reach the 3D scene behind it
   const [tab, setTab] = useState<GameId | "all">("all");
   const [rows, setRows] = useState<RankRow[]>([]);
   const [msg, setMsg] = useState("");
@@ -63,8 +66,13 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
         ))}
       </div>
       {open && (
-        <div className="games-pop" role="dialog" aria-label="Game room">
-          <b>Rankings</b>
+        <div className="games-pop" role="dialog" aria-label="Game room" ref={popRef}>
+          <div className="tabs pages" role="tablist" aria-label="Game room">
+            <button role="tab" aria-selected={page === "rank"} className={page === "rank" ? "on" : ""} onClick={() => setPage("rank")}>🏆 Rankings</button>
+            <button role="tab" aria-selected={page === "new"} className={page === "new" ? "on" : ""} onClick={() => setPage("new")}>🎮 New game</button>
+            <span style={{ flex: 1 }} /><button aria-label="Close" onClick={() => setOpen(false)}>×</button>
+          </div>
+          {page === "rank" && <>
           <div className="tabs">
             {(["all", ...GAME_IDS] as const).map((g) => <button key={g} className={tab === g ? "on" : ""} onClick={() => setTab(g)}>{g === "all" ? "All" : `${GAMES[g].icon} ${GAMES[g].name}`}</button>)}
           </div>
@@ -74,6 +82,8 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
               <tbody>{rows.map((r) => <tr key={r.agent}><td>{r.name}</td><td>{r.wins}</td><td>{r.losses}</td><td>{r.plays}</td><td>{r.plays ? Math.round((r.wins / r.plays) * 100) : 0}%</td></tr>)}</tbody>
             </table>
           )}
+          </>}
+          {page === "new" && <>
           <form onSubmit={(e) => { e.preventDefault(); start(); }}>
             <select aria-label="Game" value={form.game} onChange={(e) => setForm({ ...form, game: e.target.value as GameId })}>{GAME_IDS.map((g) => <option key={g} value={g} disabled={!hub.canOpen(g)}>{GAMES[g].icon} {GAMES[g].name}</option>)}</select>
             <select aria-label="Player one" value={form.a} onChange={(e) => setForm({ ...form, a: e.target.value })}><option value="">first idle agent</option>{options(form.b)}</select>
@@ -84,6 +94,7 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
           </form>
           {msg && <p role="alert">{msg}</p>}
           <label><input type="checkbox" checked={hub.auto} onChange={(e) => { setAuto(e.target.checked); setMsg(""); }} /> Idle agents play on their own</label>
+          </>}
           <p className="muted">Games are for show: they never stop an agent from working, and nothing leaves your machine.</p>
         </div>
       )}

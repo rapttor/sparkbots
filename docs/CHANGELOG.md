@@ -27,5 +27,6 @@ Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest f
 - **Floating dock:** the side dock now floats over the 3D scene as a translucent force field and the camera re-centres instead of the view being pushed [13.1.33]; restaurant meals arrive by drone carrying the dish icon [13.6.11].
 - **Claw machine:** over a prize icon = you get it (no dice, no slipping); clicks in the claw window no longer walk the character [13.7.9b].
 - **Go there:** walk when near, beam (dematerialize / materialize) when far, to the centre of the room (not into the data center racks) [13.1.34].
+- **Games popover:** two tabs, Rankings and New game [13.7.12]; **Anger room v2** merged (you hold the weapon, more debris, faster waves, exit from reception) [13.8.2c].
 - **Fix:** API calls with a query string no longer produce a bad token [13.3.8].
 - **Tasks:** 13.0 reduced to a small `app.db` for new data; sync, card links and other tasks simplified or deferred; 7.41 split.
