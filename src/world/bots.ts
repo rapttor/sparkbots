@@ -212,12 +212,12 @@ export function poseBot(m: Meshes, i: number, d: DeskSlot, t: number, animate: b
     jx = fp.jx; jz = fp.jz; hop += fp.hop; spin += fp.spin; sway += fp.sway; arm = fp.arm;
     if (fp.tint) {
       const c = col.set(d.worker.color).lerp(tintColor(fp.tint), fp.tintAmt);
-      m.body.setColorAt(i, c); m.codexHead.setColorAt(i, c); m.codexBody.setColorAt(i, c); m.antenna.setColorAt(i, c); m.legA.setColorAt(i, c); m.legB.setColorAt(i, c); m.tarsFrame.setColorAt(i, c); m.tarsSide.setColorAt(i, c);
+      m.body.setColorAt(i, c); m.codexHead.setColorAt(i, c); m.codexBody.setColorAt(i, c); m.antenna.setColorAt(i, d.color); m.legA.setColorAt(i, c); m.legB.setColorAt(i, c); m.tarsFrame.setColorAt(i, c); m.tarsSide.setColorAt(i, c);
       r.flash = true;
     }
   } else if (r.flash) {
     const c = col.set(d.worker.color);
-    m.body.setColorAt(i, c); m.codexHead.setColorAt(i, c); m.codexBody.setColorAt(i, c); m.antenna.setColorAt(i, c); m.legA.setColorAt(i, c); m.legB.setColorAt(i, c); m.tarsFrame.setColorAt(i, c); m.tarsSide.setColorAt(i, c);
+    m.body.setColorAt(i, c); m.codexHead.setColorAt(i, c); m.codexBody.setColorAt(i, c); m.antenna.setColorAt(i, d.color); m.legA.setColorAt(i, c); m.legB.setColorAt(i, c); m.tarsFrame.setColorAt(i, c); m.tarsSide.setColorAt(i, c);
     r.flash = false;
   }
   if (r.flash || fp) for (const k of [m.body, m.codexHead, m.codexBody, m.antenna, m.legA, m.legB, m.tarsFrame, m.tarsSide]) if (k.instanceColor) k.instanceColor.needsUpdate = true;
@@ -268,7 +268,7 @@ export function writeStatic(m: Meshes, layout: Layout, fetchedId: string | undef
     const body = tintColor(d.worker.color); // own cached Color: visorColor() mutates the shared `col` temp
     m.body.setColorAt(i, body);
     m.codexHead.setColorAt(i, body); m.codexBody.setColorAt(i, body);
-    m.antenna.setColorAt(i, body);
+    m.antenna.setColorAt(i, d.color); // project-colour hat/antenna accent (13.4.4)
     m.legA.setColorAt(i, body); m.legB.setColorAt(i, body);
     m.visor.setColorAt(i, visorColor(st));
     m.codexVisor.setColorAt(i, new Color("#111a46"));

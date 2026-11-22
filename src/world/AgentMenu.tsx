@@ -5,9 +5,13 @@ import { useLive } from "../state/live";
 import { useStore } from "../state/store";
 import { StateBadge } from "../panels/Badge";
 import { BotIcon } from "../panels/BotIcon";
+import { ProjectBadge } from "../panels/ProjectBadge";
 import { fmtDuration, fmtNum, relTime, displayName } from "../util";
 import { ACTIONS } from "./actions";
 import { poiChoices } from "./roam";
+import { hub as gameHub } from "./games/instance";
+import { playChoices, startGame } from "./games/playWhileLimited";
+import { rateLimitedAt } from "./rateLimit";
 import { requestCoffee } from "./servicebots";
 import { SimChatUnread } from "../simchat/SimChat";
 import { useSimChat } from "../simchat/store";
@@ -115,7 +119,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
       <header className="am-head">
         <BotIcon color={w.color} size={22} title="Robot color: click to choose (recolors this agent in the 3D office)" onPick={(c) => { void api.setBotColor(w.id, c).catch((e: Error) => setNote(e.message)); }} />
         <strong title={w.title}>{displayName(w)}</strong>
-        <span className="muted small" title="Project / team">{w.team}</span>
+        <ProjectBadge team={w.team} />
         <StateBadge state={w.state} />
         <button className="icon-btn" aria-label="Close" onClick={onClose}>×</button>
       </header>
@@ -126,6 +130,16 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
       {item("☕ Bring a coffee", () => { requestCoffee(w.id); onClose(); })}
       {item(followers.includes(w.id) ? "👥 Stop following" : "👥 Follow me", () => { toggleFollower(w.id); onClose(); }, "F")}
       {ACTIONS.filter((a) => a.kind === "real").map((a) => item(`${a.label} …`, () => { scene.act(a.key, w.id); onClose(); }, a.key.toUpperCase(), a.can?.(w) ?? undefined))}
+      {(() => { // Play while limited (13.4.8): only while the service is rate limited
+        const limited = rateLimitedAt(useStore.getState().snapshot?.rateLimitedUntil);
+        const picks = playChoices(gameHub, w.id, limited);
+        return picks.length > 0 && (
+          <div className="am-sub">
+            <div className="muted small">⏳ Rate limited, so play:</div>
+            {picks.map((c) => item(c.label, () => { if (startGame(gameHub, c.game, w.id)) onClose(); }))}
+          </div>
+        );
+      })()}
       <div className="am-perform">
         <div className="am-perform-title">
           🎬 Perform

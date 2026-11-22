@@ -49,3 +49,28 @@ export function flyDurationFor(distance: number, prefs: FlyPrefs = FLY_PREFS_DEF
 export function worldPerPixel(distance: number, fovDeg: number, viewportHeight: number): number {
   return (2 * Math.max(0, distance) * Math.tan((fovDeg * Math.PI) / 360)) / Math.max(1, viewportHeight);
 }
+
+export const CAM_FOV = 50; // degrees, matches the Canvas camera
+export const MAX_DIST_MIN = 60; // never allow less zoom-out than this, however small the campus
+export const MAX_DIST_CAP = 900; // sanity cap for a huge campus
+export const FIT_MARGIN = 1.15; // a little air around the campus at max zoom-out
+
+/** Camera distance at which a square of `extent` metres fits the view (top-down). */
+export function fitDistance(extent: number, fovDeg = CAM_FOV): number {
+  return Math.max(0, extent) / (2 * Math.tan((fovDeg * Math.PI) / 360));
+}
+
+/** Max zoom-out distance derived from the campus bounds (13.1.4): the whole campus plus a margin, clamped. */
+export function maxZoomDistance(b: { minX: number; maxX: number; minZ: number; maxZ: number }, fovDeg = CAM_FOV): number {
+  const ext = Math.max(b.maxX - b.minX, b.maxZ - b.minZ);
+  if (!Number.isFinite(ext) || ext <= 0) return MAX_DIST_MIN;
+  return Math.round(Math.min(MAX_DIST_CAP, Math.max(MAX_DIST_MIN, fitDistance(ext, fovDeg) * FIT_MARGIN)));
+}
+
+export interface Spot { x: number; z: number }
+/** Pair-programming spot (13.1.8): beside the agent, on the side the camera is already on (fewer degrees to swing),
+ *  `side` metres to the side of the screen and a little back, never in front of the laptop. */
+export function pairSpot(desk: Spot, from: Spot, side = 1.5, back = 0.9): { cam: Spot; side: 1 | -1 } {
+  const s: 1 | -1 = from.x - desk.x >= 0 ? 1 : -1;
+  return { cam: { x: desk.x + s * side, z: desk.z + back }, side: s };
+}
