@@ -17,6 +17,7 @@ import { recentMessages as recentCodexMessages } from "./adapters/codex/transcri
 import { recentMessages as recentOpenCodeMessages } from "./adapters/opencode/transcript";
 import { CodexCommandError, queueMessage as queueCodexMessage } from "./adapters/codex/command";
 import { listModels as listOpenCodeModels, OpenCodeCommandError, queueMessage as queueOpenCodeMessage, spawnSession as spawnOpenCodeSession } from "./adapters/opencode/command";
+import { listMcp } from "./mcp";
 import { runPrompt, taskInfo, type TaskInfo } from "./tasks";
 import { saveJson, type Config, type TeamOverride, type Teams } from "./config";
 import { statSync } from "node:fs";
@@ -109,6 +110,8 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     live: [...c.live.entries()].map(([session, i]) => ({ session, pid: i.pid, kind: i.kind, startedAt: i.startedAt, cwd: c.sessions.get(session)?.cwd, title: c.sessions.get(session)?.title })),
     runs: runs.runs.slice(-50),
   }));
+  /** MCP servers configured per project (read-only; never started or contacted). */
+  app.get("/api/mcp", async () => ({ projects: listMcp(new Set([...c.sessions.values()].map((x) => x.cwd))) }));
   app.post<{ Body: Record<string, unknown> }>("/hook", async (req) => { await c.applyHook(hookToEvents(req.body ?? {})); onChange(); return {}; });
   const teamSessions = (team: string) => [...c.sessions.values()].filter((x) => teamFor(x.cwd, c.teams.merges) === team).sort((a, b) => b.mtimeMs - a.mtimeMs);
   const tasksNow = () => {

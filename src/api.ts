@@ -11,6 +11,7 @@ import type { ChatMessage } from "../server/adapters/claude-code/transcript";
 
 export type { RunRecord, Card, Column, WorkSpan, ChatMessage };
 export interface LiveProc { session: string; pid: number; kind: string; startedAt: number; cwd?: string; title?: string }
+export type McpProject = import("../server/mcp").McpProject;
 export interface Processes { live: LiveProc[]; runs: RunRecord[] }
 export type SendResult = { queued: true; position: number } | { queued: false; run: RunRecord } | { queued: false; codex: true } | { queued: false; opencode: true; model?: string | null };
 export type HireResult = { started: boolean; source: "claude" | "codex" | "opencode"; cwd: string; model?: string | null; runId?: string };
@@ -83,6 +84,7 @@ export const api = {
   setBotColor: (id: string, color: string | null) => call<{ color: string }>("PUT", `/api/bots/${encodeURIComponent(id)}/color`, { color }),
   deleteLabel: (id: string) => call<unknown>("DELETE", `/api/labels/${encodeURIComponent(id)}`),
   sessionMessages: (id: string) => call<{ messages: ChatMessage[] }>("GET", `/api/sessions/${encodeURIComponent(id)}/messages`),
+  mcp: () => call<{ projects: McpProject[] }>("GET", "/api/mcp"),
   processes: () => call<Processes>("GET", "/api/processes"),
 };
 

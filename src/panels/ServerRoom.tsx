@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { api, fmtAge, type Processes } from "../api";
+import { api, fmtAge, type Processes, type McpProject } from "../api";
 import { useLive } from "../state/live";
 
 /** Stacked cards instead of wide tables, so it reads well in the narrow dock. */
 export function ServerRoom() {
   const [data, setData] = useState<Processes>({ live: [], runs: [] });
+  const [mcp, setMcp] = useState<McpProject[]>([]);
   const [err, setErr] = useState("");
-  useLive(async () => { try { setData(await api.processes()); setErr(""); } catch (e) { setErr((e as Error).message); } }, ["processes", "runs"]);
+  useLive(async () => { try { setData(await api.processes()); setMcp((await api.mcp()).projects); setErr(""); } catch (e) { setErr((e as Error).message); } }, ["processes", "runs"]);
   return (
     <section className="panel">
       <h1>Server Room</h1>
@@ -35,6 +36,26 @@ export function ServerRoom() {
           </div>
         ))}
       </div>
+
+      <h2>MCP servers (configured)</h2>
+      <p className="muted small">Read from config files only. Env and header values are hidden. Nothing is started here.</p>
+      {mcp.length === 0 && <p className="muted">None found</p>}
+      {mcp.map((p) => (
+        <div key={p.project || "user"}>
+          <div className="mono small card-path" title={p.project}>{p.project || "User-level (all projects)"}</div>
+          <div className="cards">
+            {p.servers.map((m) => (
+              <div className="card" key={`${m.source}:${m.name}`}>
+                <div className="card-top"><strong>{m.name}</strong><span className="tag">{m.type}</span></div>
+                <div className="card-meta"><span className="muted small">{m.scope} · {m.source}{m.disabled ? " · disabled" : ""}</span></div>
+                <div className="mono small card-path" title={m.url ?? m.command}>{m.url ?? [m.command, ...(m.args ?? [])].join(" ")}</div>
+                {m.envKeys.length > 0 && <div className="muted small">env: {m.envKeys.join(", ")}</div>}
+                {m.headerKeys.length > 0 && <div className="muted small">headers: {m.headerKeys.join(", ")}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </section>
   );
 }
