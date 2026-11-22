@@ -16,7 +16,7 @@ import { recentMessages } from "./adapters/claude-code/transcript";
 import { recentMessages as recentCodexMessages } from "./adapters/codex/transcript";
 import { recentMessages as recentOpenCodeMessages } from "./adapters/opencode/transcript";
 import { CodexCommandError, queueMessage as queueCodexMessage } from "./adapters/codex/command";
-import { listModels as listOpenCodeModels, OpenCodeCommandError, queueMessage as queueOpenCodeMessage, spawnSession as spawnOpenCodeSession } from "./adapters/opencode/command";
+import { listModels as listOpenCodeModels, OpenCodeCommandError, queueMessage as queueOpenCodeMessage, setRunTracker as setOpenCodeTracker, spawnSession as spawnOpenCodeSession } from "./adapters/opencode/command";
 import { runPrompt, taskInfo, type TaskInfo } from "./tasks";
 import { saveJson, type Config, type TeamOverride, type Teams } from "./config";
 import { statSync } from "node:fs";
@@ -33,6 +33,7 @@ export const tasks: { fn: () => string } = { fn: () => "" };
 
 export function registerRoutes(app: FastifyInstance, c: Company, onChange: () => void = () => {}, ping: (kind: Slice, id?: string) => void = () => {}): RunManager {
   const runs = new RunManager((id) => c.live.get(id)?.kind === "interactive");
+  setOpenCodeTracker(runs);
   const log = new Map<string, unknown[]>(); // runId -> recent stream lines (in memory, for the chat panel)
   runs.listeners.add((e: RunEvent) => { const a = log.get(e.runId) ?? []; a.push(e.line); log.set(e.runId, a.slice(-200)); ping("runs"); });
   runs.onChange = () => { ping("runs"); ping("processes"); };
