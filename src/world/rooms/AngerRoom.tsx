@@ -193,8 +193,10 @@ export function AngerRoom({ layout }: { layout: Layout }) {
   if (!az) return null;
 
   const choose = (id: string) => { setWeapon(id); setPick(false); const n = startRun(startSession(id, Date.now()), Date.now()); setSess(n); sessRef.current = n; };
-  const exit = () => { const s = sessRef.current; setMenu(false); if (s?.running) { const n = stopRun(s, Date.now()); setSess(n); sessRef.current = n; } };
-  smashCtl.stop = exit; // the header Stop button ends a smashing run too
+  // Exit / the header Stop end the whole smashing session at once: the run, its countdown timer and the queued items; the points are banked.
+  const exit = () => { const s = sessRef.current; setMenu(false); if (!s) return; setTotal((t) => t + s.points); setSess(null); sessRef.current = null; queue.current.length = 0; setLeft(0); };
+  smashCtl.stop = exit;
+  smashCtl.hasSession = !!sess; // the Stop button stays while the countdown runs, not only while the weapon is in hand
   const reception = () => {
     const s = sessRef.current, now = Date.now();
     if (!weapon && !s) { setPick(true); return; }
