@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Worker, WorkerState } from "../../server/adapters/types";
-import { api, type Card, type RunRecord } from "../api";
+import { api, type Card, type ChatMessage, type RunRecord } from "../api";
 import { useLive } from "../state/live";
 import { useStore } from "../state/store";
 import { StateBadge } from "../panels/Badge";
@@ -69,6 +69,34 @@ function Detail({ w }: { w: Worker }) {
   );
 }
 
+/** The agent's messages (read-only, newest at the bottom) with a search box; the chat itself is one click away. */
+function AgentHistory({ w, onOpenChat }: { w: Worker; onOpenChat: () => void }) {
+  const [msgs, setMsgs] = useState<ChatMessage[] | null>(null);
+  const [q, setQ] = useState("");
+  const [err, setErr] = useState("");
+  const end = useRef<HTMLDivElement>(null);
+  useEffect(() => { let live = true; api.sessionMessages(w.id).then((r) => { if (live) setMsgs(r.messages); }).catch((e: Error) => { if (live) setErr(e.message); }); return () => { live = false; }; }, [w.id]);
+  useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [msgs]);
+  const shown = (msgs ?? []).filter((m) => !q.trim() || m.text.toLowerCase().includes(q.trim().toLowerCase()));
+  return (
+    <div className="am-history">
+      <div className="tb-row"><input aria-label="Search this agent's messages" placeholder="Search messages…" value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1 }} /><button className="small" onClick={onOpenChat}>💬 Open chat</button></div>
+      {err && <p role="alert" className="s-error small">{err}</p>}
+      {msgs === null && !err && <p className="muted small">Loading…</p>}
+      {msgs && shown.length === 0 && <p className="muted small">{q ? "No message matches." : "No messages yet."}</p>}
+      <div className="am-history-list">
+        {shown.map((m, i) => (
+          <div key={i} className={`am-msg ${m.role === "user" ? "mine" : "bot"}`}>
+            <span className="muted small">{m.role === "user" ? "You" : displayName(w)}{m.at ? ` · ${relTime(m.at)}` : ""}</span>
+            <div>{m.text.length > 1500 ? `${m.text.slice(0, 1500)}…` : m.text}</div>
+          </div>
+        ))}
+        <div ref={end} />
+      </div>
+    </div>
+  );
+}
+
 /** Centered dialog that opens when you click an agent: talk, actions, show-as (visual only), and quick actions. */
 export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene: SceneApi; onClose: () => void }) {
   const openChat = useStore((s) => s.openChat);
@@ -78,6 +106,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
   const [cards, setCards] = useState<Card[]>([]);
   useEffect(() => { if (open === "cards") api.board().then((c) => setCards(c.filter((x) => x.team === w.team && (x.column === "backlog" || x.column === "ready")))).catch(() => {}); }, [open, w.team]);
   const [detail, setDetail] = useState(false);
+  const [tab, setTab] = useState<"actions" | "history">("actions");
   const [perfInfo, setPerfInfo] = useState(false);
   const [note, setNote] = useState("");
   const [runs, setRuns] = useState<RunRecord[]>([]);
@@ -115,7 +144,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
 
   return (
     <div className="agent-dialog-backdrop">
-      <div className="agent-menu agent-dialog" ref={ref} role="dialog" aria-modal="true" aria-label={`Actions for ${displayName(w)}`} onWheel={(e) => e.stopPropagation()}>
+      <div className={`agent-menu agent-dialog ${tab === "history" ? "wide" : ""}`} ref={ref} role="dialog" aria-modal="true" aria-label={`Actions for ${displayName(w)}`} onWheel={(e) => e.stopPropagation()}>
       <header className="am-head">
         <BotIcon color={w.color} size={22} title="Robot color: click to choose (recolors this agent in the 3D office)" onPick={(c) => { void api.setBotColor(w.id, c).catch((e: Error) => setNote(e.message)); }} />
         <strong title={w.title}>{displayName(w)}</strong>
@@ -124,6 +153,11 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
         <StateBadge state={w.state} />
         <button className="icon-btn" aria-label="Close" onClick={onClose}>×</button>
       </header>
+      <div className="am-tabs" role="tablist" aria-label="Agent">
+        <button role="tab" aria-selected={tab === "actions"} className={tab === "actions" ? "on" : ""} onClick={() => setTab("actions")}>⚡ Actions</button>
+        <button role="tab" aria-selected={tab === "history"} className={tab === "history" ? "on" : ""} onClick={() => setTab("history")}>📜 History</button>
+      </div>
+      {tab === "history" ? <AgentHistory w={w} onOpenChat={() => { openChat(w.id); onClose(); }} /> : <>
       <CaffeineRow id={w.id} />
       <RewardsSection id={w.id} />
       {item("💬 Talk", () => { openChat(w.id); onClose(); }, "E")}
@@ -188,6 +222,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
       </div>
       {note && <p className="small am-note">{note}</p>}
       {detail && <Detail w={w} />}
+      </>}
       </div>
     </div>
   );

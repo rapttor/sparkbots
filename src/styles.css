@@ -527,3 +527,14 @@ button.project-link:hover{background:#ffffff10}
 .stop-modes:hover{background:#dc2626}
 .stop-modes-icon{width:16px;height:16px;background:#fff;border-radius:3px;display:block}
 .stop-modes small{font-size:9px;letter-spacing:.08em;text-transform:uppercase;line-height:1}
+
+/* agent dialog: Actions / History tabs */
+.agent-dialog.wide{width:min(760px,100%)}
+.am-tabs{display:flex;gap:4px;margin:2px 0 6px;border-bottom:1px solid var(--line)}
+.am-tabs button{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;padding:5px 10px;color:var(--muted)}
+.am-tabs button.on{color:var(--text);border-bottom-color:var(--accent)}
+.am-history{display:flex;flex-direction:column;gap:6px;min-height:200px}
+.am-history-list{display:flex;flex-direction:column;gap:6px;max-height:min(56vh,520px);overflow:auto}
+.am-msg{padding:6px 9px;border-radius:8px;border:1px solid var(--line);white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}
+.am-msg.mine{background:#4fd1c514;border-color:#4fd1c544;align-self:flex-end;max-width:90%}
+.am-msg.bot{background:#ffffff08;max-width:94%}
