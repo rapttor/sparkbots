@@ -1,12 +1,17 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import type { Group, Mesh, MeshBasicMaterial } from "three";
 import type { Layout } from "../layout";
 import { Glass } from "./Glass";
+import { FLIGHT_S, flight } from "./drones";
+import { MANAGER_ID, setCafeOrderHandler } from "../servicebots";
+import { player } from "../roam";
 import { bubble, pointer } from "./ui";
 
-const BREW_S = 6, READY_S = 4, EVERY_S = 14;      // brewing time, how long the cup waits, pause between automatic coffees
+const BREW_S = 2.5, READY_S = 2.5, EVERY_S = 14;   // brewing time (fast), how long an ambient cup waits, pause between ambient coffees
+const MAX_DRONES = 3;
+interface Flight { id: string; t: number; from: { x: number; z: number }; home: { x: number; z: number } }
 const MACHINE = { x: -1.5, z: -2.2 }, CUP_Z = -1.95, BAR = { x: -0.9, z: -2.95 };
 
 /**
@@ -23,12 +28,47 @@ export function Cafe({ layout }: { layout: Layout }) {
   const bar = useRef<Group>(null);
   const phase = useRef({ state: "idle" as "idle" | "brewing" | "ready", t0: 0, next: 4 });
   const [msg, setMsg] = useState("");
+  const orders = useRef<string[]>([]);           // who ordered, in order; the barista makes one cup at a time
+  const current = useRef<string | null>(null);   // the order being brewed (null = an ambient cup nobody ordered)
+  const flights = useRef<Flight[]>([]);
+  const dGroups = useRef<(Group | null)[]>([]);
+  const dCup = useRef<(Mesh | null)[]>([]);
+  const dRotor = useRef<(Mesh | null)[]>([]);
+  const lay = useRef(layout); lay.current = layout;
+  useEffect(() => { // the coffee ordering entry point (O key, agent menu, the barista at the coffee factory)
+    setCafeOrderHandler((id) => {
+      if (!lay.current.zones.some((z) => z.zone.id === "cafe") || orders.current.length >= 6 || orders.current.includes(id)) return false;
+      orders.current.push(id); setMsg("☕ Order taken"); return true;
+    });
+    return () => setCafeOrderHandler(null);
+  }, []);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const t = state.clock.elapsedTime, p = phase.current;
-    if (p.state === "idle" && t >= p.next) { p.state = "brewing"; p.t0 = t; setMsg("☕ Brewing…"); }
-    if (p.state === "brewing" && t - p.t0 > BREW_S) { p.state = "ready"; p.t0 = t; setMsg("☕ Coffee's ready!"); }
+    if (p.state === "idle" && (orders.current.length || t >= p.next)) { current.current = orders.current.shift() ?? null; p.state = "brewing"; p.t0 = t; setMsg("☕ Brewing…"); }
+    if (p.state === "brewing" && t - p.t0 > BREW_S) {
+      const id = current.current;
+      if (id && cz && flights.current.length < MAX_DRONES) { // an ordered cup: a drone takes it to whoever asked
+        flights.current.push({ id, t: 0, from: { x: cz.x + MACHINE.x + 0.5, z: cz.z - 1.6 }, home: { x: cz.x + MACHINE.x + 0.5, z: cz.z - 1.6 } });
+        p.state = "idle"; p.next = t + 1; setMsg("🚁 Your coffee is on its way");
+      } else { p.state = "ready"; p.t0 = t; setMsg("☕ Coffee's ready!"); }
+      current.current = null;
+    }
     if (p.state === "ready" && t - p.t0 > READY_S) { p.state = "idle"; p.next = t + EVERY_S; setMsg(""); }
+    // drones: out to the person, hover, back; the manager is wherever you are now (avatar or hand), agents are at their desk
+    flights.current = flights.current.filter((fl) => fl.t < FLIGHT_S);
+    for (const fl of flights.current) fl.t += Math.min(0.1, delta);
+    for (let i = 0; i < MAX_DRONES; i++) {
+      const g = dGroups.current[i], fl = flights.current[i];
+      if (!g) continue;
+      if (!fl) { g.visible = false; continue; }
+      const d = fl.id === MANAGER_ID ? null : lay.current.desks.find((x) => x.worker.id === fl.id);
+      const to = fl.id === MANAGER_ID ? (player.on ? { x: player.x, z: player.z } : { x: fl.home.x, z: fl.home.z + 2.5 }) : d ? { x: d.x, z: d.z + 0.8 } : { x: fl.home.x, z: fl.home.z + 2.5 };
+      const f = flight(fl.home, to, fl.t);
+      g.visible = true; g.position.set(f.x, f.y, f.z); g.rotation.y = Math.atan2(to.x - fl.home.x, to.z - fl.home.z);
+      const c = dCup.current[i]; if (c) c.visible = f.carrying;
+      const r = dRotor.current[i]; if (r) r.rotation.y = t * 30;
+    }
     const brewing = p.state === "brewing", k = brewing ? (t - p.t0) / BREW_S : p.state === "ready" ? 1 : 0;
     arms.current.forEach((g, i) => { if (g) g.rotation.x = brewing ? -1.15 + Math.sin(t * 5 + i * 2) * 0.25 : -0.12 + Math.sin(t * 1.2 + i) * 0.04; });
     steam.current.forEach((m, i) => {
@@ -45,6 +85,7 @@ export function Cafe({ layout }: { layout: Layout }) {
 
   if (!cz) return null;
   return (
+    <>
     <group position={[cz.x, 0, cz.z]}>
       {/* glass over the counter, between the customers and the barista */}
       <Glass at={[0, 1.0 + 0.7, -1.76]} w={7} h={1.4} tint="#ffe2b8" />
@@ -72,5 +113,14 @@ export function Cafe({ layout }: { layout: Layout }) {
       {[0, 1, 2, 3].map((i) => <mesh key={i} ref={(m) => { steam.current[i] = m; }} visible={false}><sphereGeometry args={[1, 6, 4]} /><meshBasicMaterial color="#ffffff" transparent opacity={0.4} depthWrite={false} /></mesh>)}
       {msg && <Html position={[BAR.x, 2.9, BAR.z]} center style={{ pointerEvents: "none" }}><div style={bubble}>{msg}</div></Html>}
     </group>
+    {/* coffee drones (world coordinates): body, spinning rotor, and the cup they carry */}
+    {Array.from({ length: MAX_DRONES }, (_, i) => (
+      <group key={i} ref={(g) => { dGroups.current[i] = g; }} visible={false}>
+        <mesh><boxGeometry args={[0.5, 0.1, 0.5]} /><meshStandardMaterial color="#38bdf8" /></mesh>
+        <mesh ref={(m) => { dRotor.current[i] = m; }} position={[0, 0.1, 0]}><boxGeometry args={[0.9, 0.02, 0.1]} /><meshStandardMaterial color="#e2e8f0" /></mesh>
+        <mesh ref={(m) => { dCup.current[i] = m; }} position={[0, -0.22, 0]}><boxGeometry args={[0.16, 0.18, 0.16]} /><meshStandardMaterial color="#f8fafc" /></mesh>
+      </group>
+    ))}
+    </>
   );
 }

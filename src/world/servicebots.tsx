@@ -42,7 +42,11 @@ interface Bot { x: number; z: number; id: string; stage: "out" | "wait" | "back"
 /** Anyone (or the manager) can order a coffee: the request waits here until the component hands it to a free service robot. */
 export const MANAGER_ID = "manager";
 const pending: string[] = [];
+/** The cafe (rooms/Cafe.tsx) registers here: an order goes to its barista, which brews fast and sends a drone. Without a cafe the walking robots deliver. */
+let cafeOrders: ((id: string) => boolean) | null = null;
+export const setCafeOrderHandler = (f: ((id: string) => boolean) | null): void => { cafeOrders = f; };
 export function requestCoffee(id: string): boolean {
+  if (cafeOrders?.(id)) { if (id !== MANAGER_ID) bumpCaffeine(id, "coffee"); return true; }
   if (pending.length >= 8 || pending.includes(id)) return false;
   pending.push(id);
   if (id !== MANAGER_ID) bumpCaffeine(id, "coffee"); // cosmetic caffeine level (13.4.5)

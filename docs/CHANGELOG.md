@@ -23,5 +23,6 @@ Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest f
 - **Restaurant:** glass in front of the chef and a kitchen that transforms with the cuisine [13.6.8]; **Fix:** games chips no longer cover the hand buttons, close-up shows Back in hand and walk mode [13.1.32].
 - **Cafe and restaurant:** visible glass panes, a cafe barista that brews coffee (steam, stream, filling cup), chef arms and a prep table with flipping food and steam while cooking [13.6.9].
 - **Stats ranges:** a "Today" view (hourly) and a month dropdown for every month in the database; the By service table follows the range [13.3.12].
+- **Coffee by drone:** ordered coffee brews in 2.5 s at the cafe and a drone flies it to you or the agent [13.6.10].
 - **Fix:** API calls with a query string no longer produce a bad token [13.3.8].
 - **Tasks:** 13.0 reduced to a small `app.db` for new data; sync, card links and other tasks simplified or deferred; 7.41 split.
