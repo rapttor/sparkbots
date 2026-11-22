@@ -93,7 +93,6 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
             <button type="submit">Start</button>
             {hub.instances.length > 0 && <button type="button" onClick={() => hub.stopAll()}>Stop all</button>}
             </>}
-            <button type="button" title="Race track: cars, carmageddon" onClick={() => setForm({ ...form, game: "race" })}>🏎 Race…</button>
           </form>
           {form.game === "race" && <RaceSetup onStarted={() => setOpen(false)} />}
           {msg && <p role="alert">{msg}</p>}
