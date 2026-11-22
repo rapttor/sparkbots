@@ -20,7 +20,7 @@ export const raceHub = new RaceHub(none);
 const AUTO_KEY = "sparkbots.race.auto";
 try { raceHub.auto = localStorage.getItem(AUTO_KEY) !== "0"; } catch { /* storage blocked: default on */ }
 
-const DRIVE_KEYS = new Set(["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", " ", "c"]);
+const DRIVE_KEYS = new Set(["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", " ", "c", "escape"]);
 let fpv = false; // camera: behind the car (default) or from the driver's seat; C toggles
 const angleDiff = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 
@@ -115,7 +115,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
     raceCam.active = true; camReady.current = false;
     sendView({ t: "mode", mode: "walk" }); // the 3D scene (not the label map) must be showing
     const typing = (e: KeyboardEvent) => { const el = e.target as HTMLElement | null; return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable); };
-    const down = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (!DRIVE_KEYS.has(k) || typing(e) || e.metaKey || e.ctrlKey || e.altKey) return; e.preventDefault(); e.stopImmediatePropagation(); if (k === "c") { if (!e.repeat) fpv = !fpv; return; } keys.current.add(k); };
+    const down = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (!DRIVE_KEYS.has(k) || typing(e) || e.metaKey || e.ctrlKey || e.altKey) return; e.preventDefault(); e.stopImmediatePropagation(); if (k === "c") { if (!e.repeat) fpv = !fpv; return; } if (k === "escape") { raceHub.stop(); return; } keys.current.add(k); };
     const up = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (DRIVE_KEYS.has(k)) { keys.current.delete(k); } };
     const clear = () => keys.current.clear();
     window.addEventListener("keydown", down, true); window.addEventListener("keyup", up, true); window.addEventListener("blur", clear);
@@ -260,6 +260,7 @@ const CSS = `
 .race-bar>*{pointer-events:auto}
 .race-pop{padding:8px 10px;background:#151b27ee;border:1px solid #3a4558;border-radius:8px;color:#e7ecf5;font-size:12px;min-width:200px}
 .race-pop button{margin-right:6px}.race-pop ol{margin:4px 0;padding-left:18px}
+.race-stop{padding:3px 10px;background:#7a1f1f;border:1px solid #c44;border-radius:999px;color:#fff;font-size:12px;cursor:pointer}
 .race-lights{font-size:20px;letter-spacing:4px}
 `;
 
@@ -281,6 +282,7 @@ function RaceOverlay() {
         <button className="games-chip" style={{ display: "flex", gap: 6, padding: "3px 8px", background: "#151b27ee", border: "1px solid #3a4558", borderRadius: 999, color: "#e7ecf5", fontSize: 12, cursor: "pointer" }} title="Race track" onClick={() => setOpen(!open)}>
           🏎 Race{sim ? (sim.phase === "countdown" ? " · get ready" : sim.phase === "over" ? " · finished" : " · live") : ""}
         </button>
+        {sim && <button className="race-stop" title="Stop the race (Esc while driving)" onClick={() => raceHub.stop()}>⏹ Stop race{raceHub.userRacing ? " · Esc" : ""}</button>}
         {(open || sim) && (
           <div className="race-pop" role="dialog" aria-label="Race track">
             {sim?.phase === "countdown" && <div className="race-lights">{sim.time < -2 ? "🔴🔴🔴" : sim.time < -1 ? "🔴🔴" : "🔴"}</div>}
@@ -316,7 +318,7 @@ function RaceOverlay() {
                 {(!sim || (!pick && sim.phase === "countdown")) && <label> colour <input type="color" aria-label="Car colour" value={color} onChange={(e) => setColor(e.target.value)} /></label>}
               </div>
             )}
-            {raceHub.userRacing && <div className="muted">Arrows or WASD to drive · Space to drift · C: camera behind / driver's seat</div>}
+            {raceHub.userRacing && <div className="muted">Arrows or WASD to drive · Space to drift · C: camera · Esc: stop race</div>}
             {sim && <div className="muted">The map stays as it was at the start until the race ends.</div>}
             {msg && <div role="alert">{msg}</div>}
             <label><input type="checkbox" checked={raceHub.auto} onChange={(e) => { raceHub.auto = e.target.checked; try { localStorage.setItem(AUTO_KEY, e.target.checked ? "1" : "0"); } catch { /* ignore */ } tick((n) => n + 1); }} /> Idle agents race on their own</label>
