@@ -1,7 +1,7 @@
 import { RaceSim, type Racer } from "./sim";
 import type { CarKind } from "./carTypes";
 import type { Track } from "./track";
-import type { Rng } from "../types";
+import type { GameResult, Rng } from "../types";
 
 /** What the race hub needs from the world (the agents); faked in tests. */
 export interface RaceEnv {
@@ -12,6 +12,19 @@ export interface RaceEnv {
   alive(agent: string): boolean;
   name(agent: string): string;
   color(agent: string): string;
+  /** Optional: store a finished result (the rankings). Only agents are recorded, never you or the pit bots. */
+  record?(r: GameResult): void;
+}
+
+/** A finished race as rankings rows: every agent beats each agent that finished below it (a pair per two agents; `standings` best first). */
+export function raceResults(standings: { id: string; name: string }[], uuid: string, at: number): GameResult[] {
+  const ag = standings.filter((r) => r.id !== USER_ID && !r.id.startsWith("pit"));
+  const out: GameResult[] = [];
+  for (let i = 0; i < ag.length; i++) for (let j = i + 1; j < ag.length; j++) {
+    const a = ag[i]!, b = ag[j]!;
+    out.push({ uuid: `${uuid}:${i}-${j}`, at, game: "race", a: a.id, b: b.id, aName: a.name, bName: b.name, scoreA: ag.length - i, scoreB: ag.length - j, winner: a.id });
+  }
+  return out;
 }
 
 export const USER_ID = "user";
@@ -131,7 +144,10 @@ export class RaceHub {
   }
 
   private finish(sim: RaceSim): void {
-    this.last = sim.standings().map((r: Racer) => ({ name: r.name, time: r.finishedAt }));
+    const st = sim.standings();
+    this.last = st.map((r: Racer) => ({ name: r.name, time: r.finishedAt }));
+    // only a race that really finished counts (not one you stopped): at least two agents, the first of them across the line
+    if (this.env.record && st.some((r) => r.finishedAt !== null)) for (const res of raceResults(st, globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`, Date.now())) this.env.record(res);
     this.changed();
   }
 }

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { AppDb, hourly } from "../server/db";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { AppDb, SCHEMA_VERSION, hourly } from "../server/db";
 
 const H = 3_600_000;
 describe("AppDb usage history", () => {
@@ -29,5 +32,29 @@ describe("AppDb rack aliases", () => {
     expect(db.setRackAlias("proj", "x".repeat(100))!.length).toBe(40);
     expect(db.setRackAlias("proj", "  ")).toBeNull();
     expect(db.rackAliases()).toEqual({ "": "HQ" });
+  });
+});
+
+describe("AppDb schema", () => {
+  const version = (db: AppDb) => Number((db.db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version);
+  it("an in-memory database is fully migrated", () => {
+    const db = new AppDb(":memory:");
+    expect(SCHEMA_VERSION).toBeGreaterThan(0);
+    expect(version(db)).toBe(SCHEMA_VERSION);
+    const tables = (db.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[]).map((t) => t.name);
+    expect(tables).toEqual(expect.arrayContaining(["usage_hour", "rack_alias", "caffeine", "game_result", "reward"]));
+  });
+  it("opening the same file twice is idempotent and keeps the data", () => {
+    const dir = mkdtempSync(join(tmpdir(), "ao-db-"));
+    try {
+      const file = join(dir, "app.db");
+      const a = new AppDb(file);
+      a.setRackAlias("p", "Rack");
+      a.close();
+      const b = new AppDb(file);
+      expect(version(b)).toBe(SCHEMA_VERSION);
+      expect(b.rackAliases()).toEqual({ p: "Rack" });
+      b.close();
+    } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });

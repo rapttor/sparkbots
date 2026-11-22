@@ -29,14 +29,14 @@ export interface GameDef {
 export interface GameResult {
   uuid: string;
   at: number;
-  game: GameId;
+  game: GameId | "race";
   a: string; b: string;
   aName: string; bName: string;
   scoreA: number; scoreB: number;
   winner: string | null;
 }
 
-export interface RankRow { agent: string; name: string; game: GameId | "all"; wins: number; losses: number; plays: number }
+export interface RankRow { agent: string; name: string; game: GameId | "race" | "all"; wins: number; losses: number; plays: number }
 
 /** Deterministic random numbers (mulberry32), so simulations are testable. */
 export function mulberry32(seed: number): Rng {

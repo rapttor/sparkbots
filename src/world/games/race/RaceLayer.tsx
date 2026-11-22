@@ -3,6 +3,7 @@ import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, Euler, Float32BufferAttribute, Matrix4, Object3D, Group, Quaternion, SphereGeometry, Vector3, type InstancedMesh } from "three";
 import { displayName } from "../../../util";
+import { call } from "../../../api";
 import { mulberry32 } from "../types";
 import { effectiveState, roams } from "../../roam";
 import { registerMode } from "../../../state/modes";
@@ -16,6 +17,7 @@ import { sendView } from "../../viewBus";
 import { buildTrack, pointAt, trackInput, type Track } from "./track";
 import { goTo } from "../goto";
 import { shortName } from "./names";
+import { TyreMarks, useTrackSideDrivers } from "./trackside";
 
 /** The one race hub of the page. Its world is wired up by <RaceLayer>; until then nobody is idle. */
 const none: RaceEnv = { rng: Math.random, idle: () => [], alive: () => false, name: (a) => a, color: () => "#ffffff" };
@@ -96,6 +98,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
   const ver = useSyncExternalStore((cb) => raceHub.subscribe(cb), () => raceHub.version);
   const track = useMemo(() => buildTrack(trackInput(layout)), [layout]);
   useEffect(() => { raceHub.setTrack(track); }, [track]);
+  useTrackSideDrivers(raceHub, track, ver);
 
   useEffect(() => {
     const desk = (id: string) => layoutRef.current.desks.find((d) => d.worker.id === id);
@@ -105,6 +108,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
       alive: (a) => { const d = desk(a); return !!d && effectiveState(a, d.worker.state) === "idle"; },
       name: (a) => { const d = desk(a); return d ? shortName(displayName(d.worker), d.worker.team) : a; },
       color: (a) => desk(a)?.worker.color ?? "#ffb020",
+      record: (r) => { void call("POST", "/api/games/result", r).catch(() => { /* only for show; a lost score is harmless */ }); },
     };
     raceHub.setEnv(env);
     return () => { raceHub.stop(); raceHub.setEnv(none); };
@@ -246,6 +250,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
   const sim = raceHub.sim;
   return (
     <>
+      <TyreMarks hub={raceHub} />
       {sim && (
         <group>
           <mesh geometry={road.asphalt}><meshStandardMaterial color="#58607a" roughness={0.95} polygonOffset polygonOffsetFactor={-2} side={2} /></mesh>

@@ -204,6 +204,7 @@ describe("game rankings in SQLite", () => {
   it("validates posted results", () => {
     const ok = { uuid: "u", game: "pong", a: "a", b: "b", aName: "A", bName: "B", scoreA: 5, scoreB: 1, winner: "a" };
     expect(parseGameResult(ok)).toMatchObject({ winner: "a", game: "pong" });
+    expect(parseGameResult({ ...ok, game: "race" })).toMatchObject({ game: "race" });
     expect(parseGameResult({ ...ok, game: "chess" })).toBeNull();
     expect(parseGameResult({ ...ok, winner: "zzz" })).toBeNull();
     expect(parseGameResult({ ...ok, b: "a" })).toBeNull();

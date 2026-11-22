@@ -40,7 +40,7 @@ A local, browser-based 3D "company" where every Claude Code session is a worker,
 - **Runtime:** Node 20+, TypeScript (strict), pnpm.
 - **Server:** Fastify, `ws` for WebSocket push, `chokidar` for file watching, `pidusage` (or `ps` parsing) for process stats.
 - **Client:** Vite + React 18 + React Three Fiber + drei. Zustand for client state. Panels are plain React (no 3D needed to use any feature).
-- **Storage:** JSON files in `~/.agent-office/` (config, board, aliases, spawned-run registry) plus one SQLite file `~/.agent-office/app.db` (`server/db.ts`, numbered migrations) for data SparkBots generates and keeps forever: usage history, rack aliases, caffeine, game results.
+- **Storage:** JSON files in `~/.agent-office/` (config, board, aliases, spawned-run registry) plus one SQLite file `~/.agent-office/app.db` (`server/db.ts`, numbered migrations) for data SparkBots generates and keeps forever: usage history, rack aliases, caffeine, game results, rewards.
 - **Distribution:** `npx agent-office` (placeholder name) starts the server and opens the browser.
 - **Tests:** Vitest. Fixture JSONL files under `test/fixtures/` (anonymized, hand-written, never copied from real sessions).
 
@@ -291,7 +291,7 @@ Our difference: project-as-team grouping across all sessions, safe two-way comma
 | `board.json` | kanban cards (id, title, body, team, column, linked session/run, timestamps) |
 | `runs.json` | office-spawned run registry |
 | `cache/` | stats cache, OpenCode/Codex mirrors |
-| `app.db` | SQLite: usage history (hourly, forever), rack aliases, caffeine, game results; schema by `PRAGMA user_version` |
+| `app.db` | SQLite: usage history (hourly, forever), rack aliases, caffeine, game results, rewards; schema by `PRAGMA user_version` |
 | `backups/` | settings.json backups from hooks install |
 
 All files are versioned (`"schemaVersion": 1`) and migrated on load.

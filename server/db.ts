@@ -33,6 +33,8 @@ const MIGRATIONS = [
    CREATE INDEX reward_owner ON reward(owner);`,
 ];
 
+/** The schema version a fully migrated database reports in `PRAGMA user_version`. */
+export const SCHEMA_VERSION = MIGRATIONS.length;
 export const ROOM_KEY = "";
 export const MAX_ALIAS = 40;
 

@@ -4,7 +4,7 @@ import { makeFixtureSnapshot } from "../src/world/fixture";
 import { newCar, offroadLimit, slideOf, speedOf, stepCar } from "../src/world/games/race/car";
 import { AGENT_SPEED, CAR_TYPES } from "../src/world/games/race/carTypes";
 import { RaceSim } from "../src/world/games/race/sim";
-import { MAX_TURN, buildTrack, gridSlot, pointAt, project, trackClearance, trackInput, type Rect, type Track } from "../src/world/games/race/track";
+import { HALF_WIDTH, MAX_TURN, buildTrack, gridSlot, pointAt, project, trackClearance, trackInput, type Rect, type Track } from "../src/world/games/race/track";
 import { mulberry32 } from "../src/world/games/types";
 
 const rectsOf = (l: ReturnType<typeof computeLayout>) => { const i = trackInput(l); return { zones: i.zones, areas: i.areas, input: i }; };
@@ -171,7 +171,8 @@ describe("race", () => {
   it("the cap is 8 cars", () => { const s = mk(12); expect(s.racers.length).toBe(8); });
 });
 
-import { OVER_SHOW, RaceHub, USER_ID, type RaceEnv } from "../src/world/games/race/hub";
+import { pitSpot } from "../src/world/games/race/trackside";
+import { OVER_SHOW, RaceHub, USER_ID, raceResults, type RaceEnv } from "../src/world/games/race/hub";
 
 describe("race hub", () => {
   const mkEnv = (idle: string[]): RaceEnv & { idleSet: Set<string> } => { const idleSet = new Set(idle); return { idleSet, rng: mulberry32(5), idle: () => [...idleSet], alive: (a) => idleSet.has(a), name: (a) => `N-${a}`, color: () => "#fff" }; };
@@ -466,5 +467,39 @@ describe("marshal", () => {
     for (let t = 0; t < 6; t += 0.05) { r.input.throttle = 1; s.step(0.05); if (Math.abs(r.car.lat) < 0.5) break; }
     expect(Math.abs(r.car.lat)).toBeLessThan(0.5);
     const fwd = r.car.vx * p.tx + r.car.vz * p.tz; expect(fwd).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("race results for the rankings", () => {
+  it("makes a winner-vs-lower-finisher pair per two agents and skips you and the pit bots", () => {
+    const rows = raceResults([{ id: "a", name: "A" }, { id: USER_ID, name: "You" }, { id: "b", name: "B" }, { id: "pit0", name: "Pit" }, { id: "c", name: "C" }], "u", 5);
+    expect(rows.map((r) => `${r.a}>${r.b}`)).toEqual(["a>b", "a>c", "b>c"]);
+    expect(rows.every((r) => r.game === "race" && r.winner === r.a && r.scoreA > r.scoreB)).toBe(true);
+    expect(new Set(rows.map((r) => r.uuid)).size).toBe(3);
+  });
+  it("a finished race records its results once; a stopped race records nothing", () => {
+    const got: string[] = [];
+    const idle = ["a", "b", "c"];
+    const mk = () => new RaceHub({ rng: mulberry32(5), idle: () => idle, alive: () => true, name: (a) => a, color: () => "#fff", record: (r) => got.push(`${r.a}>${r.b}`) });
+    const h = mk(); h.setTrack(oval()); h.auto = false; h.start();
+    for (let t = 0; t < 8; t += 0.05) h.tick(0.05);
+    h.stop();
+    expect(got).toEqual([]);
+    const h2 = mk(); h2.setTrack(oval()); h2.auto = false; h2.start();
+    for (let t = 0; t < 400; t += 0.05) h2.tick(0.05);
+    expect(got).toHaveLength(3);
+  });
+});
+
+describe("track-side drivers", () => {
+  it("stands beside the road (off the asphalt, inside the free ground), spaced apart, looking at the road", () => {
+    const t = oval();
+    const a = pitSpot(t, 0), b = pitSpot(t, 1);
+    for (const p of [a, b]) {
+      const pr = project(t, p.x, p.z);
+      expect(Math.abs(pr.lat)).toBeGreaterThan(HALF_WIDTH + 1);
+      expect(Math.abs(pr.lat)).toBeLessThan(HALF_WIDTH + 5);
+    }
+    expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThan(1.5);
   });
 });

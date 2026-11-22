@@ -27,7 +27,7 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState<"rank" | "new">("rank");
   const popRef = useSwallowEvents(); // clicks inside the popover never reach the 3D scene behind it
-  const [tab, setTab] = useState<GameId | "all">("all");
+  const [tab, setTab] = useState<GameId | "race" | "all">("all");
   const [rows, setRows] = useState<RankRow[]>([]);
   const [msg, setMsg] = useState("");
   const [form, setForm] = useState<{ game: GameId | "race"; a: string; b: string }>({ game: "pong", a: "", b: "" });
@@ -75,7 +75,7 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
           </div>
           {page === "rank" && <>
           <div className="tabs">
-            {(["all", ...GAME_IDS] as const).map((g) => <button key={g} className={tab === g ? "on" : ""} onClick={() => setTab(g)}>{g === "all" ? "All" : `${GAMES[g].icon} ${GAMES[g].name}`}</button>)}
+            {(["all", ...GAME_IDS, "race"] as const).map((g) => <button key={g} className={tab === g ? "on" : ""} onClick={() => setTab(g)}>{g === "all" ? "All" : g === "race" ? "🏎 Race" : `${GAMES[g].icon} ${GAMES[g].name}`}</button>)}
           </div>
           {rows.length === 0 ? <p className="muted">No finished matches yet.</p> : (
             <table>

@@ -115,7 +115,7 @@ presskit/ articles and artwork
 
 ## Config (`~/.agent-office/`)
 
-`config.json` (port, thresholds, history window, streaming mode), `teams.json` (directory globs to team merges, colours, per-team `allowedTools` / `permissionMode`), `board.json`, `runs.json`, and `app.db` (SQLite: usage history, rack aliases, caffeine, game results).
+`config.json` (port, thresholds, history window, streaming mode), `teams.json` (directory globs to team merges, colours, per-team `allowedTools` / `permissionMode`), `board.json`, `runs.json`, and `app.db` (SQLite: usage history, rack aliases, caffeine, game results, rewards).
 
 ## Optional hooks (more precise state)
 
