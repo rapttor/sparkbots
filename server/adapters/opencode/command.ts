@@ -1,6 +1,7 @@
 import { execFile, spawn } from "node:child_process";
 import { readlink } from "node:fs/promises";
 import type { OpenCodeModel } from "../../../src/shared/opencode";
+import type { RunManager, RunRecord } from "../claude-code/command";
 
 const SESSION = /^ses_[A-Za-z0-9]+$/;
 const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,100}$/;
@@ -9,6 +10,10 @@ const TITLE_MAX = 120;
 export class OpenCodeCommandError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
+
+/** Set once at boot so OpenCode children show up in the shared run registry (stop, orphans). Optional: without it runs are untracked. */
+let tracker: RunManager | undefined;
+export const setRunTracker = (t: RunManager | undefined) => { tracker = t; };
 
 const active = new Set<string>(); // one headless writer per OpenCode session at a time
 
@@ -86,8 +91,8 @@ export async function opencodeTuiCwds(): Promise<Set<string>> {
   return out;
 }
 
-/** Fire-and-forget `opencode run`: the chat DB is watched by SparkBots, so the reply shows up there. */
-export async function queueMessage(session: string, prompt: string, cwd: string, opts: OpenCodeSendOpts = {}): Promise<void> {
+/** Fire-and-forget `opencode run`: the chat DB is watched by SparkBots, so the reply shows up there. Returns the tracked run (if a tracker is set). */
+export async function queueMessage(session: string, prompt: string, cwd: string, opts: OpenCodeSendOpts = {}): Promise<RunRecord | undefined> {
   const raw = session.startsWith("opencode:") ? session.slice("opencode:".length) : session;
   const args = buildRunArgs(session, prompt, opts);
   if (!opts.fork) {
@@ -96,22 +101,25 @@ export async function queueMessage(session: string, prompt: string, cwd: string,
     if (active.has(raw)) throw new OpenCodeCommandError(409, "This OpenCode chat is already running a message from SparkBots. Wait for it, or use Send as fork.");
   }
   const bin = process.env.OPENCODE_BIN ?? "opencode";
-  await new Promise<void>((resolve, reject) => {
+  return new Promise<RunRecord | undefined>((resolve, reject) => {
     const child = spawn(bin, args, { cwd, shell: false, detached: true, stdio: "ignore" });
     if (!opts.fork) active.add(raw);
     child.once("exit", () => active.delete(raw));
-    child.once("spawn", () => { child.unref(); resolve(); });
+    child.once("spawn", () => {
+      child.unref();
+      resolve(tracker?.track(child, { session: opts.fork ? undefined : `opencode:${raw}`, cwd, prompt }));
+    });
     child.once("error", (e) => { active.delete(raw); reject(new OpenCodeCommandError(502, `OpenCode run failed: ${e.message}`)); });
   });
 }
 
 /** Start a new OpenCode chat (a hire). The chat DB is watched, so the new agent appears without us knowing its id yet. */
-export async function spawnSession(cwd: string, prompt: string, opts: OpenCodeSpawnOpts = {}): Promise<void> {
+export async function spawnSession(cwd: string, prompt: string, opts: OpenCodeSpawnOpts = {}): Promise<RunRecord | undefined> {
   const args = buildSpawnArgs(prompt, opts);
   const bin = process.env.OPENCODE_BIN ?? "opencode";
-  await new Promise<void>((resolve, reject) => {
+  return new Promise<RunRecord | undefined>((resolve, reject) => {
     const child = spawn(bin, args, { cwd, shell: false, detached: true, stdio: "ignore" });
-    child.once("spawn", () => { child.unref(); resolve(); });
+    child.once("spawn", () => { child.unref(); resolve(tracker?.track(child, { cwd, prompt })); });
     child.once("error", (e) => reject(new OpenCodeCommandError(502, `OpenCode run failed: ${e.message}`)));
   });
 }

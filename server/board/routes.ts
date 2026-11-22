@@ -5,6 +5,7 @@ import type { Company } from "../model/company";
 import type { RunManager } from "../adapters/claude-code/command";
 import { teamFor } from "../adapters/claude-code/discover";
 import { findTaskFile, listTasks } from "../tasks";
+import { OpenCodeCommandError, queueMessage as queueOpenCodeMessage, spawnSession as spawnOpenCodeSession } from "../adapters/opencode/command";
 import { createBacklog, readBacklog } from "../backlog";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -84,7 +85,15 @@ export function registerBoard(app: FastifyInstance, c: Company, runs: RunManager
     let runId: string, session: string | undefined;
     if (req.body?.session) {
       const s = c.sessions.get(req.body.session); if (!s) throw bad("unknown session");
-      if (s.source === "opencode") throw bad("OpenCode card assignment is not wired yet; message the agent from its chat instead");
+      if (s.source === "opencode") {
+        const o = c.teams?.overrides[teamFor(s.cwd, c.teams.merges)] ?? {};
+        const model = (o.source === "opencode" ? o.model : undefined) || c.cfg.opencodeModel || s.model;
+        const fork = !!req.body.fork;
+        let r;
+        try { r = await queueOpenCodeMessage(s.id, prompt, s.cwd, { fork, model }); }
+        catch (e) { if (e instanceof OpenCodeCommandError) throw Object.assign(new Error(e.message), { statusCode: e.status }); throw e; }
+        card.runId = r?.runId; card.session = fork ? undefined : s.id; card.column = "in_progress"; card.updatedAt = Date.now(); save(b); changed(); return card;
+      }
       const fork = !!req.body.fork; // fork = continue from that conversation as a NEW worker; also the only way into a live-in-terminal session
       let r;
       try { r = runs.send(s.id, s.cwd, prompt, { ...overrides(s.cwd), fork }); } catch (e) { throw Object.assign(new Error((e as Error).message), { statusCode: (e as { status?: number }).status ?? 400 }); }
@@ -93,6 +102,13 @@ export function registerBoard(app: FastifyInstance, c: Company, runs: RunManager
       runId = r.run.runId;
     } else {
       if (!req.body?.cwd || ![...c.sessions.values()].some((s) => s.cwd === req.body!.cwd)) throw bad("known cwd required");
+      const ov = c.teams?.overrides[teamFor(req.body.cwd, c.teams.merges)] ?? {};
+      if (ov.source === "opencode") { // the project's hires are OpenCode agents
+        let r;
+        try { r = await spawnOpenCodeSession(req.body.cwd, prompt, { model: ov.model || c.cfg.opencodeModel || undefined, title: card.title }); }
+        catch (e) { if (e instanceof OpenCodeCommandError) throw Object.assign(new Error(e.message), { statusCode: e.status }); throw e; }
+        card.runId = r?.runId; card.session = undefined; card.column = "in_progress"; card.updatedAt = Date.now(); save(b); changed(); return card;
+      }
       const r = runs.spawnNew(req.body.cwd, prompt, overrides(req.body.cwd)); runId = r.runId;
     }
     card.runId = runId; card.session = session; card.column = "in_progress"; card.updatedAt = Date.now(); save(b); changed(); return card;

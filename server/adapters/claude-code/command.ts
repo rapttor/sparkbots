@@ -92,6 +92,23 @@ export class RunManager {
   }
   private emit(e: RunEvent) { for (const l of this.listeners) l(e); }
 
+  /**
+   * Register a child another adapter (OpenCode) spawned so it shows in the run registry, can be stopped, and is
+   * flagged orphaned after a restart. `onEnd` runs once the child is gone. Parsing stays with the adapter.
+   */
+  track(child: ChildProcess, info: { session?: string; cwd: string; prompt: string }, onEnd?: () => void): RunRecord {
+    const rec: RunRecord = { runId: randomUUID(), session: info.session, cwd: info.cwd, prompt: info.prompt, pid: child.pid ?? -1, status: "running", startedAt: Date.now() };
+    this.runs.push(rec); this.children.set(rec.runId, child); this.persist();
+    const end = (code: number | null, err = false) => {
+      if (rec.endedAt) return;
+      rec.endedAt = Date.now(); rec.exitCode = code;
+      if (rec.status === "running") rec.status = err || code !== 0 ? "error" : "done";
+      this.children.delete(rec.runId); this.persist(); onEnd?.();
+    };
+    child.on("error", () => end(null, true)); child.on("close", (c) => end(c));
+    return rec;
+  }
+
   /** SIGTERM only children this process spawned. */
   stop(runId: string) {
     const c = this.children.get(runId); const r = this.runs.find((x) => x.runId === runId);
