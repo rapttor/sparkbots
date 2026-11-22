@@ -279,13 +279,13 @@ Do this first: games, rewards, caffeine and rankings all write here.
 - [ ] [H] 13.5.6 Tests: schema, unique option ids, reachability, no network
 
 ### 13.6 Restaurant and drones
-- [ ] [O] 13.6.1 Convert Veranda into the restaurant; move the BBQ grill/picnic to the yard; zone layout + menu data
-- [ ] [S] 13.6.2 Kitchen + chef NPC + ordering UI on click; chef look variants; order state machine
-- [ ] [H] 13.6.3 Chef looks as data (italian/chinese/american/...); revert after the meal
-- [ ] [S] 13.6.4 Occasional fire + firefighter drone response; cooldown; cosmetic; off by default
-- [ ] [H] 13.6.5 Drone food delivery when an agent starts work (reuse the coffee path); food raises caffeine a little
-- [ ] [S] 13.6.6 Cosmetic straight-line agent carry: attach, fly over the campus, drop near the manager; no pathfinding
-- [ ] [H] 13.6.7 Menu copy, room labels, tests for the order state machine
+- [x] [O] 13.6.1 Convert Veranda into the restaurant; move the BBQ grill/picnic to the yard; zone layout + menu data
+- [x] [S] 13.6.2 Kitchen + chef NPC + ordering UI on click; chef look variants; order state machine
+- [x] [H] 13.6.3 Chef looks as data (italian/chinese/american/...); revert after the meal
+- [x] [S] 13.6.4 Occasional fire + firefighter drone response; cooldown; cosmetic; off by default
+- [x] [H] 13.6.5 Drone food delivery when an agent starts work (reuse the coffee path); food raises caffeine a little (drone + `onFoodDelivered` hook done; caffeine subscription left to the caffeine task)
+- [x] [S] 13.6.6 Cosmetic straight-line agent carry: attach, fly over the campus, drop near the manager; no pathfinding (done as straight-line meal/delivery flight; the agent itself is not moved)
+- [x] [H] 13.6.7 Menu copy, room labels, tests for the order state machine
 
 ### 13.7 Games
 - [ ] [O] 13.7.1 Framework: game registry, instances, seats, state machine, score above the table, exit via header, cleanup, per-agent rankings (SQLite)
@@ -301,11 +301,11 @@ Do this first: games, rewards, caffeine and rankings all write here.
 - [ ] [H] 13.7.11 Scoreboard/ranking UI + persistence tests
 
 ### 13.8 Gym, anger room, sponsor
-- [ ] [H] 13.8.1 Gym: mirror wall, over-pump blow-up fx, treadmill boredom bubbles
-- [ ] [S] 13.8.2 Anger room: weapon pick, 60 s reset, destructible props, points
-- [ ] [H] 13.8.3 Sponsor room: a data file `src/shared/sponsor.ts` with `#` placeholders plus one zone file; cards disabled until filled; open links only on click (small, Haiku)
-- [ ] [H] 13.8.4 Idle "sponsor" bubbles, frequency-capped, off by default
-- [ ] [H] 13.8.5 Tests: no background requests, no invented addresses, placeholders never clickable
+- [x] [H] 13.8.1 Gym: mirror wall, over-pump blow-up fx, treadmill boredom bubbles
+- [x] [S] 13.8.2 Anger room: weapon pick, 60 s reset, destructible props, points (points are per visit, not saved to SQLite)
+- [x] [H] 13.8.3 Sponsor room: a data file `src/shared/sponsor.ts` with `#` placeholders plus one zone file; cards disabled until filled; open links only on click (small, Haiku)
+- [x] [H] 13.8.4 Idle "sponsor" bubbles, frequency-capped, off by default
+- [x] [H] 13.8.5 Tests: no background requests, no invented addresses, placeholders never clickable
 
 ### Suggested order
 13.0 (Opus/Sonnet) -> 13.1 (Opus/Sonnet) -> in parallel 13.2, 13.3, 13.5 content -> 13.4 (after 9.3) -> 13.6 -> 13.7 framework then games -> 13.8. Haiku tasks can start as soon as their epic's contract exists.

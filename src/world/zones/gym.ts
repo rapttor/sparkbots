@@ -18,6 +18,9 @@ const z: Zone = {
     { at: [4.2, -3.6], size: [0.3, 0.22, 0.22], y: 0.9, color: "#777", solid: false },
     { at: [4.8, -3.6], size: [0.3, 0.22, 0.22], y: 0.9, color: "#2b2b2b", solid: false },
     { at: [5.2, -3.6], size: [0.3, 0.22, 0.22], y: 0.9, color: "#777", solid: false },
+    // mirror wall along the back (the glint is drawn by world/rooms)
+    { at: [0, -4.42], size: [11, 2.2, 0.06], y: 0.2, color: "#a9d6e5", solid: false },
+    { at: [0, -4.42], size: [11.2, 0.08, 0.1], y: 0.12, color: "#6b7280", solid: false },
     // exercise mat
     { at: [-4, 2.5], size: [2.4, 0.02, 1.6], color: "#e76f51", solid: false },
     // small pool with ladder
