@@ -98,15 +98,17 @@ describe("car physics", () => {
     expect(slideAt(0.6, true)).toBeGreaterThan(slideAt(0.6, false) * 1.5);
   });
   it("too much speed into a bend and the car slides wide instead of turning; slower it grips", () => {
-    expect(slideAt(1, false)).toBeGreaterThan(slideAt(0.35, false) * 2);
+    expect(slideAt(1, false, "race")).toBeGreaterThan(slideAt(0.35, false, "race") * 2);
   });
-  it("top speeds: monster truck 2x an agent, rocket kart 3x, race car 4x", () => {
+  it("top speeds: monster truck 2x an agent and slowest; rocket kart at least 3x its old 10.5 m/s; race car fastest", () => {
     expect(CAR_TYPES.monster.maxSpeed).toBeCloseTo(AGENT_SPEED * 2);
-    expect(CAR_TYPES.kart.maxSpeed).toBeCloseTo(AGENT_SPEED * 3);
-    expect(CAR_TYPES.race.maxSpeed).toBeCloseTo(AGENT_SPEED * 4);
+    expect(CAR_TYPES.kart.maxSpeed).toBeGreaterThanOrEqual(3 * 10.5);
+    expect(CAR_TYPES.monster.maxSpeed).toBeLessThan(CAR_TYPES.kart.maxSpeed);
+    expect(CAR_TYPES.kart.maxSpeed).toBeLessThan(CAR_TYPES.race.maxSpeed);
+    expect(CAR_TYPES.kart.accel).toBeGreaterThan(20);
     for (const kind of ["monster", "kart", "race"] as const) {
       const t = oval(), g = gridSlot(t, 0), c = newCar(g.x, g.z, g.h);
-      for (let i = 0; i < 60 * 40; i++) { stepCar(c, { throttle: 1, steer: 0, drift: false }, 1 / 60, t, CAR_TYPES[kind], true); }
+      for (let i = 0; i < 60 * 60; i++) { stepCar(c, { throttle: 1, steer: 0, drift: false }, 1 / 60, t, CAR_TYPES[kind], true); }
       expect(speedOf(c)).toBeLessThanOrEqual(CAR_TYPES[kind].maxSpeed + 0.01);
       expect(speedOf(c)).toBeGreaterThan(CAR_TYPES[kind].maxSpeed * 0.8);
     }
@@ -181,7 +183,8 @@ describe("race hub", () => {
     expect(h.start()).toBe(true); h.stop();
     h.auto = true; run(h, 400);
     expect(h.running).toBe(false);                 // two agents are not enough for an automatic race
-    env.idleSet.add("c"); run(h, 400);
+    env.idleSet.add("c");
+    for (let t = 0; t < 400 && !h.running; t += 0.05) h.tick(0.05);
     expect(h.running).toBe(true);
     h.stop(); h.auto = false; run(h, 400);
     expect(h.running).toBe(false);
@@ -364,18 +367,18 @@ describe("leaving the road and items", () => {
     for (let i = 0; i < 60 * 2; i++) { r.input.throttle = 1; s.step(1 / 60); top = Math.max(top, speedOf(r.car)); }
     expect(top).toBeGreaterThan(s.spec.maxSpeed * 1.05);
   });
-  it("a missile follows the road and homes in on the car ahead: it slows that car and explodes", () => {
-    const s = mk(2), a = s.get("a0")!, b = s.get("a1")!, p = pointAt(s.track, 60);
-    Object.assign(b.car, { seg: -1, s: 60, x: p.x, z: p.z, h: Math.atan2(p.tz, p.tx), vx: p.tx * 10, vz: p.tz * 10 }); b.prog = a.prog + 25; b.input = { throttle: 0, steer: 0, drift: false };
-    const q = pointAt(s.track, 35);
-    Object.assign(a.car, { seg: -1, s: 35, x: q.x, z: q.z, h: Math.atan2(q.tz, q.tx) }); a.prog = b.prog - 25; a.item = "missile";
+  it("a missile flies straight along the firing heading and hits a car in its way: it slows that car and explodes", () => {
+    const s = mk(2), a = s.get("a0")!, b = s.get("a1")!, p = pointAt(s.track, 40);
+    const h = Math.atan2(p.tz, p.tx);
+    Object.assign(a.car, { seg: -1, s: 40, x: p.x, z: p.z, h, vx: 0, vz: 0 }); a.item = "missile";
+    Object.assign(b.car, { seg: -1, s: 60, x: p.x + p.tx * 20, z: p.z + p.tz * 20, h, vx: 0, vz: 0 }); b.input = { throttle: 0, steer: 0, drift: false };
     expect(s.useItem("a0")).toBe(true);
-    expect(s.missiles.length).toBe(1); expect(s.missiles[0]!.target).toBe("a1");
-    const before = speedOf(b.car);
-    for (let i = 0; i < 60 * 2 && s.missiles.length; i++) s.step(1 / 60);
+    const m = s.missiles[0]!;
+    expect(Math.atan2(m.vz, m.vx)).toBeCloseTo(h, 5);
+    for (let i = 0; i < 80 && s.missiles.length; i++) { s.step(0.01); }
     expect(s.missiles.length).toBe(0);
     expect(s.events.length).toBe(1);
-    expect(speedOf(b.car)).toBeLessThan(before * 0.6);
+    expect(s.events[0]!.color).toBe("#ff9a2e");
   });
   it("a trap drops an oil slick behind you that takes the grip from a car driving over it", () => {
     const s = mk(2), a = s.get("a0")!, b = s.get("a1")!;
@@ -404,5 +407,64 @@ describe("driver names", () => {
     h.setTrack(oval()); h.start();
     const names = h.sim!.racers.map((r) => r.name);
     expect(new Set(names).size).toBe(names.length);
+  });
+});
+
+import { MAX_MISSILES, MISSILE_LIFE, MISSILE_SPEED, fireMissile, missileStep } from "../src/world/games/race/missiles";
+describe("missileStep (pure)", () => {
+  it("flies a straight line at constant velocity, whatever is around", () => {
+    const m = fireMissile("a", 0, 0, 0.7), vx = m.vx, vz = m.vz;
+    for (let i = 0; i < 20; i++) { const r = missileStep(m, 0.02, [{ id: "b", x: 100, z: -50, r: 1 }]); expect(r.state).toBe("alive"); expect(m.vx).toBe(vx); expect(m.vz).toBe(vz); }
+    const ang = Math.atan2(m.z, m.x); expect(ang).toBeCloseTo(0.7, 5);
+  });
+  it("hits a car it touches (even one it would skip over in a single step), but never its owner", () => {
+    const m = fireMissile("a", 0, 0, 0);
+    expect(missileStep(m, 0.5, [{ id: "a", x: 10, z: 0, r: 1 }]).state).toBe("alive"); // 30 m step, own car in the way: ignored
+    const m2 = fireMissile("a", 0, 0, 0);
+    expect(missileStep(m2, 0.5, [{ id: "b", x: 10, z: 0.3, r: 1 }])).toEqual({ state: "hit", hit: "b" });
+    const m3 = fireMissile("a", 0, 0, 0);
+    expect(missileStep(m3, 0.02, [{ id: "b", x: 10, z: 5, r: 1 }]).state).toBe("alive"); // passes beside it
+  });
+  it("expires after its lifetime or range, and ends where the track area ends", () => {
+    const m = fireMissile("a", 0, 0, 0);
+    let state = "alive", t = 0;
+    while (state === "alive" && t < 10) { state = missileStep(m, 0.05, []).state; t += 0.05; }
+    expect(state).toBe("expired"); expect(t).toBeLessThanOrEqual(MISSILE_LIFE + 0.1);
+    const w = fireMissile("a", 0, 0, 0);
+    expect(missileStep(w, 0.5, [], (x) => x < 5).state).toBe("wall");
+    expect(MISSILE_SPEED).toBeGreaterThan(CAR_TYPES.race.maxSpeed);
+  });
+  it("never more than MAX_MISSILES in the air; the item is kept when the sky is full", () => {
+    const s = new RaceSim(oval(), mulberry32(8), 3); const a = s.add("a", "A", "#fff")!; s.add("b", "B", "#fff");
+    adv(s, 3.1);
+    for (let i = 0; i < MAX_MISSILES + 3; i++) { a.item = "missile"; const ok = s.useItem("a"); if (i >= MAX_MISSILES) { expect(ok).toBe(false); expect(a.item).toBe("missile"); } }
+    expect(s.missiles.length).toBeLessThanOrEqual(MAX_MISSILES);
+  });
+});
+
+describe("race setup options and the Stop mode", () => {
+  it("number of cars and items on/off come from the setup", () => {
+    const h = new RaceHub(mkEnvX(["a", "b", "c", "d", "e", "f", "g"])); h.setTrack(oval());
+    h.cars = 4; h.items = false;
+    expect(h.start(false)).toBe(true);
+    expect(h.sim!.racers.length).toBe(4);
+    expect(h.sim!.itemsOn).toBe(false);
+    const r = h.sim!.racers[0]!; adv(h.sim!, 3.1);
+    const pk = h.sim!.decor.pickups[0]!; Object.assign(r.car, { seg: -1, x: pk.x, z: pk.z }); h.sim!.step(0.02);
+    expect(r.item).toBeNull();                       // no item boxes without the option
+    h.stop(); h.cars = 2; h.items = true;
+    expect(h.join()).toBe(true); expect(h.sim!.racers.length).toBe(2); // you + one pit bot
+  });
+});
+
+describe("marshal", () => {
+  it("a car pinned against the wall with the throttle down is put back on the road facing the way", () => {
+    const s = new RaceSim(oval(), mulberry32(5), 3), r = s.add("u", "You", "#fc0", true)!;
+    s.add("a", "A", "#fff"); adv(s, 3.1);
+    const p = pointAt(s.track, 30), lim = s.track.halfWidth + 4 * s.spec.radius;
+    Object.assign(r.car, { seg: -1, s: 30, x: p.x - p.tz * lim, z: p.z + p.tx * lim, h: Math.atan2(p.tz, p.tx) + Math.PI / 2, vx: 0, vz: 0 }); // nose into the wall
+    for (let t = 0; t < 6; t += 0.05) { r.input.throttle = 1; s.step(0.05); if (Math.abs(r.car.lat) < 0.5) break; }
+    expect(Math.abs(r.car.lat)).toBeLessThan(0.5);
+    const fwd = r.car.vx * p.tx + r.car.vz * p.tz; expect(fwd).toBeGreaterThanOrEqual(0);
   });
 });

@@ -1,7 +1,8 @@
-import { newCar, speedOf, stepCar, type CarInput, type CarState } from "./car";
+import { newCar, offroadLimit, speedOf, stepCar, type CarInput, type CarState } from "./car";
+import { fireMissile, MAX_MISSILES, missileStep, type Missile } from "./missiles";
 import { CAR_TYPES, type CarKind, type CarSpec } from "./carTypes";
 import { genDecor, makeCrossers, stepCrossers, type Crosser, type Decor } from "./hazards";
-import { gridSlot, pointAt, type Track } from "./track";
+import { gridSlot, pointAt, project, type Track } from "./track";
 import type { Rng } from "../types";
 
 /** One race on a track (13.7.10): cars, AI drivers, countdown, laps, ranking. Pure and deterministic given the rng. */
@@ -24,14 +25,14 @@ export interface Racer {
   out: boolean;           // retired (its agent went back to work)
   item: Item | null;      // what you hold; the action key uses it
   itemWait: number;       // AI: seconds before it uses the item
+  stuck: number;          // seconds pinned against the wall with the throttle down
 }
 export type Item = "boost" | "missile" | "trap";
 export const ITEMS: Item[] = ["boost", "missile", "trap"];
 export const ITEM_ICON: Record<Item, string> = { boost: "⚡", missile: "🚀", trap: "🛢" };
-export interface Missile { owner: string; s: number; lat: number; speed: number; age: number; target: string | null; x: number; z: number; h: number }
+export type { Missile };
 export interface Trap { x: number; z: number; age: number; owner: string }
 export interface Boom { x: number; z: number; color: string }
-export const MISSILE_SPEED = 32;
 export const BOOST_TIME = 2.4;
 export type RacePhase = "countdown" | "racing" | "over";
 
@@ -50,6 +51,8 @@ export class RaceSim {
   readonly spec: CarSpec;
   decor: Decor;
   crossers: Crosser[];
+  /** Item boxes on the road (setup option). */
+  itemsOn = true;
   missiles: Missile[] = [];
   traps: Trap[] = [];
   events: Boom[] = [];            // explosions since the renderer last looked
@@ -67,7 +70,7 @@ export class RaceSim {
     const g = gridSlot(this.track, this.racers.length);
     const car = newCar(g.x, g.z, g.h);
     car.s = ((g.s % this.track.length) + this.track.length) % this.track.length;
-    const r: Racer = { id, name, color, user, car, input: { throttle: 0, steer: 0, drift: false }, skill: 0.82 + this.rng() * 0.18, lane: (this.rng() - 0.5) * this.track.halfWidth * 0.8, prog: g.s, lap: 0, finishedAt: null, lapAt: 0, lastLap: null, bestLap: null, bumps: 0, out: false, item: null, itemWait: 0 };
+    const r: Racer = { id, name, color, user, car, input: { throttle: 0, steer: 0, drift: false }, skill: 0.82 + this.rng() * 0.18, lane: (this.rng() - 0.5) * this.track.halfWidth * 0.8, prog: g.s, lap: 0, finishedAt: null, lapAt: 0, lastLap: null, bestLap: null, bumps: 0, out: false, item: null, itemWait: 0, stuck: 0 };
     this.racers.push(r);
     this.rank();
     return r;
@@ -78,7 +81,8 @@ export class RaceSim {
     if (!r.item || this.phase !== "racing") return;
     r.itemWait -= 0.016;
     if (r.itemWait > 0) return;
-    const ahead = this.racers.some((o) => o !== r && !o.out && o.prog - r.prog > 4 && o.prog - r.prog < 40 && Math.abs(o.car.lat - r.car.lat) < 3.5);
+    const fx = Math.cos(r.car.h), fz = Math.sin(r.car.h);
+    const ahead = this.racers.some((o) => { if (o === r || o.out) return false; const dx = o.car.x - r.car.x, dz = o.car.z - r.car.z, along = dx * fx + dz * fz; return along > 5 && along < 60 && Math.abs(dx * -fz + dz * fx) < 1.6; }); // straight shots only
     const behind = this.racers.some((o) => o !== r && !o.out && r.prog - o.prog > 3 && r.prog - o.prog < 18);
     if (r.item === "boost" ? bend < 0.25 : r.item === "missile" ? ahead : behind) this.useItem(r.id);
     else if (r.itemWait < -12) this.useItem(r.id);
@@ -91,9 +95,9 @@ export class RaceSim {
   retire(id: string): void { const r = this.get(id); if (r && r.finishedAt === null) r.out = true; }
   get over(): boolean { return this.phase === "over"; }
 
-  /** Advance dt seconds, in sub-steps of at most 50 ms (a lagging frame must not break the physics). */
+  /** Advance dt seconds, in sub-steps of at most 25 ms (fast cars must not skip over item boxes) (a lagging frame must not break the physics). */
   step(dt: number): void {
-    for (let left = Math.min(dt, 1); left > 1e-9 && this.phase !== "over"; left -= 0.05) this.tick(Math.min(left, 0.05));
+    for (let left = Math.min(dt, 1); left > 1e-9 && this.phase !== "over"; left -= 0.025) this.tick(Math.min(left, 0.025));
   }
 
   private tick(h: number): void {
@@ -108,6 +112,7 @@ export class RaceSim {
       if (free) this.keepNear(r.car);
       else this.hazards(r, h);
       this.pickups(r);
+      if (!free) this.marshal(r, h);
       if (r.finishedAt === null && !free) {
         r.prog += wrapDelta(r.car.s - prevS, this.track.length);
         const lap = Math.max(0, Math.floor(r.prog / this.track.length));
@@ -126,6 +131,16 @@ export class RaceSim {
     // over when every live car has finished; or a long time after the winner (stragglers and standing user cars do not hold things up)
     const winnerAt = Math.min(...this.racers.map((r) => r.finishedAt ?? Infinity));
     if (live.length === 0 || live.every((r) => r.finishedAt !== null) || this.time - winnerAt > 25) this.phase = "over";
+  }
+
+  /** Pinned against the wall for a while (nose into it, throttle down): a marshal lifts the car back onto the road, facing the way. */
+  private marshal(r: Racer, dt: number): void {
+    const c = r.car;
+    if (r.finishedAt === null && speedOf(c) < 1.5 && Math.abs(r.input.throttle) > 0.5 && Math.abs(c.lat) > this.track.halfWidth) r.stuck += dt; else r.stuck = 0;
+    if (r.stuck < 2.5) return;
+    const p = pointAt(this.track, c.s);
+    Object.assign(c, { x: p.x, z: p.z, h: Math.atan2(p.tz, p.tx), vx: 0, vz: 0, lat: 0, slick: 0, seg: -1 });
+    r.stuck = 0;
   }
 
   /** Potholes slow you down, oil takes your grip away, a mini robot in the way is knocked flat (and slows you a little). */
@@ -147,7 +162,7 @@ export class RaceSim {
 
   /** Driving over an item box gives you an item if your hands are empty; the box is back a few seconds later. */
   private pickups(r: Racer): void {
-    if (r.item !== null) return;
+    if (r.item !== null || !this.itemsOn) return;
     const c = r.car, list = this.decor.pickups;
     for (let i = 0; i < list.length; i++) {
       if (this.pickupCd[i]! > 0 || Math.abs(list[i]!.s - c.s) > 4) continue;
@@ -159,7 +174,7 @@ export class RaceSim {
     }
   }
 
-  /** The action key: boost, shoot a missile (it follows the road and homes in on the car ahead) or drop an oil slick behind you. */
+  /** The action key: boost, shoot a missile (it flies straight ahead) or drop an oil slick behind you. */
   useItem(id: string): boolean {
     const r = this.get(id);
     if (!r || r.out || !r.item || this.phase !== "racing") return false;
@@ -168,9 +183,8 @@ export class RaceSim {
     if (it === "boost") c.boost = BOOST_TIME;
     else if (it === "trap") this.traps.push({ x: c.x - Math.cos(c.h) * 2.4, z: c.z - Math.sin(c.h) * 2.4, age: 0, owner: id });
     else {
-      let target: string | null = null, best = 70;
-      for (const o of this.racers) { const gap = o.prog - r.prog; if (o !== r && !o.out && gap > 0 && gap < best) { best = gap; target = o.id; } }
-      this.missiles.push({ owner: id, s: c.s + 3, lat: c.lat, speed: MISSILE_SPEED, age: 0, target, x: c.x, z: c.z, h: c.h });
+      if (this.missiles.length >= MAX_MISSILES) { r.item = it; return false; } // too many in the air: keep it
+      this.missiles.push(fireMissile(id, c.x, c.z, c.h)); // straight ahead, along the nose
     }
     return true;
   }
@@ -179,19 +193,18 @@ export class RaceSim {
     const t = this.track;
     for (const tr of this.traps) tr.age += dt;
     this.traps = this.traps.filter((x) => x.age < 25);
+    const targets = this.racers.filter((o) => !o.out).map((o) => ({ id: o.id, x: o.car.x, z: o.car.z, r: this.spec.radius }));
+    const lim = offroadLimit(t, this.spec) + 1;
+    const inside = (x: number, z: number) => Math.abs(project(t, x, z).lat) <= lim;
     for (const m of [...this.missiles]) {
-      m.age += dt; m.s += m.speed * dt;
-      const tg = m.target ? this.get(m.target) : undefined;
-      if (tg && !tg.out) m.lat += Math.max(-4 * dt, Math.min(4 * dt, tg.car.lat - m.lat));
-      const p = pointAt(t, m.s);
-      m.x = p.x - p.tz * m.lat; m.z = p.z + p.tx * m.lat; m.h = Math.atan2(p.tz, p.tx);
-      let hit: Racer | null = null;
-      if (m.age > 0.15) for (const o of this.racers) if (o.id !== m.owner && !o.out && Math.hypot(o.car.x - m.x, o.car.z - m.z) < this.spec.radius + 0.9) { hit = o; break; }
-      if (hit) {
+      const res = missileStep(m, dt, targets, inside);
+      if (res.state === "alive") continue;
+      this.missiles = this.missiles.filter((x) => x !== m);
+      if (res.state === "hit") {
+        const hit = this.get(res.hit!)!;
         hit.car.vx *= 0.25; hit.car.vz *= 0.25; hit.car.h += (this.rng() - 0.5) * 1.8; hit.car.slick = 1.2; hit.car.boost = 0; hit.bumps++;
         this.events.push({ x: m.x, z: m.z, color: "#ff9a2e" });
-        this.missiles = this.missiles.filter((x) => x !== m);
-      } else if (m.age > 4) this.missiles = this.missiles.filter((x) => x !== m);
+      } else this.events.push({ x: m.x, z: m.z, color: "#dfe6f2" }); // fizzled out or hit the edge: a small puff
     }
   }
 
@@ -211,12 +224,19 @@ export class RaceSim {
     let err = Math.atan2(tz - c.z, tx - c.x) - c.h;
     err = Math.atan2(Math.sin(err), Math.cos(err));
     r.input.steer = clamp(err * 2.4, -1, 1);
-    // bend ahead: how sharp, then the speed the tyres can hold through it (the AI does not always get it right)
-    const span = 12 + sp, p1 = pointAt(t, c.s + 8), p2 = pointAt(t, c.s + 8 + span);
-    const dh = Math.atan2(p2.tz, p2.tx) - Math.atan2(p1.tz, p1.tx), bend = Math.abs(Math.atan2(Math.sin(dh), Math.cos(dh)));
-    const curv = Math.max(bend / span, 1e-3), vBend = Math.sqrt((this.spec.cornerG * (0.55 + 0.45 * r.skill)) / curv);
-    const want = Math.min(max * r.skill, Math.max(vBend, max * 0.35));
-    const v = c.vx * Math.cos(c.h) + c.vz * Math.sin(c.h);
+    // bends ahead: for several distances the speed the tyres hold there, and how far we can still carry speed to get down to it
+    const v = c.vx * Math.cos(c.h) + c.vz * Math.sin(c.h), grip = this.spec.cornerG * (0.55 + 0.45 * r.skill);
+    let want = max * r.skill, bend = 0;
+    for (const d of [4, 12, 24, 40, 60, 85]) {
+      const p1 = pointAt(t, c.s + d), p2 = pointAt(t, c.s + d + 10);
+      const dh = Math.atan2(p2.tz, p2.tx) - Math.atan2(p1.tz, p1.tx), b2 = Math.abs(Math.atan2(Math.sin(dh), Math.cos(dh)));
+      if (d <= 12) bend = Math.max(bend, b2);
+      const R = 1 / Math.max(b2 / 10, 1e-3);                                   // radius of that bend
+      const vGrip = Math.sqrt(grip * R);                                        // what the tyres hold
+      const vSteer = 0.75 * ((-1 + Math.sqrt(1 + (4.8 * this.spec.steer * R) / max)) * max) / 2.4; // what the (speed-sensitive) wheel can still turn
+      const vCorner = Math.max(Math.min(vGrip, vSteer), max * 0.2);
+      want = Math.min(want, Math.sqrt(vCorner * vCorner + 2 * this.spec.brake * 0.4 * d)); // can still brake down to it in time
+    }
     r.input.throttle = clamp((want - v) * 0.7, -1, 1);
     this.aiUse(r, bend);
     r.input.drift = r.skill > 0.95 && Math.abs(err) > 0.5 && sp > max * 0.7; // the best drivers slide through hard corners

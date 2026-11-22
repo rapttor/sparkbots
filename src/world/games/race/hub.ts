@@ -32,6 +32,9 @@ export class RaceHub {
   /** What the next race uses (the car type is the same for everyone) and whether it is a carmageddon race (off by default). */
   kind: CarKind = "race";
   carmageddon = false;
+  /** How many cars start (you included; empty places are filled with pit bots down to a field of 3) and whether item boxes are on the road. */
+  cars = 7;
+  items = true;
   /** Agents run over in this carmageddon race. */
   squashed = 0;
   /** Standings of the last finished race (names, in order), for the overlay. */
@@ -75,8 +78,9 @@ export class RaceHub {
     const pool = [...idle];
     const used = new Map<string, number>();
     const uniq = (n: string): string => { const k = (used.get(n) ?? 0) + 1; used.set(n, k); return k === 1 ? n : `${n} ${k}`; }; // two "Untitled" must not look the same in the list
-    while (pool.length && sim.racers.length < 7) { const [a] = pool.splice(Math.floor(this.env.rng() * pool.length), 1); sim.add(a!, uniq(this.env.name(a!)), this.env.color(a!)); }
-    for (let k = 0; sim.racers.length < 3; k++) sim.add(`pit${k}`, `Pit bot ${k + 1}`, FILLER_COLORS[k % FILLER_COLORS.length]!);
+    sim.itemsOn = this.items;
+    while (pool.length && sim.racers.length < Math.max(2, Math.min(this.cars, 8))) { const [a] = pool.splice(Math.floor(this.env.rng() * pool.length), 1); sim.add(a!, uniq(this.env.name(a!)), this.env.color(a!)); }
+    for (let k = 0; sim.racers.length < Math.max(2, Math.min(this.cars, 3)); k++) sim.add(`pit${k}`, `Pit bot ${k + 1}`, FILLER_COLORS[k % FILLER_COLORS.length]!);
     this.sim = sim; this.overFor = 0; this.last = []; this.userId = withUser ? USER_ID : null;
     this.changed();
     return true;
