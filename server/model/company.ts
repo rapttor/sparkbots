@@ -17,6 +17,8 @@ import { History } from "../history";
 import { Archive } from "../archive";
 import { SearchIndex } from "../search";
 import { AppDb, hourly } from "../db";
+import { CaffeineStore } from "../caffeine";
+import { RateLimit } from "../rateLimit";
 import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 
@@ -36,6 +38,8 @@ export class Company {
   tailer = new Tailer();
   stats = new StatsAggregator();
   db = new AppDb();
+  caffeine = new CaffeineStore(this.db);
+  rateLimit = new RateLimit();
   skipped = 0;
   labels = new LabelStore();
   botColors = new BotColors();
@@ -183,6 +187,6 @@ export class Company {
     }
     const teams = [...byTeam.values()].sort((a, b) => b.lastActivityAt - a.lastActivityAt);
     for (const t of teams) t.workers.sort((a, b) => b.lastEventAt - a.lastEventAt);
-    return { at: Date.now(), teams, skippedLines: this.skipped, labelDefs: this.labels.defs };
+    return { at: Date.now(), teams, skippedLines: this.skipped, labelDefs: this.labels.defs, ...(this.rateLimit.until() ? { rateLimitedUntil: this.rateLimit.until() } : {}) };
   }
 }

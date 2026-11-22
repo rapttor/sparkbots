@@ -10,7 +10,8 @@ import type { LabelDef, Snapshot, Team, Worker } from "../../server/adapters/typ
  */
 export type Slice = "board" | "runs" | "tasks" | "history" | "processes" | "stats" | "messages" | "archive" | "subagents" | "notes" | "services";
 export type TeamMeta = Omit<Team, "workers">;
-export interface Meta { skippedLines: number; labelDefs: LabelDef[] }
+export interface Meta { skippedLines: number; labelDefs: LabelDef[]; rateLimitedUntil?: number }
+const metaFrom = (s: Snapshot): Meta => ({ skippedLines: s.skippedLines, labelDefs: s.labelDefs ?? [], ...(s.rateLimitedUntil ? { rateLimitedUntil: s.rateLimitedUntil } : {}) });
 export type Op =
   | { k: "w"; v: Worker }            // add or replace an agent
   | { k: "wd"; id: string }          // agent gone
@@ -47,7 +48,7 @@ export class Differ {
     }
     for (const id of [...this.workers.keys()]) if (!seenW.has(id)) { this.workers.delete(id); ops.push({ k: "wd", id }); }
     for (const n of [...this.teams.keys()]) if (!seenT.has(n)) { this.teams.delete(n); ops.push({ k: "td", name: n }); }
-    const meta: Meta = { skippedLines: s.skippedLines, labelDefs: s.labelDefs ?? [] };
+    const meta = metaFrom(s);
     const j = JSON.stringify(meta);
     if (j !== this.meta) { this.meta = j; ops.push({ k: "m", v: meta }); }
     return ops;
@@ -68,7 +69,7 @@ export class ClientState {
     this.rev = rev;
     this.workers.clear(); this.teams.clear(); this.built.clear();
     for (const t of s.teams) { this.teams.set(t.name, metaOf(t)); for (const w of t.workers) this.workers.set(w.id, w); }
-    this.meta = { skippedLines: s.skippedLines, labelDefs: s.labelDefs ?? [] };
+    this.meta = metaFrom(s);
     this.all = true;
     return this.build(s.at);
   }
@@ -107,6 +108,6 @@ export class ClientState {
     }
     this.dirty.clear(); this.all = false;
     teams.sort((a, b) => b.lastActivityAt - a.lastActivityAt);
-    return { at, teams, skippedLines: this.meta.skippedLines, labelDefs: this.meta.labelDefs };
+    return { at, teams, skippedLines: this.meta.skippedLines, labelDefs: this.meta.labelDefs, ...(this.meta.rateLimitedUntil ? { rateLimitedUntil: this.meta.rateLimitedUntil } : {}) };
   }
 }

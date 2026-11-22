@@ -1,3 +1,4 @@
+import { bumpCaffeine } from "./caffeine";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
@@ -44,6 +45,7 @@ const pending: string[] = [];
 export function requestCoffee(id: string): boolean {
   if (pending.length >= 8 || pending.includes(id)) return false;
   pending.push(id);
+  if (id !== MANAGER_ID) bumpCaffeine(id, "coffee"); // cosmetic caffeine level (13.4.5)
   return true;
 }
 

@@ -16,6 +16,8 @@ const MIGRATIONS = [
      input INTEGER NOT NULL, output INTEGER NOT NULL, cache_read INTEGER NOT NULL, cache_write INTEGER NOT NULL, n INTEGER NOT NULL,
      PRIMARY KEY (session, hour, model));
    CREATE INDEX usage_hour_hour ON usage_hour(hour);`,
+  // caffeine level per agent (13.4.5): value as of `at`; the current level is derived by decay (server/caffeine.ts)
+  `CREATE TABLE caffeine (session TEXT PRIMARY KEY, value REAL NOT NULL, at INTEGER NOT NULL);`,
 ];
 
 /** SparkBots' own database (`~/.agent-office/app.db`): data we generate and want to keep for good (analytics, later games/rewards). */
@@ -54,6 +56,16 @@ export class AppDb {
 
   allUsage(): UsageHour[] {
     return (this.db.prepare("SELECT session, hour, model, source, project, input, output, cache_read AS cacheRead, cache_write AS cacheWrite, n FROM usage_hour").all() as unknown) as UsageHour[];
+  }
+
+  caffeineRow(session: string): { value: number; at: number } | undefined {
+    return this.db.prepare("SELECT value, at FROM caffeine WHERE session = ?").get(session) as { value: number; at: number } | undefined;
+  }
+  caffeineAll(): { session: string; value: number; at: number }[] {
+    return this.db.prepare("SELECT session, value, at FROM caffeine").all() as { session: string; value: number; at: number }[];
+  }
+  caffeineSet(session: string, value: number, at: number) {
+    this.db.prepare("INSERT OR REPLACE INTO caffeine VALUES (?,?,?)").run(session, value, at);
   }
 
   close() { this.db.close(); }

@@ -3,6 +3,7 @@ import { api, type ArchivedItem, type Config, type Teams } from "../api";
 import { useLive } from "../state/live";
 import { useWidth } from "../dock/useLayout";
 import { runProblem } from "../world/runStatus";
+import { rateLimitedAt } from "../world/rateLimit";
 import { useStore } from "../state/store";
 import { KEYMAP } from "../world/keymap";
 import { listAvatars } from "../world/avatar";
@@ -299,6 +300,9 @@ export function Settings() {
     { id: "clear-bubbles", section: "3D office", label: "Speech bubbles", words: "unseen messages read clear mark",
       desc: "Bubbles appear over robots with a message you have not read. Mark them all as read.",
       body: <button onClick={() => { const m: Record<string, number> = {}; for (const t of snapshot?.teams ?? []) for (const w of t.workers) if (w.said) m[w.id] = w.said.at; markAllSeen(m); }}>Mark all as read</button> },
+    { id: "rate-limited", section: "General", label: "Rate limited (nervous mode)", words: "429 usage limit quota nervous red bubbles jitter anxious cosmetic",
+      desc: "Switches on automatically when a run hits a 429 / usage limit. Turn it on by hand to see the office nervous: bubbles turn red and robots twitch. Cosmetic only; working agents keep working. Lasts 2 hours unless switched off.",
+      body: <label><input type="checkbox" checked={rateLimitedAt(snapshot?.rateLimitedUntil)} onChange={(e) => void api.setRateLimit(e.target.checked).catch(() => {})} /> {rateLimitedAt(snapshot?.rateLimitedUntil) ? "Rate limited" : "Not limited"}</label> },
     { id: "reset-filters", section: "General", label: "Reset header filters", words: "search status labels sort open tasks clear",
       desc: "Clear the search, status, label and task filters shown in the header.",
       body: <button onClick={() => setFilters(DEFAULT_FILTERS)}>Reset filters</button> },

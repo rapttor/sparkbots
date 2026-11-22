@@ -6,6 +6,8 @@ import type { Worker } from "../../server/adapters/types";
 import { useStore } from "../state/store";
 import type { Layout } from "./layout";
 import { STATE_COLORS } from "./colors";
+import { NERVOUS_BUBBLE } from "./fx/nervous";
+import { rateLimitedAt } from "./rateLimit";
 
 /** Speech bubbles above bots that said something the user has not seen yet. The bubble is drawn in the bot's
  *  status color (amber = needs you, teal = finished, red = error, blue/green = information). Click opens the chat. */
@@ -34,7 +36,7 @@ const wrap = (ctx: CanvasRenderingContext2D, text: string, max: number): string[
 
 /** The bubble grows with its text (1 to LINES lines): the tail stays put at the bottom, the body grows upward. */
 export function drawBubble(ctx: CanvasRenderingContext2D, w: Worker): number {
-  const accent = STATE_COLORS[w.state];
+  const accent = rateLimitedAt(useStore.getState().snapshot?.rateLimitedUntil) ? NERVOUS_BUBBLE : STATE_COLORS[w.state]; // nervous mode: red while rate limited
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, CW, CH);
   const bw = CW - 8, r = 26;
@@ -87,6 +89,7 @@ export function SpeechBubbles({ layout, getPos }: { layout: Layout; getPos: (id:
   const groups = useRef<(Group | null)[]>([]);
   const mats = useRef<(MeshBasicMaterial | null)[]>([]);
   const last = useRef(0);
+  const wasNervous = useRef(false);
 
   if (slots.current.length === 0 && typeof document !== "undefined") {
     for (let i = 0; i < POOL; i++) {
@@ -99,6 +102,8 @@ export function SpeechBubbles({ layout, getPos }: { layout: Layout; getPos: (id:
 
   useFrame((state, delta) => {
     const now = Date.now();
+    const nervous = rateLimitedAt(useStore.getState().snapshot?.rateLimitedUntil, now);
+    if (nervous !== wasNervous.current) { wasNervous.current = nervous; for (const s of slots.current) s.drawn = -1; } // repaint in the new tint
     if (now - last.current >= 500) { // choose who gets a bubble
       last.current = now;
       const { seen } = useStore.getState();

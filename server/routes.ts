@@ -22,6 +22,7 @@ import { saveJson, type Config, type TeamOverride, type Teams } from "./config";
 import { statSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import type { AgentSource } from "./adapters/types";
+import { CAFFEINE_START } from "./caffeine";
 import { hookToEvents, isInstalled, readSettings, settingsPath } from "./adapters/claude-code/hooks";
 
 const str = (v: unknown): string | undefined => (typeof v === "string" && v.length > 0 && v.length < 100_000 ? v : undefined);
@@ -34,7 +35,10 @@ export const tasks: { fn: () => string } = { fn: () => "" };
 export function registerRoutes(app: FastifyInstance, c: Company, onChange: () => void = () => {}, ping: (kind: Slice, id?: string) => void = () => {}): RunManager {
   const runs = new RunManager((id) => c.live.get(id)?.kind === "interactive");
   const log = new Map<string, unknown[]>(); // runId -> recent stream lines (in memory, for the chat panel)
-  runs.listeners.add((e: RunEvent) => { const a = log.get(e.runId) ?? []; a.push(e.line); log.set(e.runId, a.slice(-200)); ping("runs"); });
+  runs.listeners.add((e: RunEvent) => {
+    const a = log.get(e.runId) ?? []; a.push(e.line); log.set(e.runId, a.slice(-200)); ping("runs");
+    if (c.rateLimit.observe(a)) onChange(); // 429 / usage limit seen (or cleared): the office gets nervous
+  });
   runs.onChange = () => { ping("runs"); ping("processes"); };
 
   const teamOverride = (cwd: string): TeamOverride => c.teams.overrides[teamFor(cwd, c.teams.merges)] ?? {};
@@ -46,6 +50,13 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
   };
   runs.envProvider = () => (c.cfg.cleanEnv ? cleanEnv(process.env) : process.env);
   const wrap = <T>(fn: () => T) => { try { return fn(); } catch (e) { if (e instanceof CommandError) throw Object.assign(new Error(e.message), { statusCode: e.status }); throw e; } };
+
+  app.get("/api/caffeine", async () => ({ start: CAFFEINE_START, levels: c.caffeine.all() }));
+  app.post<{ Params: { id: string }; Body: { kind?: string } }>("/api/caffeine/:id/bump", async (r) => {
+    const kind = r.body?.kind === "food" ? "food" : "coffee";
+    return { level: c.caffeine.bump(r.params.id, kind) };
+  });
+  app.post<{ Body: { on?: boolean } }>("/api/rate-limit", async (r) => { c.rateLimit.setManual(r.body?.on === true); onChange(); return { until: c.rateLimit.until() }; });
 
   app.get("/api/runs", async () => runs.runs.slice(-50));
   app.get<{ Params: { id: string } }>("/api/runs/:id/log", async (r) => log.get(r.params.id) ?? []);
