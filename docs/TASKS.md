@@ -288,17 +288,17 @@ Do this first: games, rewards, caffeine and rankings all write here.
 - [ ] [H] 13.6.7 Menu copy, room labels, tests for the order state machine
 
 ### 13.7 Games
-- [ ] [O] 13.7.1 Framework: game registry, instances, seats, state machine, score above the table, exit via header, cleanup, per-agent rankings (SQLite)
-- [ ] [S] 13.7.2 Instances: create a new table if taken, remove idle ones, invite/bring an agent; seat reservations
-- [ ] [S] 13.7.3 Idle agents pair up (behavior intent); local simulation only
-- [ ] [S] 13.7.4 Pong/table tennis (proximity hit, distance = strength)
-- [ ] [H] 13.7.5 Rock-paper-scissors + dice
-- [ ] [S] 13.7.6 Air hockey (reuse pong physics, edge bounces, centre target)
+- [x] [O] 13.7.1 Framework: game registry, instances, seats, state machine, score above the table, exit via header, cleanup, per-agent rankings (SQLite) — **done:** `src/world/games/` (pure: registry, hub/instances, seats, state machine; `GamesLayer.tsx` draws tables + score above them; header chip with ✕ to exit), `game_result` table + `/api/games/rankings|result`
+- [x] [S] 13.7.2 Instances: create a new table if taken, remove idle ones, invite/bring an agent; seat reservations — **done:** hub creates a table in the next free slot (`tables.ts` SLOTS), removes it after the match / timeout, `invite()` + Start form in the 🎮 popover, seats reserved per agent
+- [x] [S] 13.7.3 Idle agents pair up (behavior intent); local simulation only — **done:** `Roam.game` intent (`roam.ts`, `bots.ts`); idle agents pair up (max 2 auto tables, switch in the popover); work drops the game, no result kept
+- [x] [S] 13.7.4 Pong/table tennis (proximity hit, distance = strength) — **done:** `rally.ts` pong: further back = harder hit but smaller reach; AI drifts back/forth
+- [x] [H] 13.7.5 Rock-paper-scissors + dice — **done:** `rounds.ts`: rock-paper-scissors and 2-dice duels, first to 3
+- [x] [S] 13.7.6 Air hockey (reuse pong physics, edge bounces, centre target) — **done:** `rally.ts` hockey mode: edge bounces, goal = centre of the end, accuracy falls with stretch
 - [ ] [S] 13.7.7 Billiards (aim/strength 1-9 or hold E; table colour by variant)
 - [ ] [S] 13.7.8 Basketball timing game (angle -> strength -> shot, speed-up, drone ball)
 - [ ] [S] 13.7.9 Claw machine + item inventory -> rewards
 - [ ] [O] 13.7.10 Race track (last): track from layout, car physics, powerups, traps, carmageddon
-- [ ] [H] 13.7.11 Scoreboard/ranking UI + persistence tests
+- [x] [H] 13.7.11 Scoreboard/ranking UI + persistence tests — **done:** 🎮 popover rankings (per game / all) in `GamesOverlay.tsx`; persistence + hub + sim tests in `test/games.test.ts`
 
 ### 13.8 Gym, anger room, sponsor
 - [ ] [H] 13.8.1 Gym: mirror wall, over-pump blow-up fx, treadmill boredom bubbles

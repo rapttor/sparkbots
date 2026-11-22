@@ -32,6 +32,7 @@ import { Minibots } from "./minibots";
 import { MANAGER_ID, requestCoffee, ServiceBots } from "./servicebots";
 import { CoffeeFactory } from "./coffeefactory";
 import { DataCenter, consoleSpot, openDataRoom } from "./datacenter";
+import { GamesLayer } from "./games/GamesLayer";
 import { ManagerWalls } from "./walls";
 import { nerd, sampleFrame } from "../state/nerd";
 import { clearView, loadFlyPrefs, loadView, saveView } from "./viewDefault";
@@ -785,6 +786,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       <Minibots layout={layout} subs={ctl.subs} />
       <CoffeeFactory layout={layout} />
       <DataCenter layout={layout} />
+      <GamesLayer layout={layout} />
       <ServiceBots layout={layout} />
       <ManagerWalls layout={layout} onOpenBoard={() => useStore.getState().setPanel("board")} onOpenNotes={() => useStore.getState().setPanel("notes")} />
       {!labelsOnly && ctl.tags && <NameTags layout={layout} getCenter={() => (modeRef.current === "walk" ? pos.current : controls.current?.target ?? pos.current)} />}

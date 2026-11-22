@@ -10,12 +10,20 @@ const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof
 /** One row = the tokens one session used with one model in one hour. Kept forever, even after the tool deletes the transcript. */
 export interface UsageHour { session: string; hour: number; model: string; source: string; project: string; input: number; output: number; cacheRead: number; cacheWrite: number; n: number }
 
+/** One finished match (see src/world/games). */
+export interface GameResult { uuid: string; at: number; game: string; a: string; b: string; aName: string; bName: string; scoreA: number; scoreB: number; winner: string | null }
+export interface GameRank { agent: string; name: string; game: string; wins: number; losses: number; plays: number }
+
 /** Numbered migrations: append new steps, never edit old ones. */
 const MIGRATIONS = [
   `CREATE TABLE usage_hour (session TEXT NOT NULL, hour INTEGER NOT NULL, model TEXT NOT NULL, source TEXT NOT NULL, project TEXT NOT NULL,
      input INTEGER NOT NULL, output INTEGER NOT NULL, cache_read INTEGER NOT NULL, cache_write INTEGER NOT NULL, n INTEGER NOT NULL,
      PRIMARY KEY (session, hour, model));
    CREATE INDEX usage_hour_hour ON usage_hour(hour);`,
+  // games: one row per finished match (agent ids are session ids; names are kept so rankings survive deleted sessions)
+  `CREATE TABLE game_result (uuid TEXT PRIMARY KEY, at INTEGER NOT NULL, game TEXT NOT NULL, a TEXT NOT NULL, b TEXT NOT NULL,
+     a_name TEXT NOT NULL, b_name TEXT NOT NULL, score_a INTEGER NOT NULL, score_b INTEGER NOT NULL, winner TEXT);
+   CREATE INDEX game_result_game ON game_result(game);`,
 ];
 
 /** SparkBots' own database (`~/.agent-office/app.db`): data we generate and want to keep for good (analytics, later games/rewards). */
@@ -54,6 +62,25 @@ export class AppDb {
 
   allUsage(): UsageHour[] {
     return (this.db.prepare("SELECT session, hour, model, source, project, input, output, cache_read AS cacheRead, cache_write AS cacheWrite, n FROM usage_hour").all() as unknown) as UsageHour[];
+  }
+
+  /** Store a finished match. Returns false when this uuid was already stored (a second browser tab simulated the same match). */
+  recordGame(r: GameResult): boolean {
+    const res = this.db.prepare("INSERT OR IGNORE INTO game_result VALUES (?,?,?,?,?,?,?,?,?,?)")
+      .run(r.uuid, r.at, r.game, r.a, r.b, r.aName, r.bName, r.scoreA, r.scoreB, r.winner);
+    return Number(res.changes) > 0;
+  }
+
+  /** Per agent and game: wins, losses, matches (best first). `game` = one game only; omit it for the totals over all games. */
+  gameRankings(game?: string): GameRank[] {
+    const sides = `SELECT a AS agent, a_name AS name, game, (winner = a) AS win, (winner IS NOT NULL AND winner <> a) AS loss, at FROM game_result
+                   UNION ALL SELECT b, b_name, game, (winner = b), (winner IS NOT NULL AND winner <> b), at FROM game_result`;
+    const rows = this.db.prepare(
+      `SELECT agent, name, ${game ? "game" : "'all'"} AS game, SUM(win) AS wins, SUM(loss) AS losses, COUNT(*) AS plays,
+              (SELECT s2.name FROM (${sides}) s2 WHERE s2.agent = s.agent ORDER BY s2.at DESC LIMIT 1) AS latest
+       FROM (${sides}) s ${game ? "WHERE game = ?" : ""} GROUP BY agent ORDER BY wins DESC, plays ASC, agent ASC LIMIT 200`,
+    ).all(...(game ? [game] : [])) as unknown as (GameRank & { latest: string })[];
+    return rows.map(({ latest, ...r }) => ({ ...r, name: latest ?? r.name, wins: Number(r.wins), losses: Number(r.losses), plays: Number(r.plays) }));
   }
 
   close() { this.db.close(); }

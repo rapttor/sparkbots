@@ -81,9 +81,14 @@ export function stepRoam(d: DeskSlot, dt: number, mode: BotMode): Roam {
   r.mode = mode;
   const id = d.worker.id, nowMs = performance.now();
   if (r.visit && (mode !== "wander" || !poiExists(r.visit.poi.id))) { releaseVisit(id, r.visit.poi, r.visit.slot); r.visit = null; r.clip = null; } // work calls, or the layout changed
+  if (r.game && mode !== "wander") r.game = null; // work calls: the game hub notices and calls the table off
   if (isHeld(id)) { r.moving = false; r.tx = r.x; r.tz = r.z; return r; } // an action menu owns this agent: stand still
   if (mode === "wander") {
-    if (r.visit) { // on a trip to a zone: walk there, stay a while (playing the spot's clip), then head back
+    if (r.game) { // idle agent at a game table: walk to its place, then stand there facing the table
+      const g = r.game;
+      r.tx = g.x; r.tz = g.z;
+      if (Math.hypot(g.x - r.x, g.z - r.z) < 0.15) { g.arrived = true; r.ry = g.face; }
+    } else if (r.visit) { // on a trip to a zone: walk there, stay a while (playing the spot's clip), then head back
       const v = r.visit, sp = slotPos(v.poi, v.slot);
       r.tx = sp.x; r.tz = sp.z;
       if (Math.hypot(sp.x - r.x, sp.z - r.z) < 0.15) {
@@ -126,7 +131,7 @@ export function stepRoam(d: DeskSlot, dt: number, mode: BotMode): Roam {
   r.moving = dist > 0.05 && !blocked;
   if (blocked) r.ry = Math.atan2(-dx, -dz);
   if (r.moving) {
-    const speed = r.visit && !r.visit.arrived ? 1.6 : mode === "follow" && (dist > 4 || player.fast) ? 6 : speedOf[mode]; // followers hurry to catch up, and run with a sprinting manager
+    const speed = r.game && (!r.game.arrived || dist > 0.3) ? 2.6 : r.visit && !r.visit.arrived ? 1.6 : mode === "follow" && (dist > 4 || player.fast) ? 6 : speedOf[mode]; // followers hurry to catch up, and run with a sprinting manager
     const step = Math.min(dist, speed * dt);
     let ux = dx / dist, uz = dz / dist;
     if (dist > 1.5 && nav.flow) { // far away: follow the shared flow field around desks and furniture
@@ -138,6 +143,8 @@ export function stepRoam(d: DeskSlot, dt: number, mode: BotMode): Roam {
     r.ry = Math.atan2(-ux, -uz);
   } else if (mode === "follow") {
     r.ry = r.followFace ?? r.ry; // arrived: face where the target says (the table, the huddle centre, or the way the manager walks)
+  } else if (r.game?.arrived) {
+    r.ry = r.game.face;
   } else if (r.visit?.arrived) {
     r.ry = r.visit.poi.face;
   } else {
