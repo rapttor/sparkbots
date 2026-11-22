@@ -41,6 +41,7 @@ export interface Config {
   runModel: string;      // model for Claude runs started from SparkBots ("" = Claude Code default)
   opencodeModel: string; // model for OpenCode runs ("" = the session's own model, then OpenCode's default)
   cleanEnv: boolean;     // start runs without ANTHROPIC_* variables inherited from the server's shell
+  liveApproval: boolean; // experimental: one long-lived claude process per chat, so tool permissions can be answered in the chat (default off)
 }
 
 export const defaultConfig: Config = {
@@ -55,10 +56,13 @@ export const defaultConfig: Config = {
   runModel: "",
   opencodeModel: "",
   cleanEnv: false,
+  liveApproval: false,
 };
 
 export function loadConfig(): Config {
-  return loadJson<Config>("config.json", defaultConfig);
+  const cfg = loadJson<Config>("config.json", defaultConfig);
+  const port = Number(process.env.AO_PORT); // lets a second dev server run beside the main one (vite.config.ts proxies to the same variable)
+  return Number.isInteger(port) && port > 0 && port < 65536 ? { ...cfg, port } : cfg;
 }
 
 export interface TeamOverride {

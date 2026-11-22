@@ -12,9 +12,12 @@ import { RallySim, TABLE } from "./rally";
 import { GAMES } from "./registry";
 import { placeSlots } from "./tables";
 import { GamesOverlay } from "./GamesOverlay";
+import { BilliardsView, HoopsView } from "./GameScenes";
 import { mulberry32, type GameResult } from "./types";
 
 const TOP = 0.76;           // table top height
+/** Agent names can be a whole prompt; keep them short above tables, in the chips and in the rankings. */
+const short = (n: string) => (n.length > 22 ? `${n.slice(0, 21)}…` : n);
 
 /**
  * The game room's games: tables that appear when idle agents (or you) start a match, the ball and score above them, and the
@@ -52,7 +55,7 @@ export function GamesLayer({ layout }: { layout: Layout }) {
         r.game = { instance: inst, x: spot.x, z: spot.z, face: spot.face, arrived: !!was?.arrived && Math.hypot(r.x - spot.x, r.z - spot.z) < 0.25 };
       },
       arrived: (a) => roams.get(a)?.game?.arrived === true,
-      name: (a) => { const d = desk(a); return d ? displayName(d.worker) : a; },
+      name: (a) => { const d = desk(a); return short(d ? displayName(d.worker) : a); },
       record: (r: GameResult) => { void call("POST", "/api/games/result", r).catch(() => { /* the match was only for show; losing its score is harmless */ }); },
     };
     hub.setEnv(env);
@@ -61,13 +64,12 @@ export function GamesLayer({ layout }: { layout: Layout }) {
 
   useFrame((_, dt) => { if (room) hub.tick(Math.min(dt, 0.1)); });
 
-  const nameOf = (id: string | null) => { const d = layout.desks.find((x) => x.worker.id === id); return d ? displayName(d.worker) : "?"; };
+  const nameOf = (id: string | null) => { const d = layout.desks.find((x) => x.worker.id === id); return d ? short(displayName(d.worker)) : "?"; };
   const colorOf = (id: string | null) => layout.desks.find((x) => x.worker.id === id)?.worker.color ?? "#ffb020";
   void ver;
   return (
     <>
       {hub.instances.map((i) => <Table key={i.id} inst={i} nameOf={nameOf} colorOf={colorOf} />)}
-      {room && <Html fullscreen zIndexRange={[40, 30]} style={{ pointerEvents: "none" }}><GamesOverlay nameOf={nameOf} /></Html>}
     </>
   );
 }
@@ -91,7 +93,7 @@ function Table({ inst, nameOf, colorOf }: { inst: Instance; nameOf: (id: string 
   const status = inst.phase === "gathering" ? (b ? "Taking seats…" : "Waiting for an opponent") : inst.phase === "over" && inst.winner !== null ? `🏆 ${nameOf(inst.seats[inst.winner].agent)}` : "";
   return (
     <group position={[x, 0, z]}>
-      {rally ? (
+      {inst.game === "billiards" ? <BilliardsView inst={inst} /> : inst.game === "hoops" ? <HoopsView inst={inst} colorOf={colorOf} /> : rally ? (
         <>
           {!inst.slot.builtFor && (
             <>
@@ -125,4 +127,11 @@ function Table({ inst, nameOf, colorOf }: { inst: Instance; nameOf: (id: string 
       </Html>
     </group>
   );
+}
+
+/** The header chips / rankings popover. Plain DOM next to the canvas (not a drei `Html fullscreen`, which drifted off screen with the camera). */
+export function GamesHud({ layout }: { layout: Layout }) {
+  if (!layout.zones.some((z) => z.zone.id === "game-room")) return null;
+  const nameOf = (id: string | null) => { const d = layout.desks.find((x) => x.worker.id === id); return d ? short(displayName(d.worker)) : "?"; };
+  return <GamesOverlay nameOf={nameOf} />;
 }

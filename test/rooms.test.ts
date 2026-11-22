@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { COOK_S, MENU, SERVE_S, CHEF_LOOKS, chefLook, newOrder, place, tick } from "../src/world/rooms/menu";
 import { FIRE_MAX_GAP_S, FIRE_MIN_GAP_S, initFire, tickFire } from "../src/world/rooms/fire";
-import { WEAPONS, SESSION_S, TARGET_COUNT, isOver, smash, spawnTargets, startSession, timeLeft } from "../src/world/rooms/anger";
+import { WEAPONS, ITEMS, SESSION_S, MAX_ALIVE, WAVE_GAP_MIN_MS, WAVE_MAX, WAVE_MIN, COLS, ROWS, DEBRIS_CAP, DebrisPool, HIT_AT, isOver, smash, slotPos, startRun, startSession, stopRun, swingPose, tickWaves, timeLeft, hitShake } from "../src/world/rooms/anger";
 import { BLOW_S, PUMP_LIMIT_S, pumpPhase, pumpScale, boredLine, BORED_LINES } from "../src/world/rooms/gymLogic";
 import { FLIGHT_S, flight } from "../src/world/rooms/drones";
 import { SPONSOR_LINKS, filledLinks, isFilled } from "../src/shared/sponsor";
@@ -49,28 +49,83 @@ describe("fire", () => {
 });
 
 describe("anger room", () => {
-  const rnd = () => 0;
-  it("spawns targets inside the room", () => {
-    const t = spawnTargets(9, 6, rnd);
-    expect(t).toHaveLength(TARGET_COUNT);
-    for (const x of t) { expect(Math.abs(x.x)).toBeLessThan(4.5); expect(Math.abs(x.z)).toBeLessThan(3); }
+  const rnd = () => 0.3;
+  it("weapon list is valid: no frying pan, unique ids, sane numbers", () => {
+    expect(WEAPONS.map((w) => w.id)).toEqual(["bat", "hammer", "wrench", "pry-bar", "crowbar"]);
+    for (const w of WEAPONS) { expect(w.power).toBeGreaterThan(0); expect(w.mult).toBeGreaterThan(0); expect(w.length).toBeGreaterThan(0.3); expect(w.swingS).toBeGreaterThan(0.3); expect(w.name && w.icon && w.shaft && w.head).toBeTruthy(); }
+    expect(new Set(WEAPONS.map((w) => w.id)).size).toBe(WEAPONS.length);
   });
-  it("smashing needs a weapon and awards points when broken; sledgehammer hits harder", () => {
-    const s0 = startSession(null, 0, 9, 6, rnd);
-    expect(smash(s0, 0, 1000)).toBe(s0);
-    const bat = startSession("bat", 0, 9, 6, rnd);
-    const hp = bat.targets[0]!.hp;
-    let s = bat; for (let i = 0; i < hp; i++) s = smash(s, 0, 1000);
-    expect(s.targets[0]!.alive).toBe(false); expect(s.points).toBe(bat.targets[0]!.pts);
-    expect(smash(s, 0, 1000).points).toBe(s.points); // no double points
-    expect(WEAPONS.find((w) => w.id === "sledge")!.power).toBeGreaterThan(WEAPONS.find((w) => w.id === "bat")!.power);
+  it("items: the five kinds, each with a palette", () => {
+    expect(ITEMS.map((i) => i.kind).sort()).toEqual(["computer", "fax", "floppy", "mail", "phone"]);
+    for (const i of ITEMS) { expect(i.hp).toBeGreaterThan(0); expect(i.palette.length).toBeGreaterThanOrEqual(3); }
   });
-  it("the session resets after 60 s", () => {
-    const s = startSession("bat", 0, 9, 6, rnd);
+  it("slots lie inside the room", () => {
+    for (let i = 0; i < COLS * ROWS; i++) { const p = slotPos(i, 9, 6); expect(Math.abs(p.x)).toBeLessThan(4.5); expect(Math.abs(p.z)).toBeLessThan(3); }
+  });
+  it("smashing needs a weapon; points follow weapon multiplier; no double points", () => {
+    const none = startSession(null, 0, rnd);
+    expect(smash(none, none.targets[0]!.id, 1000).s).toBe(none);
+    let s = startSession("wrench", 0, rnd);
+    const t = s.targets[0]!;
+    for (let i = 0; i < t.hp; i++) s = smash(s, t.id, 1000).s;
+    expect(s.targets.find((x) => x.id === t.id)).toBeUndefined();
+    expect(s.points).toBe(Math.round(ITEMS.find((i) => i.kind === t.kind)!.pts * 1.5));
+    const again = smash(s, t.id, 1000);
+    expect(again.s).toBe(s); expect(again.broke).toBeNull();
+  });
+  it("hits that do not break only damage and mark the hit time", () => {
+    const s = startSession("bat", 0, () => 0); // computer (hp 3)
+    const t = s.targets[0]!; expect(t.hp).toBe(3);
+    const r = smash(s, t.id, 500);
+    expect(r.broke).toBeNull(); expect(r.s.targets.find((x) => x.id === t.id)).toMatchObject({ hp: 2, hitAt: 500 });
+  });
+  it("without a run the 60 s clock resets the room", () => {
+    const s = startSession("bat", 0, rnd);
     expect(isOver(s, (SESSION_S - 1) * 1000)).toBe(false);
     expect(timeLeft(s, SESSION_S * 1000)).toBe(0);
     expect(isOver(s, SESSION_S * 1000)).toBe(true);
-    expect(smash(s, 0, SESSION_S * 1000)).toBe(s);
+    expect(smash(s, s.targets[0]!.id, SESSION_S * 1000).s).toBe(s);
+  });
+  it("wrecking run: waves of 2-4 on schedule, capped, stop gives a fresh clock", () => {
+    let s = startSession("bat", 0, rnd);
+    s = startRun(s, 0, rnd);
+    expect(s.running).toBe(true);
+    expect(s.targets.length).toBeLessThanOrEqual(MAX_ALIVE);
+    expect(isOver(s, 1e9)).toBe(false);                       // no clock while running
+    // smash everything, then wait for a wave
+    s = { ...s, targets: [] };
+    expect(tickWaves(s, s.nextWaveAt - 1, rnd)).toBe(s);      // not due yet
+    const w = tickWaves(s, s.nextWaveAt, rnd);
+    expect(w.targets.length).toBeGreaterThanOrEqual(WAVE_MIN); expect(w.targets.length).toBeLessThanOrEqual(WAVE_MAX);
+    expect(w.nextWaveAt).toBeGreaterThanOrEqual(s.nextWaveAt + WAVE_GAP_MIN_MS);
+    expect(new Set(w.targets.map((t) => t.slot)).size).toBe(w.targets.length); // distinct slots
+    // never above the cap, however many waves come
+    let c = w; for (let i = 0; i < 20; i++) c = tickWaves(c, c.nextWaveAt, () => 0.99);
+    expect(c.targets.length).toBeLessThanOrEqual(MAX_ALIVE);
+    // stopping: no more waves, leftovers stay, a 60 s clock starts
+    const st = stopRun(c, 5000);
+    expect(st.running).toBe(false); expect(st.targets).toEqual(c.targets);
+    expect(tickWaves(st, st.nextWaveAt + 1e6, rnd)).toBe(st);
+    expect(timeLeft(st, 5000)).toBe(SESSION_S);
+    expect(isOver(st, 5000 + SESSION_S * 1000)).toBe(true);
+    expect(startRun(startRun(st, 6000, rnd), 7000, rnd).running).toBe(true); // idempotent restart
+  });
+  it("swing: wind-up, hit at the impact moment, recover, done", () => {
+    expect(swingPose(0, 1).pitch).toBeCloseTo(0);
+    expect(swingPose(0.25 * 1, 1).pitch).toBeLessThan(-0.5);          // wound back
+    expect(swingPose(HIT_AT + 0.01, 1).hit).toBe(true);
+    expect(swingPose(HIT_AT + 0.01, 1).pitch).toBeGreaterThan(0.5);   // forward
+    expect(swingPose(1, 1).done).toBe(true);
+    expect(hitShake(2000, 1000)).toBe(0); expect(Math.abs(hitShake(1010, 1000))).toBeGreaterThan(0);
+  });
+  it("debris pool is capped, allocation-free and goes quiet", () => {
+    const p = new DebrisPool();
+    expect(p.step(0.016)).toBe(0);
+    for (let i = 0; i < 50; i++) p.spawnBurst(0, 0.4, 0, ["#fff", "#000", "#f00"], () => 0.5);
+    expect(p.step(0.016)).toBeLessThanOrEqual(DEBRIS_CAP);
+    let alive = 1; for (let i = 0; i < 400 && alive; i++) alive = p.step(0.05);
+    expect(alive).toBe(0);
+    for (let i = 0; i < DEBRIS_CAP; i++) expect(p.py[i]).toBeGreaterThanOrEqual(0);
   });
 });
 
@@ -135,5 +190,15 @@ describe("zones", () => {
     const yard = ZONES.find((z) => z.id === "yard")!;
     expect(yard.pois.map((p) => p.id)).toEqual(expect.arrayContaining(["grill", "picnic"]));
     expect(ids).toEqual(expect.arrayContaining(["anger-room", "sponsor-room"]));
+  });
+});
+
+describe("restaurant kitchen floor", () => {
+  it("has a raised, walkable floor behind the counter so the chef clears the counter top", () => {
+    const z = ZONES.find((x) => x.id === "restaurant")!;
+    const floor = z.props.find((p) => p.size[1] === 0.3 && p.solid === false);
+    expect(floor, "raised kitchen floor").toBeDefined();
+    const counter = z.props.find((p) => p.size[1] === 0.95 && p.size[0] === 6.0)!;
+    expect(floor!.at[1]).toBeLessThan(counter.at[1]);
   });
 });

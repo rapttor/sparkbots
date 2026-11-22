@@ -5,13 +5,18 @@ import { useLive } from "../state/live";
 import { useStore } from "../state/store";
 import { StateBadge } from "../panels/Badge";
 import { BotIcon } from "../panels/BotIcon";
+import { ProjectBadge } from "../panels/ProjectBadge";
 import { fmtDuration, fmtNum, relTime, displayName } from "../util";
 import { ACTIONS } from "./actions";
 import { poiChoices } from "./roam";
+import { hub as gameHub } from "./games/instance";
+import { playChoices, startGame } from "./games/playWhileLimited";
+import { rateLimitedAt } from "./rateLimit";
 import { requestCoffee } from "./servicebots";
 import { SimChatUnread } from "../simchat/SimChat";
 import { useSimChat } from "../simchat/store";
 import { getSettings } from "../simchat/settings";
+import { RewardsSection } from "./rewards/RewardsSection";
 import { bumpCaffeine, caffeineBand, caffeineLevel, refreshCaffeine } from "./caffeine";
 
 /** Caffeine meter (cosmetic: wired agents twitch, sleepy ones yawn). A snack bumps it a little. */
@@ -114,16 +119,28 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
       <header className="am-head">
         <BotIcon color={w.color} size={22} title="Robot color: click to choose (recolors this agent in the 3D office)" onPick={(c) => { void api.setBotColor(w.id, c).catch((e: Error) => setNote(e.message)); }} />
         <strong title={w.title}>{displayName(w)}</strong>
-        <span className="muted small" title="Project / team">{w.team}</span>
+        <ProjectBadge team={w.team} onClick={() => { useStore.getState().focusTeam(w.team); onClose(); }} />
+        {w.state !== "asleep" && <button className="small" title="Send home: back to its desk in its project" aria-label="Send home" onClick={() => { scene.look(w.id, "idle", true, 5 * 60_000); onClose(); }}>🏠</button>}
         <StateBadge state={w.state} />
         <button className="icon-btn" aria-label="Close" onClick={onClose}>×</button>
       </header>
       <CaffeineRow id={w.id} />
+      <RewardsSection id={w.id} />
       {item("💬 Talk", () => { openChat(w.id); onClose(); }, "E")}
       {getSettings().enabled && <button className="am-item" onClick={() => { useSimChat.getState().open(w.id); onClose(); }}><span>🫧 Water cooler chat<SimChatUnread id={w.id} /></span></button>}
       {item("☕ Bring a coffee", () => { requestCoffee(w.id); onClose(); })}
       {item(followers.includes(w.id) ? "👥 Stop following" : "👥 Follow me", () => { toggleFollower(w.id); onClose(); }, "F")}
       {ACTIONS.filter((a) => a.kind === "real").map((a) => item(`${a.label} …`, () => { scene.act(a.key, w.id); onClose(); }, a.key.toUpperCase(), a.can?.(w) ?? undefined))}
+      {(() => { // Play while limited (13.4.8): only while the service is rate limited
+        const limited = rateLimitedAt(useStore.getState().snapshot?.rateLimitedUntil);
+        const picks = playChoices(gameHub, w.id, limited);
+        return picks.length > 0 && (
+          <div className="am-sub">
+            <div className="muted small">⏳ Rate limited, so play:</div>
+            {picks.map((c) => item(c.label, () => { if (startGame(gameHub, c.game, w.id)) onClose(); }))}
+          </div>
+        );
+      })()}
       <div className="am-perform">
         <div className="am-perform-title">
           🎬 Perform
@@ -139,6 +156,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
           ))}
         </div>
       </div>
+      {w.state !== "asleep" && item("🪑 Call to the desk", () => { scene.look(w.id, "idle", true, 5 * 60_000); onClose(); }, undefined, undefined)}
       {item(`🎭 Show as… ${open === "look" || open === "idle" ? "▾" : "▸"}`, () => setOpen(open === "look" || open === "idle" ? "" : "look"))}
       {(open === "look" || open === "idle") && (
         <div className="am-sub">

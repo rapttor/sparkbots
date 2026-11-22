@@ -7,7 +7,7 @@ const port = process.env.AO_PORT ?? "4317";
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: "127.0.0.1", port: 5173,
+    host: "127.0.0.1", port: Number(process.env.AO_DEV_PORT ?? 5173),
     proxy: {
       "/api": { target: `http://127.0.0.1:${port}`, changeOrigin: true },
       "/ws": { target: `ws://127.0.0.1:${port}`, ws: true, changeOrigin: true },

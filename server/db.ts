@@ -28,6 +28,9 @@ const MIGRATIONS = [
   `CREATE TABLE game_result (uuid TEXT PRIMARY KEY, at INTEGER NOT NULL, game TEXT NOT NULL, a TEXT NOT NULL, b TEXT NOT NULL,
      a_name TEXT NOT NULL, b_name TEXT NOT NULL, score_a INTEGER NOT NULL, score_b INTEGER NOT NULL, winner TEXT);
    CREATE INDEX game_result_game ON game_result(game);`,
+  // rewards (13.4.3 / 13.7.9): one row per owned item; owner = agent session id or 'user' (your own inventory)
+  `CREATE TABLE reward (id TEXT PRIMARY KEY, owner TEXT NOT NULL, item TEXT NOT NULL, at INTEGER NOT NULL, from_owner TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '');
+   CREATE INDEX reward_owner ON reward(owner);`,
 ];
 
 export const ROOM_KEY = "";
@@ -113,6 +116,18 @@ export class AppDb {
        FROM (${sides}) s ${game ? "WHERE game = ?" : ""} GROUP BY agent ORDER BY wins DESC, plays ASC, agent ASC LIMIT 200`,
     ).all(...(game ? [game] : [])) as unknown as (GameRank & { latest: string })[];
     return rows.map(({ latest, ...r }) => ({ ...r, name: latest ?? r.name, wins: Number(r.wins), losses: Number(r.losses), plays: Number(r.plays) }));
+  }
+
+  /** Rewards (src/shared/rewards.ts). `rewardAdd` is idempotent per id. */
+  rewardAdd(r: { id: string; owner: string; item: string; at: number; from: string; note: string }): boolean {
+    return Number(this.db.prepare("INSERT OR IGNORE INTO reward VALUES (?,?,?,?,?,?)").run(r.id, r.owner, r.item, r.at, r.from, r.note).changes) > 0;
+  }
+  rewardsAll(): { id: string; owner: string; item: string; at: number; from: string; note: string }[] {
+    return this.db.prepare("SELECT id, owner, item, at, from_owner AS \"from\", note FROM reward ORDER BY at DESC, id DESC LIMIT 5000").all() as never;
+  }
+  /** Moves an item from `from` to `to`; false when `from` does not own it. */
+  rewardGive(id: string, from: string, to: string, at: number): boolean {
+    return Number(this.db.prepare("UPDATE reward SET owner = ?, from_owner = ?, at = ? WHERE id = ? AND owner = ?").run(to, from, at, id, from).changes) > 0;
   }
 
   close() { this.db.close(); }

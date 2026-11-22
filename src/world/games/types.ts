@@ -1,5 +1,5 @@
 /** Shared types of the games framework. Everything in `src/world/games/*.ts` (except `*.tsx`) is pure: no React, no three.js, no DOM. */
-export type GameId = "pong" | "hockey" | "rps" | "dice";
+export type GameId = "pong" | "hockey" | "rps" | "dice" | "billiards" | "hoops";
 export type Rng = () => number;
 
 /** A running match. `step` advances it; the hub reads `score`/`over`/`winner`. */

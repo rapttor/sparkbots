@@ -1,8 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { aoHome } from "./config";
+import { imageType } from "../src/shared/attachments";
 
 /**
  * Files attached to a chat message. They are saved inside ~/.agent-office/uploads/<id>/ (SparkBots' own folder) and the
@@ -33,6 +34,15 @@ export function registerUploads(app: FastifyInstance): void {
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, clean), buf, { mode: 0o600 });
     return { id, name: clean, size: buf.length };
+  });
+  /** An uploaded image, for previews in the chat. Only png/jpeg/gif/webp, only inside the uploads folder (id is a UUID). */
+  app.get<{ Params: { id: string } }>("/api/uploads/:id/file", async (req, reply) => {
+    if (!ID.test(req.params.id)) throw bad("bad id");
+    const dir = join(uploadRoot(), req.params.id);
+    const names = existsSync(dir) ? readdirSync(dir) : [];
+    const type = names.length === 1 ? imageType(names[0]!) : null;
+    if (!type) throw bad("not an image", 404);
+    return reply.header("content-type", type).header("cache-control", "private, max-age=3600").header("x-content-type-options", "nosniff").send(createReadStream(join(dir, names[0]!)));
   });
 }
 

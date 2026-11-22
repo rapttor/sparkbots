@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SparkBots: your AI coding agents, working in a tiny 3D office</title>
+<meta name="description" content="SparkBots turns your Claude Code, Codex and OpenCode sessions into robots in a small 3D office. See who is working, sleeping, idle, ready or needs you. Local, private, open source.">
+<meta name="theme-color" content="#0f1218">
+<meta property="og:type" content="website">
+<meta property="og:title" content="SparkBots: your AI coding agents, working in a tiny 3D office">
+<meta property="og:description" content="Every agent session is a robot at a desk. Local, private, open source (MIT).">
+<!-- Social platforms need a PNG: export presskit/artwork/og-image-1200x630.svg to PNG, upload it next to this file and point og:image at its absolute URL. -->
+<meta property="og:image" content="presskit/artwork/og-image-1200x630.svg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f1218'/%3E%3Crect x='7' y='10' width='18' height='14' rx='5' fill='%23e3e8f0'/%3E%3Crect x='10' y='14' width='12' height='5' rx='2.5' fill='%234fd1c5'/%3E%3Crect x='15' y='5' width='2' height='5' fill='%23ffb020'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#0f1218;--panel:#161b24;--panel2:#1b2230;--line:#252c39;--text:#e3e8f0;--muted:#8591a5;--accent:#4fd1c5;--amber:#ffb020;--green:#4ade80;--red:#f87171;--blue:#60a5fa;--radius:14px}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+h1,h2,h3{line-height:1.15;margin:0 0 .5em;letter-spacing:-.02em}
+h1{font-size:clamp(2.2rem,5.6vw,3.6rem)}
+h2{font-size:clamp(1.6rem,3.6vw,2.3rem)}
+h3{font-size:1.1rem;letter-spacing:0}
+p{margin:0 0 1em}
+.muted{color:var(--muted)}
+.kicker{display:inline-block;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:.8rem}
+section{padding:72px 0}
+section.alt{background:#121722;border-block:1px solid var(--line)}
+.center{text-align:center}
+.center .lead{margin-inline:auto}
+.lead{font-size:1.15rem;color:#c3cbd9;max-width:38em}
+
+/* nav */
+nav{position:sticky;top:0;z-index:10;background:#0f1218d9;backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:18px;height:58px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--text)}
+.brand:hover{text-decoration:none}
+.brand svg{width:28px;height:28px}
+nav .links{margin-left:auto;display:flex;gap:18px;align-items:center;font-size:.95rem}
+nav .links a.hide-sm{color:var(--muted)}
+nav .links a.hide-sm:hover{color:var(--text);text-decoration:none}
+@media(max-width:680px){nav .links a.hide-sm{display:none}}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 18px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:inherit;font-weight:600;cursor:pointer}
+.btn:hover{border-color:var(--accent);text-decoration:none}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#06201d}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.big{font-size:1.25rem;padding:18px 34px;border-radius:14px;box-shadow:0 10px 40px #4fd1c540}
+.btn[aria-disabled=true]{opacity:.5;cursor:not-allowed;pointer-events:none}
+
+/* hero */
+.hero{padding:56px 0 40px}
+.hero .grid{display:grid;grid-template-columns:1fr 1.1fr;gap:30px;align-items:center}
+@media(max-width:900px){.hero .grid{grid-template-columns:1fr}}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin:22px 0 4px}
+
+/* the three floating bots */
+.trio{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:26px 10px 16px;border:1px solid var(--line);border-radius:var(--radius);background:radial-gradient(ellipse at 50% 35%,#1d2a3a 0,#131925 55%,#0f1218 100%);box-shadow:0 20px 60px #0008;overflow:hidden}
+.bot{display:flex;flex-direction:column;align-items:center;min-width:0}
+.bot .stagebox{position:relative;width:100%;max-width:190px;aspect-ratio:220/270}
+.bot .sway{position:absolute;inset:0;animation:sway var(--sw,5s) ease-in-out infinite alternate}
+.bot .float{position:absolute;inset:0;animation:floaty var(--fl,3s) ease-in-out infinite alternate}
+.bot .hop{position:absolute;inset:0;transform-origin:50% 90%}
+.bot .hop.go{animation:hop .72s cubic-bezier(.3,.7,.4,1)}
+.bot svg{width:100%;height:100%;display:block;overflow:visible;filter:drop-shadow(0 14px 18px #0007)}
+.bot .shadow{position:absolute;left:22%;right:22%;bottom:2%;height:6%;border-radius:50%;background:#000a;filter:blur(5px);animation:shadow var(--fl,3s) ease-in-out infinite alternate}
+.bot .shadow.go{animation:shadowHop .72s cubic-bezier(.3,.7,.4,1)}
+.bot .name{margin-top:8px;font-weight:700;letter-spacing:.02em}
+.bot .name small{display:block;font-weight:400;color:var(--muted);font-size:.78rem}
+@keyframes floaty{from{transform:translateY(0)}to{transform:translateY(-12px)}}
+@keyframes sway{from{transform:translateX(-10px)}to{transform:translateX(10px)}}
+@keyframes hop{0%{transform:translateY(0) scale(1,1)}14%{transform:translateY(0) scale(1.06,.92)}50%{transform:translateY(-62px) scale(.97,1.04)}86%{transform:translateY(0) scale(1.06,.93)}100%{transform:translateY(0) scale(1,1)}}
+@keyframes shadow{from{transform:scale(1);opacity:.9}to{transform:scale(.82);opacity:.6}}
+@keyframes shadowHop{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(.6);opacity:.35}}
+
+/* glance: the small bots */
+.stage{position:relative;max-width:900px;margin:30px auto 0;border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,#131925,#0f1218);overflow:hidden;box-shadow:0 20px 60px #0008}
+.stage canvas{display:block;width:100%;height:auto;aspect-ratio:16/11}
+.legend{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:22px}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:5px 13px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-size:.9rem;color:var(--muted);cursor:default}
+.chip i{width:9px;height:9px;border-radius:50%;background:var(--c)}
+.chip.on,.chip:hover{color:var(--text);border-color:var(--c)}
+.hint{font-size:.85rem;color:var(--muted);margin-top:10px}
+
+/* supporting */
+.support{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:26px}
+.pill{display:flex;align-items:center;gap:12px;padding:12px 20px;border-radius:14px;border:1px solid var(--line);background:var(--panel);font-weight:700;font-size:1.05rem}
+.pill svg{width:34px;height:40px}
+.pill small{display:block;font-weight:400;color:var(--muted);font-size:.78rem}
+.also{color:var(--muted);font-size:.93rem;margin-top:20px}
+
+/* screenshots */
+.shots{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-top:30px;align-items:start}
+.shots figure{margin:0;grid-column:span 2;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;cursor:zoom-in;transition:border-color .15s,transform .15s}
+.shots figure:hover{border-color:#3a4658;transform:translateY(-2px)}
+.shots figure.wide{grid-column:span 3}
+.shots figure.full{grid-column:span 6}
+.shots img{display:block;width:100%;height:auto}
+.shots figcaption{padding:10px 14px 12px;font-size:.9rem;color:var(--muted)}
+.shots figcaption b{color:var(--text)}
+@media(max-width:760px){.shots{grid-template-columns:1fr 1fr}.shots figure,.shots figure.wide{grid-column:span 2}.shots figure.full{grid-column:span 2}}
+dialog{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);padding:0;max-width:min(1300px,94vw);color:var(--text)}
+dialog::backdrop{background:#000c}
+dialog img{display:block;max-width:94vw;max-height:84vh}
+dialog .cap{padding:10px 16px;color:var(--muted);font-size:.9rem;display:flex;justify-content:space-between;gap:12px}
+dialog button{background:none;border:0;color:var(--text);font-size:1.2rem;cursor:pointer}
+
+/* about */
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:28px}
+.col{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+.col h3{display:flex;align-items:center;gap:10px}
+.col h3 .dot{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.col ul{margin:0;padding-left:1.1em;color:var(--muted);font-size:.95rem}
+.col li{margin:.35em 0}
+.col li b{color:var(--text);font-weight:600}
+.story{max-width:46em;margin:0 auto;color:#c3cbd9}
+.pledge{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:34px}
+.pledge div{border-left:3px solid var(--accent);padding:2px 0 2px 14px}
+.pledge b{display:block}
+.pledge span{color:var(--muted);font-size:.93rem}
+pre,code{font:.9em ui-monospace,SFMono-Regular,Menlo,monospace}
+code{background:#ffffff0d;border-radius:5px;padding:1px 6px}
+.term{position:relative;background:#0b0f15;border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-top:16px;overflow-x:auto;text-align:left}
+.term pre{margin:0;color:#cfe9e6;white-space:pre}
+.term .c{color:#5f6b7e}
+.term button{position:absolute;top:8px;right:8px;font-size:.8rem;padding:4px 10px}
+
+/* big CTA */
+.cta-band{padding:84px 0;text-align:center;background:radial-gradient(ellipse at 50% 100%,#4fd1c522,transparent 65%)}
+.cta-band p{color:var(--muted)}
+
+/* sponsor */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:28px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:8px;text-align:left}
+.card .ico{width:42px;height:42px;display:grid;place-items:center;border-radius:12px;font-size:21px;background:#4fd1c51f;border:1px solid #4fd1c566}
+.card p{color:var(--muted);margin:0;font-size:.95rem}
+.card .btn{margin-top:auto}
+.sponsor .cards{max-width:820px;margin-inline:auto}
+.sponsor .note{font-size:.88rem;color:var(--muted);margin-top:18px}
+footer{border-top:1px solid var(--line);padding:30px 0 50px;color:var(--muted);font-size:.92rem}
+footer .wrap{display:flex;flex-wrap:wrap;gap:12px 28px;justify-content:space-between}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.bot .sway,.bot .float,.bot .shadow{animation:none}.shots figure,.shots figure:hover{transition:none;transform:none}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="SparkBots home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="10" width="22" height="16" rx="6" fill="#e3e8f0"/><rect x="9" y="15" width="14" height="6" rx="3" fill="#4fd1c5"/><rect x="15" y="4" width="2" height="6" fill="#ffb020"/><circle cx="16" cy="4" r="2" fill="#ffb020"/></svg>
+      SparkBots
+    </a>
+    <div class="links">
+      <a class="hide-sm" href="#glance">At a glance</a>
+      <a class="hide-sm" href="#supporting">Supporting</a>
+      <a class="hide-sm" href="#screens">Screens</a>
+      <a class="hide-sm" href="#about">About</a>
+      <a class="hide-sm" href="#sponsor">Sponsor</a>
+      <a class="btn" href="https://github.com/rapttor/sparkbots">★ GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap grid">
+    <div>
+      <span class="kicker">Open source · MIT · runs on your machine</span>
+      <h1>Your AI coding agents, working in a tiny 3D office.</h1>
+      <p class="lead">Every Claude, Codex and OpenCode session becomes a robot at a desk, every project a team. Walk over, see what they are doing, and talk to them.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/rapttor/sparkbots">View on GitHub</a>
+        <a class="btn" href="#glance">See it in action</a>
+      </div>
+    </div>
+    <div class="trio" id="trio" aria-label="The three agents SparkBots draws: Claude, Codex and OpenCode"></div>
+  </div>
+</header>
+
+<section id="glance" class="alt">
+  <div class="wrap center">
+    <span class="kicker">At a glance</span>
+    <h2>Check all your projects at once.</h2>
+    <p class="lead">Are we working, sleeping, idle, ready, or in need of attention? One look tells you, and the little bots fetch coffee and keep the servers humming while you decide.</p>
+    <div class="stage">
+      <canvas id="office" width="800" height="550" role="img" aria-label="An animated top-down view of the SparkBots office: robots at desks, a coffee robot making deliveries, and inspector robots in the data center"></canvas>
+    </div>
+    <div class="legend" id="legend" aria-label="Robot states (hover to highlight)"></div>
+    <p class="hint">Hover a status to highlight those robots. Illustration: the real office is 3D.</p>
+  </div>
+</section>
+
+<section id="supporting">
+  <div class="wrap center">
+    <span class="kicker">Supporting</span>
+    <h2>Three agents, one office.</h2>
+    <div class="support" id="support"></div>
+    <p class="also">Plus local AI servers (Ollama, LM Studio, llama.cpp) shown as services with status and loaded models. All names belong to their owners; SparkBots is independent and not affiliated.</p>
+  </div>
+</section>
+
+<section id="screens" class="alt">
+  <div class="wrap">
+    <div class="center"><span class="kicker">Screens</span>
+    <h2>The real app, with demo data.</h2></div>
+    <div class="shots" id="shots">
+      <figure class="full" data-full="presskit/screenshots/office-story.jpg"><img loading="lazy" src="presskit/screenshots/office-story.jpg" alt="The SparkBots campus with project areas, the data center, coffee factory, restaurant and yard"><figcaption><b>The campus.</b> One area per project, rooms in the middle: data center, coffee factory, restaurant, yard, games.</figcaption></figure>
+      <figure class="wide" data-full="presskit/screenshots/projects-panel.jpg"><img loading="lazy" src="presskit/screenshots/projects-panel.jpg" alt="The projects panel beside the 3D office"><figcaption><b>Every project, one list.</b> Who is working or waiting, tokens, and a button to fly there.</figcaption></figure>
+      <figure class="wide" data-full="presskit/screenshots/board.jpg"><img loading="lazy" src="presskit/screenshots/board.jpg" alt="The kanban board with columns and cards"><figcaption><b>A board that sends work.</b> Cards go to an agent, a fork or a new robot.</figcaption></figure>
+      <figure data-full="presskit/screenshots/stats.jpg"><img loading="lazy" src="presskit/screenshots/stats.jpg" alt="The stats panel with tokens per day and a toggle per service"><figcaption><b>Usage, kept forever.</b> Per day and per service, stored locally in SQLite.</figcaption></figure>
+      <figure data-full="presskit/screenshots/map.jpg"><img loading="lazy" src="presskit/screenshots/map.jpg" alt="The map panel: projects as numbered boxes around the rooms"><figcaption><b>The map.</b> Projects around the rooms; click anywhere to fly there.</figcaption></figure>
+      <figure data-full="presskit/screenshots/game-room.jpg"><img loading="lazy" src="presskit/screenshots/game-room.jpg" alt="Robots playing air hockey and pong in the game room"><figcaption><b>Games between idle agents.</b> Pong, air hockey, rock-paper-scissors, dice, with rankings.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section id="about">
+  <div class="wrap">
+    <div class="center">
+      <span class="kicker">The project</span>
+      <h2>Awareness for people who run too many agents.</h2>
+    </div>
+    <p class="story">Terminals give you tabs and scrollback, not a picture of what is going on. SparkBots reads the session history your agents already write and turns it into a small office you can look at: sleeping robots are your history, glowing ones are live work, an amber beacon means someone is waiting for you. It is a personal tool first, so it is local, private and a little silly on purpose. It never edits your sessions and never uses permission-bypass flags.</p>
+
+    <div class="cols">
+      <div class="col" style="--c:var(--green)"><h3><span class="dot"></span>Done</h3><ul>
+        <li><b>3D campus</b> with a robot per session, rooms and an avatar or hand to move around</li>
+        <li><b>Claude Code, Codex, OpenCode</b> adapters, read-only on your history</li>
+        <li><b>Chat</b> with live replies, fork, new robot, allow-and-retry for a denied tool</li>
+        <li><b>Kanban board</b> that sends cards to agents, plus a Backlog.md lane</li>
+        <li><b>Usage stats</b> per service, kept forever in local SQLite</li>
+        <li><b>Data center</b>, coffee factory, game room, gym, restaurant</li>
+      </ul></div>
+      <div class="col" style="--c:var(--amber)"><h3><span class="dot"></span>Planned</h3><ul>
+        <li><b>Live permission approval</b> inside the chat</li>
+        <li><b>Slash commands</b> and skills in the chat box</li>
+        <li><b>Cubicles</b> with trophy shelves for each agent</li>
+        <li><b>More games:</b> billiards, basketball, claw machine, a race track</li>
+        <li><b>Opt-in sync</b> between machines, off unless you configure it</li>
+        <li>MCP servers per project in the server room</li>
+      </ul></div>
+      <div class="col" style="--c:var(--blue)"><h3><span class="dot"></span>Get involved</h3><ul>
+        <li><b>Star the repo</b> so others can find it</li>
+        <li><b>Open an issue</b> with an idea, a bug, or an agent you want supported</li>
+        <li><b>Add a room, action or effect:</b> each is one small file</li>
+        <li><b>Write an adapter</b> for another agent</li>
+        <li><b>Share a screenshot</b> of your office</li>
+      </ul></div>
+    </div>
+
+    <div class="pledge">
+      <div><b>Localhost only</b><span>Binds to 127.0.0.1, random token, Host and Origin checks.</span></div>
+      <div><b>Read-only on your history</b><span>Writes only to its own folder, ~/.agent-office.</span></div>
+      <div><b>No telemetry</b><span>No external requests. This page makes none either.</span></div>
+      <div><b>Careful with prompts</b><span>No shell strings, one run per session, Stop only touches what it started.</span></div>
+    </div>
+
+    <div class="term">
+      <button class="btn" id="copy" type="button">Copy</button>
+<pre id="cmd"><span class="c"># needs Node 24 and pnpm</span>
+git clone https://github.com/rapttor/sparkbots.git
+cd sparkbots
+pnpm install &amp;&amp; pnpm build
+pnpm start --open</pre>
+    </div>
+  </div>
+</section>
+
+<section class="cta-band alt">
+  <div class="wrap">
+    <h2>Come and take a look.</h2>
+    <p>Free, MIT licensed, built in the open.</p>
+    <a class="btn primary big" href="https://github.com/rapttor/sparkbots">★ Open SparkBots on GitHub</a>
+  </div>
+</section>
+
+<section class="sponsor center" id="sponsor">
+  <div class="wrap">
+    <span class="kicker">Support</span>
+    <h2>Keep the office lights on.</h2>
+    <p class="lead">If SparkBots saves you time or makes your agents more fun to watch, you can help it grow. Starring the repo counts too.</p>
+    <div class="cards" id="sponsors"></div>
+    <p class="note">Sponsor links appear here as soon as they exist. Nothing on this page collects payment details or contacts a payment service.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>SparkBots · MIT licence · original mascot and artwork</span>
+    <span><a href="https://github.com/rapttor/sparkbots">GitHub</a> · <a href="https://github.com/rapttor/sparkbots/issues">Issues</a> · <a href="#top">Back to top</a></span>
+  </div>
+</footer>
+
+<dialog id="lightbox"><img alt=""><div class="cap"><span></span><button type="button" aria-label="Close">✕</button></div></dialog>
+
+<script>
+/* ---- sponsor links: fixed values, hardcoded on purpose. "#" = not provided yet (shown disabled, never opened).
+   Fill in a real absolute https URL to enable a card. Never invent one. ---- */
+var SPONSORS = [
+  { label: "Patreon", icon: "🧡", href: "#", note: "Support SparkBots monthly" },
+  { label: "USDT", icon: "🪙", href: "#", note: "One-time tip (address coming soon)" },
+  { label: "GitHub Sponsors", icon: "⭐", href: "#", note: "Star or sponsor the repo" }
+];
+(function () {
+  var box = document.getElementById("sponsors");
+  SPONSORS.forEach(function (s) {
+    var ok = /^https:\/\/[^\s\/]+\.[^\s]+$/i.test(s.href);
+    var c = document.createElement("div"); c.className = "card";
+    c.innerHTML = '<div class="ico">' + s.icon + '</div><h3></h3><p></p>';
+    c.querySelector("h3").textContent = s.label; c.querySelector("p").textContent = s.note;
+    var a = document.createElement("a"); a.className = "btn" + (ok ? " primary" : "");
+    a.textContent = ok ? "Open" : "Coming soon";
+    if (ok) { a.href = s.href; a.rel = "noopener"; a.target = "_blank"; } else a.setAttribute("aria-disabled", "true");
+    c.appendChild(a); box.appendChild(c);
+  });
+})();
+
+/* ---- copy button ---- */
+(function () {
+  var b = document.getElementById("copy"), pre = document.getElementById("cmd");
+  b.addEventListener("click", function () {
+    var text = pre.innerText.split("\n").filter(function (l) { return l && l.charAt(0) !== "#"; }).join("\n");
+    var done = function () { b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 1500); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, done); else done();
+  });
+})();
+
+/* ---- screenshots: click to enlarge; a missing image hides its card ---- */
+(function () {
+  var dlg = document.getElementById("lightbox"), img = dlg.querySelector("img"), cap = dlg.querySelector(".cap span");
+  document.querySelectorAll("#shots figure").forEach(function (f) {
+    var im = f.querySelector("img");
+    im.addEventListener("error", function () { f.style.display = "none"; });
+    f.addEventListener("click", function () {
+      if (!dlg.showModal) return;
+      img.src = f.dataset.full; img.alt = im.alt; cap.textContent = f.querySelector("figcaption").textContent; dlg.showModal();
+    });
+  });
+  dlg.addEventListener("click", function (e) { if (e.target === dlg || e.target.tagName === "BUTTON") dlg.close(); });
+})();
+
+/* ---- the three big bots: tiny isometric "voxel" renderer (3 shaded faces per box), like the low-poly robots in the app ---- */
+var ISO = (function () {
+  var K = 96, C = Math.cos(Math.PI / 6), OX = 110, OY = 236;
+  function P(x, y, z) { return [OX + (x - z) * C * K, OY + (x + z) * 0.5 * K - y * K]; }
+  function pts(a) { return a.map(function (p) { return P(p[0], p[1], p[2]).map(function (n) { return n.toFixed(1); }).join(","); }).join(" "); }
+  function shade(hex, f) { // f > 0 lightens, f < 0 darkens
+    var n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255, t = f < 0 ? 0 : 255, k = Math.abs(f);
+    return "rgb(" + Math.round(r + (t - r) * k) + "," + Math.round(g + (t - g) * k) + "," + Math.round(b + (t - b) * k) + ")";
+  }
+  /* box at (x,y,z) size (w,h,d); decals are rectangles on the front-left face [a0,b0,a1,b1] in box units */
+  function box(x, y, z, w, h, d, col, decals) {
+    var s = "";
+    s += '<polygon points="' + pts([[x, y + h, z], [x + w, y + h, z], [x + w, y + h, z + d], [x, y + h, z + d]]) + '" fill="' + shade(col, 0.22) + '"/>';
+    s += '<polygon points="' + pts([[x, y, z + d], [x + w, y, z + d], [x + w, y + h, z + d], [x, y + h, z + d]]) + '" fill="' + col + '"/>';
+    s += '<polygon points="' + pts([[x + w, y, z], [x + w, y, z + d], [x + w, y + h, z + d], [x + w, y + h, z]]) + '" fill="' + shade(col, -0.28) + '"/>';
+    (decals || []).forEach(function (q) {
+      s += '<polygon points="' + pts([[x + q[0], y + q[1], z + d + 0.005], [x + q[2], y + q[1], z + d + 0.005], [x + q[2], y + q[3], z + d + 0.005], [x + q[0], y + q[3], z + d + 0.005]]) + '" fill="' + q[4] + '"' + (q[5] ? ' opacity="' + q[5] + '"' : "") + '/>';
+    });
+    return { key: x + z + w / 2 + d / 2 + y * 0.01, svg: s };
+  }
+  function draw(list) { return list.sort(function (a, b) { return a.key - b.key; }).map(function (b) { return b.svg; }).join(""); }
+  return { box: box, draw: draw };
+})();
+
+var BOTS = {
+  claude: function () { // the "spark bot": boxy body, glowing visor, antenna with a beacon
+    var o = "#d97757";
+    return [
+      ISO.box(-0.34, 0, -0.2, 0.26, 0.32, 0.4, "#b4553a"), ISO.box(0.08, 0, -0.2, 0.26, 0.32, 0.4, "#b4553a"),
+      ISO.box(-0.46, 0.32, -0.42, 0.92, 0.82, 0.84, o, [[0.1, 0.3, 0.82, 0.58, "#10242a"], [0.16, 0.34, 0.76, 0.54, "#4fd1c5"], [0.26, 0.4, 0.34, 0.48, "#0e3a3a"], [0.58, 0.4, 0.66, 0.48, "#0e3a3a"]]),
+      ISO.box(-0.64, 0.6, -0.16, 0.18, 0.42, 0.32, "#b4553a"), ISO.box(0.46, 0.6, -0.16, 0.18, 0.42, 0.32, "#b4553a"),
+      ISO.box(-0.03, 1.14, -0.03, 0.06, 0.28, 0.06, "#9aa6bb"), ISO.box(-0.09, 1.42, -0.09, 0.18, 0.18, 0.18, "#ffb020")
+    ];
+  },
+  codex: function () { // head and body as separate blocks, dark visor with two bright eyes
+    var t = "#3aa8c1";
+    return [
+      ISO.box(-0.3, 0, -0.18, 0.2, 0.28, 0.36, "#2a7f94"), ISO.box(0.1, 0, -0.18, 0.2, 0.28, 0.36, "#2a7f94"),
+      ISO.box(-0.42, 0.28, -0.36, 0.84, 0.56, 0.72, t, [[0.3, 0.14, 0.54, 0.22, "#bfeaf3", 0.9]]),
+      ISO.box(-0.5, 0.86, -0.42, 1.0, 0.66, 0.84, "#5cc3da", [[0.08, 0.16, 0.92, 0.5, "#0c1a22"], [0.2, 0.22, 0.34, 0.42, "#9ff3ff"], [0.66, 0.22, 0.8, 0.42, "#9ff3ff"]]),
+      ISO.box(-0.58, 1.06, -0.12, 0.08, 0.24, 0.24, "#2a7f94"), ISO.box(0.5, 1.06, -0.12, 0.08, 0.24, 0.24, "#2a7f94")
+    ];
+  },
+  opencode: function () { // a tall slab: two side legs, light bars top and bottom, a dark window between
+    var s = "#aeb6c3";
+    return [
+      ISO.box(-0.52, 0, -0.26, 0.17, 1.55, 0.52, "#8d96a6"), ISO.box(0.35, 0, -0.26, 0.17, 1.55, 0.52, "#8d96a6"),
+      ISO.box(-0.35, 0.02, -0.2, 0.7, 1.5, 0.3, "#0b0f17", [[0.1, 0.34, 0.6, 0.4, "#4fd1c5", 0.9], [0.1, 0.62, 0.45, 0.68, "#4fd1c5", 0.6], [0.1, 0.9, 0.52, 0.96, "#4fd1c5", 0.45], [0.1, 1.18, 0.38, 1.24, "#4fd1c5", 0.3]]),
+      ISO.box(-0.35, 1.32, -0.24, 0.7, 0.22, 0.4, s, [[0.55, 0.08, 0.62, 0.14, "#ffb020"]]),
+      ISO.box(-0.35, 0, -0.24, 0.7, 0.2, 0.4, s)
+    ];
+  }
+};
+
+(function () {
+  var host = document.getElementById("trio");
+  var DEF = [["claude", "Claude", "#d97757"], ["codex", "Codex", "#4fb8d0"], ["opencode", "OpenCode", "#aeb6c3"]];
+  var reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  DEF.forEach(function (d, i) {
+    var el = document.createElement("div"); el.className = "bot";
+    el.innerHTML = '<div class="stagebox"><div class="shadow"></div><div class="sway"><div class="float"><div class="hop"><svg viewBox="0 0 220 270" aria-hidden="true">' + ISO.draw(BOTS[d[0]]()) + '</svg></div></div></div></div><div class="name"></div>';
+    el.querySelector(".name").textContent = d[1];
+    el.querySelector(".sway").style.setProperty("--sw", (4.6 + i * 1.3) + "s");
+    el.querySelector(".float").style.setProperty("--fl", (2.6 + i * 0.55) + "s");
+    el.querySelector(".shadow").style.setProperty("--fl", (2.6 + i * 0.55) + "s");
+    el.querySelector(".name").style.color = d[2];
+    host.appendChild(el);
+    if (reduced) return;
+    // every few seconds, at random, a bot hops once, twice or three times
+    var hop = el.querySelector(".hop"), sh = el.querySelector(".shadow");
+    function jump(n) {
+      hop.classList.remove("go"); sh.classList.remove("go"); void hop.offsetWidth;
+      hop.classList.add("go"); sh.classList.add("go");
+      hop.onanimationend = function () { hop.classList.remove("go"); sh.classList.remove("go"); if (n > 1) setTimeout(function () { jump(n - 1); }, 80); else later(); };
+    }
+    function later() { setTimeout(function () { jump(1 + Math.floor(Math.random() * 3)); }, 2500 + Math.random() * 4500); }
+    setTimeout(later, 800 + i * 900);
+  });
+  // the "Supporting" pills reuse the same bots in miniature
+  var sup = document.getElementById("support");
+  [["claude", "Claude Code", "sessions in ~/.claude"], ["codex", "Codex", "sessions in ~/.codex"], ["opencode", "OpenCode", "its local database"]].forEach(function (d) {
+    var p = document.createElement("div"); p.className = "pill";
+    p.innerHTML = '<svg viewBox="0 0 220 270" aria-hidden="true">' + ISO.draw(BOTS[d[0]]()) + '</svg><div><span></span><small></small></div>';
+    p.querySelector("span").textContent = d[1]; p.querySelector("small").textContent = d[2];
+    sup.appendChild(p);
+  });
+})();
+
+/* ---- the small bots: a top-down office. Bots at desks cycle through states, a barista fetches coffee, inspectors tend the data center. ---- */
+(function () {
+  var cv = document.getElementById("office"), g = cv.getContext("2d");
+  var W = cv.width, H = cv.height;
+  var COLOR = { working: "#4ade80", waiting: "#ffb020", done: "#60a5fa", error: "#f87171", idle: "#8591a5", asleep: "#4b5568" };
+  var DESKSTATES = ["working", "waiting", "done", "error", "idle", "asleep"];
+  // the legend speaks in the app's own words: working, sleeping, idle, ready, needs attention
+  var GROUPS = [
+    { label: "Working", c: "#4ade80", s: ["working"] }, { label: "Sleeping", c: "#4b5568", s: ["asleep"] },
+    { label: "Idle", c: "#8591a5", s: ["idle"] }, { label: "Ready", c: "#60a5fa", s: ["done"] },
+    { label: "Needs attention", c: "#ffb020", s: ["waiting", "error"] }
+  ];
+  var focus = null;
+  var leg = document.getElementById("legend");
+  GROUPS.forEach(function (gr) {
+    var el = document.createElement("span"); el.className = "chip"; el.style.setProperty("--c", gr.c);
+    el.innerHTML = "<i></i>" + gr.label;
+    el.addEventListener("mouseenter", function () { focus = gr.s; el.classList.add("on"); });
+    el.addEventListener("mouseleave", function () { focus = null; el.classList.remove("on"); });
+    leg.appendChild(el);
+  });
+  var dimmed = function (st) { return focus && focus.indexOf(st) < 0; };
+
+  var seed = 7; function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+  var areas = [
+    { x: 40, y: 40, w: 340, h: 200, col: "#4fd1c5", name: "web-shop" }, { x: 420, y: 40, w: 340, h: 200, col: "#60a5fa", name: "api-gateway" },
+    { x: 40, y: 300, w: 340, h: 210, col: "#c084fc", name: "mobile-app" }
+  ];
+  var bots = [];
+  areas.forEach(function (a) {
+    for (var r = 0; r < 2; r++) for (var c = 0; c < 4; c++) {
+      var st = DESKSTATES[Math.floor(rnd() * DESKSTATES.length)];
+      bots.push({ x: a.x + 48 + c * 78, y: a.y + 62 + r * 70, state: st, t: rnd() * 10, next: 4 + rnd() * 8, cup: 0 });
+    }
+  });
+  // data center: four racks with blinking LEDs, cables to the top, and two inspectors who patrol and scan
+  var DC = { x: 420, y: 300, w: 340, h: 210 };
+  var racks = [0, 1, 2, 3].map(function (i) { return { x: DC.x + 26 + i * 78, y: DC.y + 34, w: 54, h: 104, ph: rnd() * 6 }; });
+  var inspectors = [{ x: DC.x + 40, y: DC.y + 168, dir: 1, pause: 0, t: 0 }, { x: DC.x + 280, y: DC.y + 168, dir: -1, pause: 1.5, t: 2 }];
+  // service robots: a barista who brings coffee to desks, and two wanderers
+  var COFFEE = { x: 400, y: 268 };
+  var barista = { x: COFFEE.x, y: COFFEE.y, phase: "wait", target: null, timer: 2, t: 0, cup: false };
+  var wanderers = [0, 1].map(function (i) { return { x: 380 + i * 40, y: 268, tx: 380, ty: 268, t: i * 2 }; });
+
+  function rr(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  function bot(x, y, state, t, dim, tint) {
+    g.save(); g.translate(x, y); g.globalAlpha = dim ? 0.25 : 1;
+    var bob = state === "working" ? Math.sin(t * 9) * 1.2 : state === "idle" ? Math.sin(t * 2) * 1.5 : 0;
+    var col = COLOR[state] || "#4fd1c5";
+    if (state === "waiting") { var p = (t * 1.4) % 1; g.strokeStyle = col; g.globalAlpha *= 1 - p; g.lineWidth = 2; g.beginPath(); g.arc(0, -4, 10 + p * 18, 0, 6.3); g.stroke(); g.globalAlpha = dim ? 0.25 : 1; }
+    g.fillStyle = tint || (state === "asleep" ? "#6b778b" : "#e3e8f0");
+    rr(-10, -12 + bob, 20, 18, 6); g.fill();
+    g.fillStyle = state === "asleep" ? "#1b2230" : col;
+    if (state === "asleep") { g.fillRect(-6, -5 + bob, 12, 2); } else { rr(-7, -8 + bob, 14, 7, 3.5); g.fill(); }
+    g.fillStyle = "#ffb020"; g.fillRect(-1, -19 + bob, 2, 7); g.beginPath(); g.arc(0, -20 + bob, 2.2, 0, 6.3); g.fill();
+    if (state === "done") { g.strokeStyle = col; g.lineWidth = 2.5; g.beginPath(); g.moveTo(12, -2); g.lineTo(18 + Math.sin(t * 10) * 3, -12); g.stroke(); }
+    if (state === "error") { g.fillStyle = col; g.font = "bold 14px system-ui"; g.fillText("!", 12, -14 + Math.sin(t * 8)); }
+    if (state === "asleep") { g.fillStyle = "#8591a5"; g.font = "bold 11px system-ui"; var z = (t * 0.6) % 1; g.globalAlpha *= 1 - z; g.fillText("z", 12 + z * 6, -12 - z * 14); }
+    g.restore();
+  }
+  function label(txt, x, y, col) { g.fillStyle = col || "#8591a5"; g.font = "600 11px system-ui"; g.textAlign = "center"; g.fillText(txt, x, y); g.textAlign = "left"; }
+  function cup(x, y) { g.fillStyle = "#f5f5f4"; g.fillRect(x - 3, y - 4, 6, 7); g.fillStyle = "#6b3f1d"; g.fillRect(x - 3, y - 4, 6, 2); }
+  function moveTo(o, tx, ty, sp, dt) { var d = Math.hypot(tx - o.x, ty - o.y); if (d < 3) return true; o.x += (tx - o.x) / d * sp * dt; o.y += (ty - o.y) / d * sp * dt; return false; }
+
+  var reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var last = performance.now(), visible = true, clock = 0;
+  if ("IntersectionObserver" in window) new IntersectionObserver(function (e) { visible = e[0].isIntersecting; }).observe(cv);
+
+  function step(dt) {
+    clock += dt;
+    bots.forEach(function (b) { b.t += dt; if (b.cup > 0) b.cup -= dt; b.next -= dt; if (b.next <= 0) { b.next = 5 + rnd() * 9; b.state = DESKSTATES[Math.floor(rnd() * DESKSTATES.length)]; } });
+    // barista: wait at the machine, carry a cup to a desk, hand it over, walk back
+    barista.t += dt; barista.timer -= dt;
+    if (barista.phase === "wait" && barista.timer <= 0) { var pool = bots.filter(function (b) { return b.state !== "asleep"; }); barista.target = pool[Math.floor(rnd() * pool.length)]; barista.cup = true; barista.phase = "go"; }
+    else if (barista.phase === "go" && barista.target) { if (moveTo(barista, barista.target.x + 22, barista.target.y + 16, 62, dt)) { barista.phase = "serve"; barista.timer = 1.1; barista.cup = false; barista.target.cup = 2.2; } }
+    else if (barista.phase === "serve" && barista.timer <= 0) barista.phase = "back";
+    else if (barista.phase === "back") { if (moveTo(barista, COFFEE.x, COFFEE.y, 62, dt)) { barista.phase = "wait"; barista.timer = 2 + rnd() * 3; } }
+    wanderers.forEach(function (w) { w.t += dt; if (moveTo(w, w.tx, w.ty, 40, dt)) { w.tx = 120 + rnd() * 560; w.ty = 262 + rnd() * 14; } });
+    inspectors.forEach(function (n) {
+      n.t += dt;
+      if (n.pause > 0) { n.pause -= dt; return; }
+      n.x += n.dir * 34 * dt;
+      if (n.x < DC.x + 30 || n.x > DC.x + DC.w - 30) { n.dir *= -1; n.pause = 1.2; }
+      else if (Math.abs((n.x - DC.x - 26 - 27) % 78) < 1.2) n.pause = 0.9; // stop in front of a rack to scan it
+    });
+  }
+
+  function paint() {
+    g.clearRect(0, 0, W, H);
+    areas.forEach(function (a) {
+      g.fillStyle = "#171d29"; rr(a.x, a.y, a.w, a.h, 14); g.fill();
+      g.strokeStyle = a.col; g.globalAlpha = 0.55; g.lineWidth = 2; rr(a.x, a.y, a.w, a.h, 14); g.stroke(); g.globalAlpha = 1;
+      label(a.name, a.x + 44, a.y + 22, a.col);
+    });
+    // data center
+    g.fillStyle = "#141a26"; rr(DC.x, DC.y, DC.w, DC.h, 14); g.fill();
+    g.strokeStyle = "#f87171"; g.globalAlpha = 0.5; g.lineWidth = 2; rr(DC.x, DC.y, DC.w, DC.h, 14); g.stroke(); g.globalAlpha = 1;
+    label("data center", DC.x + 52, DC.y + 22, "#f87171");
+    var hub = { x: DC.x + DC.w / 2, y: DC.y + 8 };
+    racks.forEach(function (r) {
+      g.strokeStyle = "#f8717166"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(r.x + r.w / 2, r.y); g.quadraticCurveTo(r.x + r.w / 2, hub.y + 6, hub.x, hub.y); g.stroke(); // cable
+      g.fillStyle = "#222b3a"; rr(r.x, r.y, r.w, r.h, 6); g.fill();
+      for (var k = 0; k < 10; k++) {
+        var on = Math.sin(clock * (3 + (k % 3)) + r.ph + k * 1.7) > -0.1;
+        g.fillStyle = on ? (k % 4 === 3 ? "#3ddc84" : "#ff3b30") : "#2c3648";
+        g.beginPath(); g.arc(r.x + 12 + (k % 2) * 30, r.y + 14 + Math.floor(k / 2) * 17, 2.6, 0, 6.3); g.fill();
+      }
+    });
+    g.fillStyle = "#33c3f0"; g.beginPath(); g.arc(hub.x, hub.y, 4, 0, 6.3); g.fill();
+    inspectors.forEach(function (n) {
+      if (n.pause > 0) { g.fillStyle = "#33c3f033"; g.beginPath(); g.moveTo(n.x, n.y - 10); g.lineTo(n.x - 22, n.y - 60); g.lineTo(n.x + 22, n.y - 60); g.closePath(); g.fill(); } // scan beam
+      bot(n.x, n.y, "working", n.t, false, "#9aa6bb");
+    });
+    // coffee station
+    g.fillStyle = "#3b2a1c"; rr(COFFEE.x - 34, COFFEE.y - 40, 68, 24, 5); g.fill();
+    g.fillStyle = "#6b3f1d"; g.fillRect(COFFEE.x - 26, COFFEE.y - 36, 14, 12); g.fillStyle = "#ffb020"; g.fillRect(COFFEE.x + 4, COFFEE.y - 34, 8, 8);
+    for (var s = 0; s < 3; s++) { var q = (clock * 0.5 + s / 3) % 1; g.globalAlpha = 0.45 * (1 - q); g.fillStyle = "#e3e8f0"; g.beginPath(); g.arc(COFFEE.x - 19 + Math.sin(q * 6 + s) * 3, COFFEE.y - 42 - q * 16, 2 + q * 3, 0, 6.3); g.fill(); }
+    g.globalAlpha = 1; label("coffee", COFFEE.x, COFFEE.y - 48, "#ffb020");
+    // desks and their bots
+    bots.forEach(function (b) {
+      g.fillStyle = "#222b3a"; rr(b.x - 24, b.y + 8, 48, 18, 4); g.fill();
+      g.fillStyle = b.state === "working" ? "#4ade8055" : "#2c3648"; g.fillRect(b.x - 9, b.y + 12, 18, 8);
+      bot(b.x, b.y, b.state, b.t, dimmed(b.state));
+      if (b.cup > 0) { g.globalAlpha = Math.min(1, b.cup); g.font = "14px system-ui"; g.fillText("☕", b.x + 10, b.y - 22 - (2.2 - b.cup) * 3); g.globalAlpha = 1; }
+    });
+    wanderers.forEach(function (w) { bot(w.x, w.y, "idle", w.t, !!focus && focus.indexOf("idle") < 0, "#c9d1dd"); });
+    bot(barista.x, barista.y, "idle", barista.t, false, "#ffb020");
+    if (barista.cup) cup(barista.x + 13, barista.y - 2);
+  }
+
+  function frame(now) {
+    var dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (visible || reduced) { if (!reduced) step(dt); paint(); }
+    if (!reduced) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  if (reduced) { frame(performance.now()); }
+})();
+</script>
+</body>
+</html>

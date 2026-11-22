@@ -13,6 +13,7 @@ const table = (x: number, z: number) => [
 const z: Zone = {
   id: "restaurant", name: "Restaurant", place: "east", size: [8, 10], floor: "#b08968", outdoor: true, weight: 1.5, icon: "🍽",
   props: [
+    { at: [0, -4.2], size: [6.4, 0.3, 1.2], color: "#6f6a62", solid: false },             // raised kitchen floor: the chef stands on it so the head clears the counter
     { at: [0, -3.0], size: [6.0, 0.95, 0.9], color: "#8b5e3c" },                          // order counter
     { at: [0, -3.0], size: [6.1, 0.06, 1.0], y: 0.95, color: "#eeeae2", solid: false },   // counter top
     { at: [-2.6, -4.35], size: [1.3, 0.95, 0.6], color: "#2b2f36" },                      // stove

@@ -1,0 +1,41 @@
+# Publishes the landing page (landing.html + its screenshots) as the project site https://rapttor.github.io/sparkbots/
+# One-time setup in the repository: Settings > Pages > Build and deployment > Source: "GitHub Actions".
+name: Landing page
+
+on:
+  push:
+    branches: [master, main]
+    paths: [landing.html, "presskit/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble the site (only what the landing page uses)
+        run: |
+          mkdir -p _site/presskit
+          cp landing.html _site/index.html
+          cp -r presskit/screenshots _site/presskit/screenshots
+          cp -r presskit/artwork _site/presskit/artwork
+          rm -f _site/presskit/screenshots/*.mjs _site/presskit/screenshots/*.md
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

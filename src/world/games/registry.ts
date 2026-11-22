@@ -1,3 +1,5 @@
+import { BilliardsSim } from "./billiards";
+import { HoopsSim } from "./hoops";
 import { RallySim } from "./rally";
 import { RoundSim } from "./rounds";
 import type { GameDef, GameId } from "./types";
@@ -8,6 +10,8 @@ export const GAMES: Record<GameId, GameDef> = {
   hockey: { id: "hockey", name: "Air hockey", icon: "🏒", size: "large", weight: 2, target: 5, create: (rng, t) => new RallySim("hockey", rng, t ?? 5) },
   rps: { id: "rps", name: "Rock paper scissors", icon: "✊", size: "small", weight: 2, target: 3, create: (rng, t) => new RoundSim("rps", rng, t ?? 3) },
   dice: { id: "dice", name: "Dice", icon: "🎲", size: "small", weight: 2, target: 3, create: (rng, t) => new RoundSim("dice", rng, t ?? 3) },
+  billiards: { id: "billiards", name: "Billiards", icon: "🎱", size: "large", weight: 2, target: 7, create: (rng, t) => new BilliardsSim(rng() < 0.6 ? "eight" : "quick", rng, t) },
+  hoops: { id: "hoops", name: "Basketball", icon: "🏀", size: "small", weight: 2, target: 11, create: (rng, t) => new HoopsSim(rng, t ?? 11) },
 };
 export const GAME_IDS = Object.keys(GAMES) as GameId[];
 export const isGameId = (s: unknown): s is GameId => typeof s === "string" && s in GAMES;

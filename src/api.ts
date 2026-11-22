@@ -1,3 +1,4 @@
+import type { SlashItem } from "./shared/slash";
 import type { StatsSnapshot } from "../server/stats/aggregate";
 import type { BacklogItem } from "../server/backlog";
 import type { RunRecord } from "../server/adapters/claude-code/command";
@@ -49,6 +50,9 @@ export const api = {
   setRateLimit: (on: boolean) => call<{ until: number }>("POST", "/api/rate-limit", { on }),
   runs: () => call<RunRecord[]>("GET", "/api/runs"),
   runLog: (id: string) => call<StreamLine[]>("GET", `/api/runs/${id}/log`),
+  approveRun: (runId: string, requestId: string, allow: boolean) => call<{ ok: true }>("POST", `/api/runs/${runId}/approve`, { requestId, allow }),
+  slashCommands: (cwd: string) => call<SlashItem[]>("GET", `/api/slash-commands?cwd=${encodeURIComponent(cwd)}`),
+  uploadImageUrl: (id: string) => `/api/uploads/${id}/file?t=${encodeURIComponent(token())}`,
   retryRun: (runId: string, tools: string[]) => call<SendResult>("POST", `/api/runs/${runId}/retry`, { tools }),
   send: (session: string, prompt: string, fork = false, model?: string, attachments?: string[]) => call<SendResult>("POST", "/api/send", { session, prompt, fork, model, attachments }),
   upload: (name: string, data: string) => call<{ id: string; name: string; size: number }>("POST", "/api/uploads", { name, data }),
