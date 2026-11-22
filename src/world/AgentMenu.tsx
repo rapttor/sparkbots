@@ -52,7 +52,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
   const openChat = useStore((s) => s.openChat);
   const followers = useStore((s) => s.followers);
   const toggleFollower = useStore((s) => s.toggleFollower);
-  const [open, setOpen] = useState<"" | "perform" | "look" | "idle" | "go" | "cards">("");
+  const [open, setOpen] = useState<"" | "perform" | "look" | "idle" | "go" | "cards">("perform") // the Perform (actions) section starts expanded;
   const [cards, setCards] = useState<Card[]>([]);
   useEffect(() => { if (open === "cards") api.board().then((c) => setCards(c.filter((x) => x.team === w.team && (x.column === "backlog" || x.column === "ready")))).catch(() => {}); }, [open, w.team]);
   const [detail, setDetail] = useState(false);
@@ -96,6 +96,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
       <header className="am-head">
         <BotIcon color={w.color} size={22} title="Robot color: click to choose (recolors this agent in the 3D office)" onPick={(c) => { void api.setBotColor(w.id, c).catch((e: Error) => setNote(e.message)); }} />
         <strong title={w.title}>{displayName(w)}</strong>
+        <span className="muted small" title="Project / team">{w.team}</span>
         <StateBadge state={w.state} />
         <button className="icon-btn" aria-label="Close" onClick={onClose}>×</button>
       </header>

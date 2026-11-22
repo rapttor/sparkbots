@@ -1,3 +1,4 @@
+import type { BacklogItem } from "../server/backlog";
 import type { RunRecord } from "../server/adapters/claude-code/command";
 import type { Config, Teams } from "../server/config";
 import type { Card, Column } from "../server/board/routes";
@@ -26,7 +27,7 @@ export interface TeamRunResult { prompt: string; cwd: string; target: "continue"
 const token = () => new URLSearchParams(location.search).get("t") ?? "";
 
 export async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const r = await fetch(`${path}?t=${encodeURIComponent(token())}`, {
+  const r = await fetch(`${path}${path.includes("?") ? "&" : "?"}t=${encodeURIComponent(token())}`, {
     method,
     headers: body !== undefined ? { "content-type": "application/json" } : undefined,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -50,6 +51,8 @@ export const api = {
   opencodeModels: () => call<{ models: OpenCodeModel[] }>("GET", "/api/opencode/models"),
   stop: (runId: string) => call<{ ok: true }>("POST", "/api/stop", { runId }),
   board: () => call<Card[]>("GET", "/api/board"),
+  backlog: (team: string) => call<{ file: string; items: BacklogItem[] } | null>("GET", `/api/backlog?team=${encodeURIComponent(team)}`),
+  createBacklog: (team: string) => call<{ file: string }>("POST", "/api/backlog/create", { team }),
   importTasks: (team: string) => call<{ added: number; skipped: number; file: string }>("POST", "/api/board/import", { team }),
   addCard: (title: string, body: string, team: string) => call<Card>("POST", "/api/board", { title, body, team }),
   patchCard: (id: string, p: { column?: Column; title?: string; body?: string; archived?: boolean }) => call<Card>("PATCH", `/api/board/${id}`, p),

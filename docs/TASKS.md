@@ -178,7 +178,7 @@ Planned now: verify the big-office frame rate with the generated 150-worker fixt
 - [x] [S] 7.38 Header icons are toggles that show one panel in the dock (no panel tabs; only chats are tabs, one per agent) and there is a Chats icon (open chats + start a chat with any agent, badge with the number of open chats); the 3D camera controls moved from the header into a View panel with the view mode (Overview / Walk) on top; a Projects panel replaces the Projects dropdown (state counts, fly-to, group actions shared with the 3D title menu: `world/ProjectActions.tsx`); Services and Server Room use stacked cards; smaller, redrawn SVG icons, shown in the header from 760 px up
 - [x] [S] 7.39 The coffee station is a small coffee factory (`zones/coffee-station.ts` + animated `world/coffeefactory.tsx`): bean silo and grinder with a spinning gear, brass boiler with steam, chimney smoke and blinking status lights, a counter with the espresso machine, a conveyor belt carrying cups, a cup dispenser and crates; the barista is clickable (and so is "Order a coffee" in the room's title menu): a toast answers and a service robot brings the cup
 - [x] [S] 7.40 Chat composer: Send always next to the text box (greyed when it cannot send; for a terminal-held session pressing it explains why), "Send as fork" below it with an ⓘ that says a terminal holds the session (+ copy resume command), no permanent warning; file / image attach (button, drop, paste): saved in ~/.agent-office/uploads, listed in the message, folder given to the run with --add-dir (`server/uploads.ts`, 15 MB per file, 8 per message, cleaned after 14 days); model errors in a run explain where the run is going and offer "Use real Claude" (clean environment) or a model the service has
-- [ ] [S] 7.41 To replace the Claude app: live streaming of replies, approving permission prompts in the chat, slash commands / skills, a model picker per chat with the session's current model shown, image preview of attachments
+- [ ] [S] 7.41 **Split (2026-11-22):** (a) *streaming replies* — pass `--include-partial-messages`, push text deltas into the run log, render them in the chat [S, easy]; (b) *"Allow this tool & retry"* — read `permission_denials` from the result, re-run with `--allowedTools <tool>` after a click [S, verify with a real denial first]; (c) full live approval via `--input-format stream-json` + `--permission-prompts host` [O, later, one long-lived process per chat]; (d) slash commands/skills, per-chat model picker, attachment previews [S/H]
 - [x] [S] 7.42 Robots go around the manager and each other (steering) and wait a step away when someone stands on their chair, instead of getting stuck; click a laptop screen = the camera flies right in front of it (Back button or Esc returns) — both unverified on screen
 - [ ] [S] 7.43 Redesign the Board (kanban) dialog — **moved to 13.3.1** (do not duplicate)
 - [ ] [S] 7.44 Data room revamp: server racks, tapes, hydra cables, force-field, inspector robots — **moved to 13.2.2** (one rack per project; Data center)
@@ -191,7 +191,7 @@ Checked on this machine (read-only, structure only): `~/.codex/sessions/YYYY/MM/
 - [x] [H] 12.4 UI: source chips in the header filters and a distinct Codex bot look — **done:** `panels/teamFilters.ts`, `world/bots.ts`; add a source badge in Teams/chat header where it is missing
 - [ ] [S] 12.5 Stats + search: Codex usage flows through the event pipeline and the index covers all sessions — **partly:** no `source` column in search results / separate model rows yet
 - [x] [S] 12.6 Talking to a Codex agent — **done:** `adapters/codex/command.ts` uses `codex queue --thread <id> --message <prompt> --resume` as an argv array (no shell); re-check flags on upgrade
-- [ ] [H] 12.7 Archived `.zst` sessions: skipped at first; later an on-demand "load archived" with a streaming zstd reader (needs a decision on a dependency)
+- [ ] [H] 12.7 Archived `.zst` sessions: skipped at first; later an on-demand "load archived" with a streaming zstd reader (**no dependency needed:** Node 24 has `zlib.zstdDecompressSync`; checked on a real archived file, 2026-11-22)
 
 ## Phase 13 — Backlog requests (planned 2026-11-21)
 
@@ -199,23 +199,23 @@ Locked decisions: keep the low-poly look (no pixelation pass); start in walk mod
 
 ### 13.0 Storage and sync foundation
 Do this first: games, rewards, caffeine and rankings all write here.
-- [ ] [O] 13.0.1 SQLite schema + migrations: `server/db.ts`; tables `meta, config, teams, board, runs, labels, archive, notes, bots, games, rankings, rewards, caffeine, outbox`; `schemaVersion`; import existing JSON once with a backup; `node:sqlite` (already used by `server/search.ts`); tests for migration and rollback
-- [ ] [S] 13.0.2 Move the JSON stores behind the DB (`config.ts`, `board/`, `notes.ts`, `archive.ts`, `labels.ts`, `botColors.ts`) without changing routes or client contracts; keep JSON read compatibility for one release
-- [ ] [S] 13.0.3 `docs/SYNC.md` + `server/sync/`: `SyncAdapter` interface, outbox rows (`kind, id, op, updatedAt, payload`), tombstones, last-write-wins; no network code runs until an endpoint/key is configured
-- [ ] [H] 13.0.4 Settings > Sync: enable toggle, endpoint, key, last sync, payload preview (allowlist), "Sync now"; searchable
-- [ ] [H] 13.0.5 Update `CLAUDE.md` (§2 storage, §7 privacy, §11 files) and README: SQLite, opt-in sync, exactly what syncs (never message text or search snippets), backup/export
-- [ ] [H] 13.0.6 Tests: JSON -> SQLite fixture, outbox order, sync disabled makes zero requests, allowlist excludes transcript text
+- [~] [S] 13.0.1 **Simplified (2026-11-22):** `server/db.ts` = one `node:sqlite` file `~/.agent-office/app.db` with `schemaVersion` + tables only for NEW data: `games, rankings, rewards, caffeine, rack_alias, outbox`. Existing JSON stores (config, board, notes, archive, labels, botColors) are NOT migrated. *How:* reuse the `createRequire` loader from `server/search.ts`; `migrate(db)` runs numbered SQL steps in a transaction; tests use an in-memory DB — **started 2026-11-22:** `server/db.ts` exists with `usage_hour`; games/rankings/rewards/caffeine/rack_alias tables still to add as migrations
+- [x] [S] 13.0.2 **Dropped:** moving the JSON stores is risky and nothing in the backlog needs it; revisit only if sync is ever wanted
+- [ ] [S] 13.0.3 **Deferred:** `docs/SYNC.md` + `SyncAdapter` + outbox. *How (when wanted):* the `outbox` table already exists from 13.0.1; sync is a worker that reads rows and posts them to a user-configured endpoint, never running without one
+- [ ] [H] 13.0.4 **Deferred** with 13.0.3: Settings > Sync
+- [ ] [H] 13.0.5 Update `CLAUDE.md` §2/§11 and README: one `app.db` for new data (JSON stays for the rest); do it with 13.0.1
+- [ ] [H] 13.0.6 Tests: migration idempotent, schema version, in-memory DB (sync tests deferred with 13.0.3)
 
 ### 13.1 Player, camera, interaction
 - [x] [O] 13.1.1 Avatar contract `world/avatar.ts`: `{id, name, parts, clips}`; raptor and spark bot; manager colour tint; no external models; no pixelation — **done:** `Avatar` (parts, glow, clips, build/layout, pure `pose()`), `listAvatars`/`getAvatar`/`validateAvatars`; `test/avatar.test.ts`
 - [x] [S] 13.1.2 Low-poly raptor rig + walk/idle/jump/sprint poses, third-person follow; keep the 150-bot budget — **done:** poses driven by `avatar.pose()` each frame, eased; `World.tsx` renders the selected avatar's parts generically. Three avatars: **developer** (default, cliché dev — jeans, black turtleneck, square glasses, full beard, slightly overweight, ~2.47x agent height; manager colour tints the jeans only), raptor (faceted origami look) and spark bot. Per-part colours + per-avatar camera `focusY`; feet on the ground
-- [ ] [S] 13.1.3 Camera: default distance +15-20%; first visit spawns in walk mode near the plaza; saved/default view still wins afterwards — **partly:** one default zoom and saved view exist, but the first spawn is still at the campus edge, not the plaza
-- [ ] [H] 13.1.4 Raise the walk zoom clamp from 8 to the value that fits the campus (computed from `layout` bounds); show it in the View panel; no auto overview — **partly:** the continuous zoom reaches the whole campus and top view auto-centers, but the max is not computed/shown in the View panel
+- [x] [S] 13.1.3 Camera: default distance +15-20%; first visit spawns in walk mode near the plaza; saved/default view still wins afterwards — **partly:** one default zoom and saved view exist, but the first spawn is still at the campus edge, not the plaza — **done (2026-11-22):** first visit spawns near the plaza; start mode in Settings (`ao.startMode`)
+- [ ] [H] 13.1.4 Raise the walk zoom clamp from 8 to the value that fits the campus (computed from `layout` bounds); show it in the View panel; no auto overview — **partly:** the continuous zoom reaches the whole campus and top view auto-centers, but the max is not computed/shown in the View panel — **partly (2026-11-22):** zoom % of max and campus-fit distance shown in the View panel; the clamp itself is not yet derived from bounds
 - [ ] [S] 13.1.5 Space opens the Map/teleport overlay (click-to-go); ignored while typing; keymap + Settings entry — long hops use the 13.1.10 `flyTo`, never a camera snap
-- [ ] [H] 13.1.6 Nearby agent = nearest live bot position (`roam`), not nearest desk; E and actions work anywhere — **partly:** clicking/menus use live positions (`nearestBot`), but E/proximity still use `nearestDesk`
-- [ ] [H] 13.1.7 Agent menu: Actions expanded by default; header shows project/team, given name and session title — **partly:** shows the given name, session title and cwd; Actions is still collapsed and the project/team line is missing
+- [x] [H] 13.1.6 Nearby agent = nearest live bot position (`roam`), not nearest desk; E and actions work anywhere — **partly:** clicking/menus use live positions (`nearestBot`), but E/proximity still use `nearestDesk` — **done (2026-11-22):** E and the proximity prompt use `nearestBot`
+- [x] [H] 13.1.7 Agent menu: Actions expanded by default; header shows project/team, given name and session title — **partly:** shows the given name, session title and cwd; Actions is still collapsed and the project/team line is missing — **done (2026-11-22):** Perform actions expanded, team name in the header
 - [ ] [S] 13.1.8 Laptop closeup: fly from the current camera to a pair-programming spot beside the agent; Esc/Back flies back; no jump-behind, no walk→overview detour — **partly:** it flies from the current pose to the screen and back (no detour), but the spot is in front of the laptop, not beside the agent
-- [ ] [H] 13.1.9 Settings: avatar picker, start mode, zoom max readout; searchable keywords — **partly:** "Character" picker (`ao.avatar`) + full developer customisation done — top style (turtleneck / t-shirt / hoodie / squared-lines plaid), top colour + pants colour, back-logo emoji, glasses / beard / overweight toggles (`src/world/devLook.ts`, store `devLook`/`setDevLook`, `avatarTextures.ts` for the plaid + emoji textures); start mode + zoom max readout still open
+- [ ] [H] 13.1.9 Settings: avatar picker, start mode, zoom max readout; searchable keywords — **partly:** "Character" picker (`ao.avatar`) + full developer customisation done — top style (turtleneck / t-shirt / hoodie / squared-lines plaid), top colour + pants colour, back-logo emoji, glasses / beard / overweight toggles (`src/world/devLook.ts`, store `devLook`/`setDevLook`, `avatarTextures.ts` for the plaid + emoji textures); start mode + zoom max readout still open — **partly (2026-11-22):** Start mode + max zoom readout added
 - [x] [O] 13.1.10 Camera continuity contract: one `flyTo({ position, target, duration? })` helper (distance-based duration, ease-in-out, capped speed); every camera change goes through it. Cover overview `frame()`, reset/clear default, zoom/pan/angle, walk↔overview, Go there/warp, project focus/double-click, dock links and laptop close-up. No direct `camera.position.set/copy` outside the initial mount
 - [x] [S] 13.1.11 Remove the walk→overview→closeup jump (`World.tsx:659-661`): do not call `frame()` first; fly from the current pose into the close-up and fly back to the stored pose. Same for the `jump`/`enterTeam` path, which currently teleports the player
 - [x] [S] 13.1.12 Walk/overview switch and teleports: animate the player and camera together (or fly the camera first and move the player on arrival) so the camera never starts from a discontinuous position; spawn at the nearest valid point — **done:** walk spawn, Go there/warp move the player on arrival (`done` callback); no snap
@@ -235,37 +235,45 @@ Do this first: games, rewards, caffeine and rankings all write here.
 - [x] [S] 13.1.26 Agent quick menu cleanup: real actions (Follow, Fork, Nudge, ...) are direct menu items; cosmetic actions (zap, paint, pat, high-five, dance, startle, wake) live only under the **Perform** submenu and no longer have global keys; Archive moved from the quick menu to the workspace/chat sidebar (nothing is deleted). `AgentMenu.tsx`, `WorkerChat.tsx`, `World.tsx`, `keymap.ts`
 - [x] [S] 13.1.27 Top view also shows room/amenity titles, not only projects; agent status icons (Zzz etc.), name tags and speech bubbles are not rendered in the labels-only band. `World.tsx`
 - [x] [S] 13.1.28 Agent action menu holds the clicked agent still (no wandering/walking) until the menu closes; releasing resumes its normal behaviour. `roam.ts`, `bots.ts`, `World.tsx`
+- [x] [S] 13.1.29 Hand mode "grab the ground" drag: hold the left button on the floor and drag; the grabbed point stays under the cursor, the camera follows. Rays use the camera as it was at drag start (no feedback); under 5 px is still a click; the release click is swallowed so no menu opens. `World.tsx`
+- [x] [S] 13.1.30 Hand mode click-to-go: a plain floor click glides the camera to that point with `flyTo` (no more clicking ten projects away with nothing happening). `World.tsx`
 
 ### 13.2 Data center
-- [ ] [O] 13.2.1 Design: one rack per project, deterministic layout, growth and caps, instanced LEDs/tapes/cables; no per-frame React
-- [ ] [S] 13.2.2 `world/datacenter.tsx`: racks, project-colour labels, LEDs = active chats (VU style), tape units, hydra cables, forcefield walls
+- [x] [O] 13.2.1 Design: one rack per project, deterministic layout, growth and caps, instanced LEDs/tapes/cables; no per-frame React — **done (2026-11-22):** one rack per project (first 15 by name), `datacenterSlots.ts` fixed slots, instanced LEDs/reels/packets
+- [x] [S] 13.2.2 `world/datacenter.tsx`: racks, project-colour labels, LEDs = active chats (VU style), tape units, hydra cables, forcefield walls — **done (2026-11-22):** `world/datacenter.tsx` (red blinking LEDs by activity, spinning tape reels, hydra cables to a hub + trunk, data packets, project labels) + force field in `zones/data-room.ts`
 - [ ] [H] 13.2.3 Rename the room and each rack alias (SQLite); labels survive reloads
-- [ ] [H] 13.2.4 Inspector service robots between racks (reuse `servicebots.tsx`; cosmetic)
+- [x] [H] 13.2.4 Inspector service robots between racks (reuse `servicebots.tsx`; cosmetic) — **done (2026-11-22):** three inspector robots patrol the aisles (own simple bots, not `servicebots.tsx`)
 - [ ] [S] 13.2.5 Click a rack -> Data room search filtered to that project; deep link from Map/Teams
 - [ ] [H] 13.2.6 Rename UI strings: Data center (3D), Data room (search), Server room (processes); update menus, keymap, docs
 
 ### 13.3 Board and backlog track
-- [ ] [S] 13.3.1 Board redesign: columns, cards, spacing, drop targets, header/filters; world palette; keep the narrow one-column mode
-- [ ] [H] 13.3.2 Board CSS tokens from the 3D palette
-- [ ] [S] 13.3.3 `server/backlog.ts`: parse headings, `-` items, `[DONE]`, `[question ...]`, status; `/api/backlog`; tests
-- [ ] [S] 13.3.4 "Backlog.md" track in the Board: visible only when one project is selected; toggle persisted; read-only
-- [ ] [H] 13.3.5 "Create backlog.md" template with the instructions; confirm; never overwrite
-- [ ] [H] 13.3.6 Optional explicit item <-> card links; no automatic matching
+- [x] [S] 13.3.1 Board redesign: columns, cards, spacing, drop targets, header/filters; world palette; keep the narrow one-column mode — **done (2026-11-22):** columns with tones, lift-on-hover cards, drop highlight, collapsible compose, narrow tabs kept (`Board.tsx`, `.kb-*` in `styles.css`)
+- [x] [H] 13.3.2 Board CSS tokens from the 3D palette — **done (2026-11-22):** uses the existing `:root` palette tokens
+- [x] [S] 13.3.3 `server/backlog.ts`: parse headings, `-` items, `[DONE]`, `[question ...]`, status; `/api/backlog`; tests — **done (2026-11-22):** `server/backlog.ts` + `/api/backlog`, `/api/backlog/create`; `test/backlog.test.ts`
+- [x] [S] 13.3.4 "Backlog.md" track in the Board: visible only when one project is selected; toggle persisted; read-only — **done (2026-11-22):** `BacklogLane.tsx`, shown when one project is selected, toggle `ao.boardBacklog`
+- [x] [H] 13.3.5 "Create backlog.md" template with the instructions; confirm; never overwrite — **done (2026-11-22):** `Create from template` in the lane (confirm; never overwrites; template `server/templates/backlog.md`)
+- [ ] [H] 13.3.6 **Deferred/optional:** item <-> card links. *How (if wanted):* a card gets an optional `backlogRef` (file + heading) set only by an explicit "Link" button; no automatic matching
+- [x] [H] 13.3.7 Board auto-loads a project's task list when it is picked in the filter (same idempotent import as the button; silent when there is no task file). `Board.tsx`
+- [x] [H] 13.3.8 Fix: `api.call` joined the token with `?` even when the path already had a query string ("bad token" on `/api/backlog?team=`). `src/api.ts`
+- [x] [S] 13.3.9 Stats: per-service split. Aggregator keeps `bySource`, `bySourceDay`, `costBySource` (cost only for Claude, which has prices); Stats panel gets service toggles + 7/30/90 d range (persisted), a stacked daily chart and a "By service" table. `aggregate.ts`, `Stats.tsx`, `test/stats.test.ts`
+- [x] [S] 13.3.10 Fix: stats were built once at server start and never refreshed. Now rebuilt every 30 s (per-file cache keeps it cheap) and the cache remembers `source`/`project`, so history of transcripts the tool later deletes still counts. `company.ts`, `server/index.ts`
+- [x] [S] 13.3.11 Analytics forever: `server/db.ts` (`AppDb`, `~/.agent-office/app.db`, numbered migrations via `user_version`) with `usage_hour` (session, hour, model, source, project, tokens, event count). Every stats pass writes changed/new sessions into it; the Stats totals are built from the DB, so history survives transcripts the tool deletes. Old cache-only entries are moved in once. This is the small 13.0.1 (new data only). `test/db.test.ts`
+- [x] [H] 13.2.7 Data console: click the console computer in the Data center, or press E near it (hint "E · open Data room"), or "Use the data console" in the hand Actions menu, to open the Data room panel. `datacenter.tsx`, `World.tsx`
 
 ### 13.4 Cubicles, identity, caffeine, rate limit
-- [ ] [O] 13.4.1 Cubicle model: wrap the existing desk with two ghost walls, a work shelf and a rewards shelf; overflow goes to the archive; collision/click rules
+- [ ] [S] 13.4.1 **Simplified:** cubicle = two see-through wall boxes + a small shelf of slot instances around the existing desk (instanced meshes, no new collision: walls are click-through). *How:* one `world/cubicles.tsx` fed by the desk list; archive overflow comes later with 13.4.3
 - [ ] [S] 13.4.2 Render cubicles/shelves; keep laptop and status screen; walls stay click-through
 - [ ] [S] 13.4.3 Rewards/trophies: SQLite rewards, wall slots, archive overflow; claw items can be given to an agent
 - [ ] [S] 13.4.4 Project-colour hat/visor accent (after 9.3); project badge in Teams, agent menu and chat header
 - [ ] [H] 13.4.5 Caffeine: SQLite value per agent, decay, coffee/food bump, shown in the agent menu; jitter/yawn clip modifiers only
-- [ ] [S] 13.4.6 Rate limit: detect 429/usage-limit from run events and transcripts + manual override; global store flag; Settings row
-- [ ] [H] 13.4.7 Nervous mode: red blink, rage clips, bubbles for everyone; purely cosmetic, working bots keep working
+- [ ] [H] 13.4.6 **Simplified:** rate limit = reuse the 429 / usage-limit detection already in `runProblem` (`server/`); store a flag `rateLimited{until}` in the store + a manual toggle row in Settings. *How:* new server field in the snapshot meta, no transcript scanning at first
+- [ ] [H] 13.4.7 **Cosmetic only:** nervous mode = `fx` file that tints bubbles red and plays a jitter clip while `rateLimited`; one data file under `world/fx/`
 - [ ] [H] 13.4.8 "Play while limited" entries in the agent menu (delegate to 13.7)
 
 ### 13.5 Simulated chat
 - [ ] [O] 13.5.1 Schema + offline generator: threads/nodes/options/transitions; 100+ bundled PG-13 threads; validation; no model calls at runtime
 - [ ] [S] 13.5.2 Chat UI: white bubbles, fast typewriter, option buttons, thread chaining, per-agent history, unread
-- [ ] [H] 13.5.3 Curate/generate the 100+ threads (games, cars, life, work); no slurs/sexual content; every node reachable
+- [ ] [H] 13.5.3 **Haiku batch:** write the 100+ threads as JSON files in `data/chats/` in small batches (10 per agent run), each checked by the 13.5.1 validator (reachability, unique ids, PG-13 word list)
 - [ ] [S] 13.5.4 Idle initiation + rate-limit mode; close/reopen; no external requests
 - [ ] [H] 13.5.5 Settings: enable, speed, content filter; docs
 - [ ] [H] 13.5.6 Tests: schema, unique option ids, reachability, no network
@@ -295,7 +303,7 @@ Do this first: games, rewards, caffeine and rankings all write here.
 ### 13.8 Gym, anger room, sponsor
 - [ ] [H] 13.8.1 Gym: mirror wall, over-pump blow-up fx, treadmill boredom bubbles
 - [ ] [S] 13.8.2 Anger room: weapon pick, 60 s reset, destructible props, points
-- [ ] [H] 13.8.3 Sponsor room: hardcoded `#` placeholders in `src/shared/sponsor.ts`; Patreon/USDT cards disabled until filled; copy address; open links only on click
+- [ ] [H] 13.8.3 Sponsor room: a data file `src/shared/sponsor.ts` with `#` placeholders plus one zone file; cards disabled until filled; open links only on click (small, Haiku)
 - [ ] [H] 13.8.4 Idle "sponsor" bubbles, frequency-capped, off by default
 - [ ] [H] 13.8.5 Tests: no background requests, no invented addresses, placeholders never clickable
 

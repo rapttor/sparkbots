@@ -8,6 +8,9 @@ export interface StatsSnapshot {
   byProject: Record<string, Tokens>;
   byModel: Record<string, Tokens>;
   sessionsPerDay: Record<string, number>;
+  bySource: Record<string, Tokens>;                       // totals per service (claude | codex | opencode)
+  bySourceDay: Record<string, Record<string, Tokens>>;    // service -> day -> tokens
+  costBySource: Record<string, number>;                   // only services with known prices (Claude)
   hourHeatmap: number[];
   topProjectsWeek: { project: string; tokens: number }[];
   estCostUsd: number;
@@ -44,19 +47,27 @@ export class StatsAggregator {
   private projectDay = new Map<string, Map<string, number>>(); // project -> dayStartMs -> input+output
   private seenSessions = new Set<string>();
   private cost = 0;
+  private bySource: Record<string, Tokens> = {};
+  private bySourceDay: Record<string, Record<string, Tokens>> = {};
+  private costBySource: Record<string, number> = {};
 
-  add(e: UsageEvent, project: string): void {
+  add(e: UsageEvent, project: string, source = "claude", weight = 1): void {
     bump(this.byDay, dayKey(e.at), e);
+    bump(this.bySource, source, e);
+    bump((this.bySourceDay[source] ??= {}), dayKey(e.at), e);
     bump(this.byProject, project, e);
     bump(this.byModel, e.model, e);
-    this.hours[new Date(e.at).getHours()]++;
+    this.hours[new Date(e.at).getHours()] += weight;
     const d = new Date(e.at);
     const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
     const days = this.projectDay.get(project) ?? new Map<string, number>();
     days.set(String(dayStart), (days.get(String(dayStart)) ?? 0) + e.input + e.output);
     this.projectDay.set(project, days);
-    const p = prices.perMTok[familyOf(e.model)];
-    this.cost += (e.input * p.input + e.output * p.output + e.cacheRead * p.cacheRead + e.cacheWrite * p.cacheWrite) / 1e6;
+    if (source === "claude") { // prices are Claude's; other services show tokens only
+      const p = prices.perMTok[familyOf(e.model)];
+      const c = (e.input * p.input + e.output * p.output + e.cacheRead * p.cacheRead + e.cacheWrite * p.cacheWrite) / 1e6;
+      this.cost += c; this.costBySource[source] = (this.costBySource[source] ?? 0) + c;
+    }
   }
 
   sessionStarted(session: string, _project: string, at: number): void {
@@ -80,6 +91,9 @@ export class StatsAggregator {
       byProject: clone(this.byProject),
       byModel: clone(this.byModel),
       sessionsPerDay: { ...this.sessionsPerDay },
+      bySource: clone(this.bySource),
+      bySourceDay: Object.fromEntries(Object.entries(this.bySourceDay).map(([k, v]) => [k, clone(v)])),
+      costBySource: { ...this.costBySource },
       hourHeatmap: [...this.hours],
       topProjectsWeek: top.slice(0, 5),
       estCostUsd: this.cost,

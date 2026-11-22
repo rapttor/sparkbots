@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import {
   BoxGeometry, Color, CylinderGeometry, DoubleSide, InstancedMesh, Plane, Raycaster, SphereGeometry, Sphere, Vector2, Vector3,
-  type Group, type Mesh,
+  type Group, type Mesh, type PerspectiveCamera,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Worker as BotWorker } from "../../server/adapters/types";
@@ -31,6 +31,7 @@ import { ACTIONS } from "./actions";
 import { Minibots } from "./minibots";
 import { MANAGER_ID, requestCoffee, ServiceBots } from "./servicebots";
 import { CoffeeFactory } from "./coffeefactory";
+import { DataCenter, consoleSpot, openDataRoom } from "./datacenter";
 import { ManagerWalls } from "./walls";
 import { nerd, sampleFrame } from "../state/nerd";
 import { clearView, loadFlyPrefs, loadView, saveView } from "./viewDefault";
@@ -45,7 +46,7 @@ import { MeetingChat } from "./MeetingChat";
 import { NameTags } from "./nametags";
 import { dummy, modeOf, poseBot, stepRoam, writeStatic, type Meshes } from "./bots";
 import { onView } from "./viewBus";
-import { nearestBot, nearestDesk, selectWorker, typing } from "./sceneUtils";
+import { nearestBot, selectWorker, typing } from "./sceneUtils";
 
 type Mode = "overview" | "walk";
 interface Nearby { id: string; title: string }
@@ -55,6 +56,7 @@ const WALK_SPEED = 5, SPRINT_SPEED = 11, SPRINT_ACCEL = 1.8; // units per second
 const DIST_IN = 3.2, DIST_OUT = 200; // camera distance at max zoom in / max zoom out
 const PITCH_IN = 0.1, PITCH_OUT = 1.5; // tilt at max zoom in (nearly flat) / max zoom out (near top-down)
 const DEFAULT_ZOOM_T = 0.32; // the "story" angle: behind you, a bit low
+const startMode = (): "saved" | "plaza" => { try { return localStorage.getItem("ao.startMode") === "plaza" ? "plaza" : "saved"; } catch { return "saved"; } };
 const HAND_DIST = 16; // kept for the hand's world-per-pixel speed; zoom uses the same DIST_IN..DIST_OUT curve
 // At the far end of the zoom the camera is near top-down and the room slabs z-fight at that distance. From here on,
 // hide the 3D world and leave only the project titles (stacked as usual) so picking a project is calm and reliable.
@@ -184,6 +186,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     handPos.current.set(hit.x, 0, hit.z); clampHand();
   };
   const pos = useRef(new Vector3(0, 0, 12));
+  const lastZoomPct = useRef(-1);
   const keys = useRef(new Set<string>());
   const nearbyId = useRef<string | null>(null);
   const modeRef = useRef(mode);
@@ -288,7 +291,9 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       camFocus.current.copy(handPos.current);
     } else if (!playerInit.current) {
       playerInit.current = true;
-      pos.current.set((l.minX + l.maxX) / 2, 0, l.maxZ + 3);
+      // First visit (no saved view), or start mode "plaza": near the central plaza; otherwise the campus edge as before.
+      if (startMode() === "plaza" || !loadView()) pos.current.set((l.minX + l.maxX) / 2, 0, (l.minZ + l.maxZ) / 2 + 6);
+      else pos.current.set((l.minX + l.maxX) / 2, 0, l.maxZ + 3);
     }
   }, [controller]);
 
@@ -354,13 +359,50 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   useEffect(() => {
     const el = gl.domElement;
     const pts = new Map<number, { x: number; y: number }>();
-    const down = (e: PointerEvent) => { if (e.pointerType !== "mouse") pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); };
-    const up = (e: PointerEvent) => { pts.delete(e.pointerId); if (e.pointerType !== "mouse") lastNdc.current = null; };
+    // Grab-the-ground drag: hold the left button on the floor and drag; the point you grabbed stays under the cursor (the camera follows).
+    // Rays come from the camera as it was when the drag began, so the camera's own motion cannot feed back into the drag.
+    let grab: { x: number; y: number; cam: PerspectiveCamera; at: Vector3; focus: Vector3; active: boolean } | null = null;
+    let dragged = false;
+    const groundAt = (cam: PerspectiveCamera, clientX: number, clientY: number, out: Vector3) => {
+      const r = el.getBoundingClientRect();
+      raycaster.setFromCamera(new Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), cam);
+      return raycaster.ray.intersectPlane(groundPlane, out) !== null;
+    };
+    const swallowClick = (e: Event) => { if (dragged) { e.stopImmediatePropagation(); e.preventDefault(); dragged = false; } };
+    const down = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); return; }
+      dragged = false;
+      if (e.button !== 0 || modeRef.current !== "walk" || controllerRef.current !== "hand" || ctl.handMenuOpen.current) return;
+      const cam = (camera as PerspectiveCamera).clone(), at = new Vector3();
+      cam.updateMatrixWorld(); cam.projectionMatrixInverse.copy(camera.projectionMatrixInverse);
+      if (groundAt(cam, e.clientX, e.clientY, at)) grab = { x: e.clientX, y: e.clientY, cam, at, focus: camFocus.current.clone(), active: false };
+    };
+    const up = (e: PointerEvent) => {
+      pts.delete(e.pointerId); if (e.pointerType !== "mouse") lastNdc.current = null;
+      if (grab && !grab.active && e.button === 0) { // a plain click (no drag): the camera glides to the clicked ground point
+        camFocus.current.set(grab.at.x, 0, grab.at.z); clampFocus();
+        const pose = officePose(camFocus.current, 0.5); flyTo(pose.cam, pose.target);
+      }
+      grab = null;
+    };
     const leave = () => { lastNdc.current = null; }; // stop edge-scrolling when the cursor leaves the scene
     const move = (e: PointerEvent) => {
       if (modeRef.current !== "walk" || controllerRef.current !== "hand") return;
       if (e.pointerType === "mouse") {
         if (e.buttons & 2) return; // right-drag turns the view
+        if (grab && e.buttons & 1) {
+          if (!grab.active && Math.hypot(e.clientX - grab.x, e.clientY - grab.y) > 5) grab.active = true; // below 5 px it is still a click
+          if (grab.active) {
+            dragged = true;
+            const now = new Vector3();
+            if (groundAt(grab.cam, e.clientX, e.clientY, now)) {
+              camFocus.current.set(grab.focus.x + grab.at.x - now.x, 0, grab.focus.z + grab.at.z - now.z); clampFocus();
+              handPos.current.set(grab.at.x, 0, grab.at.z); clampHand();
+            }
+            lastNdc.current = null; // no edge-scroll while dragging
+            return;
+          }
+        }
         handToGround(e.clientX, e.clientY);
         return;
       }
@@ -376,7 +418,8 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     el.addEventListener("pointerup", up);
     el.addEventListener("pointercancel", up);
     el.addEventListener("pointerleave", leave);
-    return () => { el.removeEventListener("pointerdown", down); el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up); el.removeEventListener("pointerleave", leave); };
+    el.addEventListener("click", swallowClick, true);
+    return () => { el.removeEventListener("click", swallowClick, true); el.removeEventListener("pointerdown", down); el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up); el.removeEventListener("pointerleave", leave); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gl, camera]);
   useEffect(() => {
@@ -464,7 +507,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   useEffect(() => {
     const animate = ensureAnimated;
     ctl.api.current = {
-      talk: () => { const d = nearestDesk(layoutRef.current, pos.current); if (d) selectWorker(d.worker.id); },
+      talk: () => { const b = nearestBot(layoutRef.current, pos.current); if (b) selectWorker(b.worker.id); },
       act: (key, id) => {
         const a = ACTIONS.find((x) => x.key === key);
         const target = id ?? nearestBot(layoutRef.current, pos.current)?.worker.id;
@@ -688,12 +731,14 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       camera.lookAt(look.current);
     }
 
-    const near = nearestDesk(layoutRef.current, p);
+    const near = nearestBot(layoutRef.current, p); // the bot where it stands now, not its desk
     const id = near ? near.worker.id : null;
     if (id !== nearbyId.current) {
       nearbyId.current = id;
       onNearby(near ? { id: near.worker.id, title: near.worker.name || near.worker.title } : null);
     }
+    const pct = Math.round(zoomT.current * 100); // zoom readout for the View panel (store updates only on change)
+    if (pct !== lastZoomPct.current) { lastZoomPct.current = pct; useStore.getState().setViewInfo({ zoomPct: pct }); }
   });
 
   const slabs = useMemo(
@@ -739,6 +784,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       {!labelsOnly && <Icons />}
       <Minibots layout={layout} subs={ctl.subs} />
       <CoffeeFactory layout={layout} />
+      <DataCenter layout={layout} />
       <ServiceBots layout={layout} />
       <ManagerWalls layout={layout} onOpenBoard={() => useStore.getState().setPanel("board")} onOpenNotes={() => useStore.getState().setPanel("notes")} />
       {!labelsOnly && ctl.tags && <NameTags layout={layout} getCenter={() => (modeRef.current === "walk" ? pos.current : controls.current?.target ?? pos.current)} />}
@@ -995,6 +1041,11 @@ export default function World({ active = true }: { active?: boolean }) {
   };
   useEffect(() => onView((c) => busRef.current(c)), []);
   useEffect(() => { useStore.getState().setViewInfo({ mode, locked, hasDefault, tags, showAll }); }, [mode, locked, hasDefault, tags, showAll]);
+  // Camera distance at which the whole campus fits the 50-degree view; the zoom-out limit (DIST_OUT) must cover it.
+  useEffect(() => {
+    const ext = Math.max(layout.maxX - layout.minX, layout.maxZ - layout.minZ);
+    useStore.getState().setViewInfo({ fitDist: Math.round(ext / (2 * Math.tan((50 / 2) * Math.PI / 180))), maxDist: DIST_OUT });
+  }, [layout]);
   const clearFollowers = useStore((st) => st.clearFollowers);
   const meetingOpen = useStore((st) => st.meetingOpen);
   const setMeetingOpen = useStore((st) => st.setMeetingOpen);
@@ -1027,7 +1078,7 @@ export default function World({ active = true }: { active?: boolean }) {
     const p = lastPtr.current ?? { x: w / 2, y: h / 2 };
     setHandMenu({ x: Math.max(8, Math.min(p.x, w - 258)), y: Math.max(8, Math.min(p.y, h - 260)) });
   };
-  const hotkeys = { e: () => { if (nearby) sceneApi.current?.talk(); else if (controller === "hand") openHandMenu(); }, o: orderCoffee, r: rally, u: bossComing, i: lunch, x: clearFollowers, q: () => setMeetingOpen(!meetingOpen), c: resetView, m: openMap, l: toggleLock, t: toggleTags, "0": resetView };
+  const hotkeys = { e: () => { if (nearby) sceneApi.current?.talk(); else if (consoleSpot.near) openDataRoom(); else if (controller === "hand") openHandMenu(); }, o: orderCoffee, r: rally, u: bossComing, i: lunch, x: clearFollowers, q: () => setMeetingOpen(!meetingOpen), c: resetView, m: openMap, l: toggleLock, t: toggleTags, "0": resetView };
   const hotRef = useRef(hotkeys); hotRef.current = hotkeys;
   const activeRef2 = useRef(active); activeRef2.current = active;
   useEffect(() => {
@@ -1076,6 +1127,7 @@ export default function World({ active = true }: { active?: boolean }) {
           { label: "Rally the waiting agents", key: "R", run: rally, disabled: !ids((w) => w.state === "waiting").length },
           { label: "Boss is coming: wake a few nearby", key: "U", run: bossComing, disabled: !ids((w) => w.state === "asleep").length },
           { label: "Lunch: idle agents to the rooms", key: "I", run: lunch, disabled: !ids((w) => w.state === "idle").length },
+          { label: "Use the data console: open the Data room", key: "E", run: openDataRoom, disabled: !consoleSpot.near },
           { label: "Order a coffee", key: "O", run: orderCoffee },
           { label: "Meeting chat with the followers", key: "Q", run: () => setMeetingOpen(!meetingOpen), disabled: !nFollowers },
           { label: "Release the meeting: send everyone back", key: "X", run: clearFollowers, disabled: !nFollowers },

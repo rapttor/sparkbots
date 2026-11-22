@@ -188,6 +188,7 @@ export function Settings() {
   const setAvatar = useStore((s) => s.setAvatar);
   const devLook = useStore((s) => s.devLook);
   const setDevLook = useStore((s) => s.setDevLook);
+  const viewInfo = useStore((s) => s.viewInfo);
   const controller = useStore((s) => s.controller);
   const setController = useStore((s) => s.setController);
   const snapshot = useStore((s) => s.snapshot);
@@ -276,6 +277,14 @@ export function Settings() {
     { id: "zoom-lock", section: "3D office", label: "Lock zoom", words: "camera wheel scroll distance freeze",
       desc: "Start with the zoom locked: the mouse wheel and the zoom buttons stop changing the camera distance. Also in the header.",
       body: <label><input type="checkbox" checked={flag("ao.zoomLock")} onChange={(e) => setFlag("ao.zoomLock", e.target.checked)} /> Zoom locked</label> },
+    { id: "start-mode", section: "3D office", label: "Start mode", words: "spawn start position plaza saved view first visit walk avatar begin",
+      desc: "Where you appear when the office opens. First visit (no saved view) is always near the plaza; with a saved view, \"Saved view\" keeps the campus-edge start and \"Near the plaza\" always starts in the middle.",
+      body: <select value={ls.get("ao.startMode") ?? "saved"} onChange={(e) => { ls.set("ao.startMode", e.target.value); bump((n) => n + 1); }}>
+        <option value="saved">Saved view (plaza on first visit)</option><option value="plaza">Always near the plaza</option>
+      </select> },
+    { id: "zoom-max", section: "3D office", label: "Maximum zoom-out", words: "zoom max limit distance campus fit readout camera",
+      desc: "How far the camera can pull back, and the distance at which the whole campus fits. Measured from the current layout.",
+      body: <span>{viewInfo.maxDist} m max (campus fits at about {viewInfo.fitDist} m; now {viewInfo.zoomPct}%)</span> },
     { id: "fly-speed", section: "3D office", label: "Camera fly speed", words: "camera move transition flight smooth animated go there reset close-up fast normal",
       desc: "How fast the camera flies to its next spot (Go there, reset, close-up). Fast is fine; it never jumps.",
       body: <select value={ls.get("ao.flySpeed") ?? "normal"} onChange={(e) => { ls.set("ao.flySpeed", e.target.value); bump((n) => n + 1); }}>

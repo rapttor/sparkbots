@@ -11,16 +11,31 @@ import { fmtNum } from "../util";
 const total = (t: Tokens) => t.input + t.output + t.cacheRead + t.cacheWrite;
 const pad = (n: number) => String(n).padStart(2, "0");
 
-function last30(byDay: Record<string, Tokens>) {
-  const out: { day: string; tokens: number }[] = [];
+const SERVICES = [
+  { id: "claude", label: "Claude Code", color: "var(--accent)" },
+  { id: "codex", label: "Codex", color: "var(--blue)" },
+  { id: "opencode", label: "OpenCode", color: "var(--amber)" },
+] as const;
+const RANGES = [7, 30, 90] as const;
+
+/** One entry per day for the last `n` days; per service tokens (only the chosen services). */
+function lastDays(bySourceDay: Record<string, Record<string, Tokens>>, n: number, chosen: string[]) {
+  const out: { day: string; parts: Record<string, number>; tokens: number }[] = [];
   const now = new Date();
-  for (let i = 29; i >= 0; i--) {
+  for (let i = n - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
     const k = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    out.push({ day: k, tokens: byDay[k] ? total(byDay[k]) : 0 });
+    const parts: Record<string, number> = {}; let sum = 0;
+    for (const id of chosen) { const t = bySourceDay[id]?.[k]; parts[id] = t ? total(t) : 0; sum += parts[id]!; }
+    out.push({ day: k, parts, tokens: sum });
   }
   return out;
 }
+
+function loadPref<T>(key: string, fallback: T, ok: (v: unknown) => boolean): T {
+  try { const v = JSON.parse(localStorage.getItem(key) ?? "null"); return ok(v) ? (v as T) : fallback; } catch { return fallback; }
+}
+const savePref = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 
 function Table({ rows }: { rows: Record<string, Tokens> }) {
   const list = Object.entries(rows).sort((a, b) => total(b[1]) - total(a[1]));
@@ -89,32 +104,72 @@ function AgentStates() {
 
 export function Stats() {
   const stats = useStore((s) => s.stats);
+  const [range, setRange] = useState<number>(() => loadPref("ao.statsRange", 30, (v) => RANGES.includes(v as 7)));
+  const [off, setOff] = useState<string[]>(() => loadPref("ao.statsOff", [], Array.isArray)); // services switched off in the toggle
   if (!stats) return <section className="panel"><h1>Stats</h1><AgentStates /><p className="muted">Loading…</p></section>;
-  const days = last30(stats.byDay);
+  const present = SERVICES.filter((x) => stats.bySource?.[x.id]);
+  const chosen = present.filter((x) => !off.includes(x.id)).map((x) => x.id as string);
+  const pickRange = (n: number) => { setRange(n); savePref("ao.statsRange", n); };
+  const toggle = (id: string) => { const next = off.includes(id) ? off.filter((x) => x !== id) : [...off, id]; setOff(next); savePref("ao.statsOff", next); };
+  const days = lastDays(stats.bySourceDay ?? {}, range, chosen);
   const max = Math.max(1, ...days.map((d) => d.tokens));
   const hmax = Math.max(1, ...stats.hourHeatmap);
   const W = 600, H = 140, bw = W / days.length;
+  const grand = Math.max(1, present.reduce((n, x) => n + total(stats.bySource[x.id]!), 0));
   return (
     <section className="panel">
       <h1>Stats</h1>
       <AgentStates />
-      <h2>Tokens per day (last 30 days)</h2>
-      <svg viewBox={`0 0 ${W} ${H + 18}`} className="chart" role="img" aria-label="Tokens per day">
+      <div className="tb-row stats-toggle" role="group" aria-label="Chart filters">
+        {present.map((x) => (
+          <button key={x.id} className={`chip ${off.includes(x.id) ? "" : "on"}`} aria-pressed={!off.includes(x.id)} onClick={() => toggle(x.id)}>
+            <span className="legend-dot" style={{ background: x.color }} /> {x.label}
+          </button>
+        ))}
+        <span className="spacer" />
+        {RANGES.map((n) => <button key={n} className={`chip ${range === n ? "on" : ""}`} aria-pressed={range === n} onClick={() => pickRange(n)}>{n} d</button>)}
+      </div>
+      <h2>Tokens per day (last {range} days)</h2>
+      <svg viewBox={`0 0 ${W} ${H + 18}`} className="chart" role="img" aria-label="Tokens per day, stacked by service">
         {days.map((d, i) => {
-          const h = (d.tokens / max) * H;
+          let y = H;
           return (
-            <rect key={d.day} x={i * bw + 1} y={H - h} width={bw - 2} height={h} fill="var(--accent)">
+            <g key={d.day}>
               <title>{`${d.day}: ${d.tokens.toLocaleString()} tokens`}</title>
-            </rect>
+              {present.filter((x) => chosen.includes(x.id)).map((x) => {
+                const h = (d.parts[x.id]! / max) * H; y -= h;
+                return h > 0 ? <rect key={x.id} x={i * bw + 1} y={y} width={Math.max(1, bw - 2)} height={h} fill={x.color} /> : null;
+              })}
+            </g>
           );
         })}
-        <text x="0" y={H + 14} className="axis">{days[0].day}</text>
-        <text x={W} y={H + 14} textAnchor="end" className="axis">{days[days.length - 1].day}</text>
+        <text x="0" y={H + 14} className="axis">{days[0]!.day}</text>
+        <text x={W} y={H + 14} textAnchor="end" className="axis">{days[days.length - 1]!.day}</text>
       </svg>
+      <p className="muted small">History is kept in SparkBots' own cache, so days stay even after a tool deletes old transcripts. Stats refresh about every 30 s.</p>
+
+      <h2>By service</h2>
+      <table>
+        <thead><tr><th>Service</th><th>Tokens</th><th>Share</th><th>Input</th><th>Output</th><th>Cache</th><th>Est. cost</th></tr></thead>
+        <tbody>
+          {present.map((x) => {
+            const t = stats.bySource[x.id]!, c = stats.costBySource?.[x.id];
+            return (
+              <tr key={x.id}>
+                <td><span className="legend-dot" style={{ background: x.color }} /> {x.label}</td>
+                <td>{fmtNum(total(t))}</td><td>{Math.round((100 * total(t)) / grand)}%</td>
+                <td>{fmtNum(t.input)}</td><td>{fmtNum(t.output)}</td><td>{fmtNum(t.cacheRead + t.cacheWrite)}</td>
+                <td>{c !== undefined ? `$${c.toFixed(2)}` : <span className="muted" title="No price table for this service">–</span>}</td>
+              </tr>
+            );
+          })}
+          {present.length === 0 && <tr><td colSpan={7} className="muted">No data</td></tr>}
+        </tbody>
+      </table>
 
       <h2>Estimated cost <span className="tag">estimate</span></h2>
       <p>
-        <strong>${stats.estCostUsd.toFixed(2)}</strong> <span className="muted">estimate, API-equivalent · prices last checked {stats.pricesLastChecked}</span>
+        <strong>${stats.estCostUsd.toFixed(2)}</strong> <span className="muted">Claude Code only, API-equivalent · prices last checked {stats.pricesLastChecked}</span>
       </p>
 
       <h2>Active hours</h2>

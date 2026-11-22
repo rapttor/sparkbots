@@ -20,6 +20,7 @@ export function ViewPanel() {
       <Row label="Zoom">
         <button className="small" disabled={info.locked} onClick={() => sendView({ t: "zoom", factor: 0.8 })} aria-label="Zoom in">＋</button>
         <button className="small" disabled={info.locked} onClick={() => sendView({ t: "zoom", factor: 1.25 })} aria-label="Zoom out">−</button>
+        <span className="muted small" title={`The whole campus fits at about ${info.fitDist} m`}>{info.zoomPct}% of max ({info.maxDist} m)</span>
         <button className={`small ${info.locked ? "fb-on" : ""}`} onClick={() => sendView({ t: "lock" })} title="The mouse wheel and the zoom buttons stop changing the distance (L)">{info.locked ? "🔒 Locked" : "🔓 Lock"}</button>
       </Row>
       <Row label="Turn">

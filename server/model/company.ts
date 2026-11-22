@@ -16,6 +16,7 @@ import { BotColors } from "../botColors";
 import { History } from "../history";
 import { Archive } from "../archive";
 import { SearchIndex } from "../search";
+import { AppDb, hourly } from "../db";
 import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 
@@ -34,6 +35,7 @@ export class Company {
   live = new Map<string, LiveInfo>();
   tailer = new Tailer();
   stats = new StatsAggregator();
+  db = new AppDb();
   skipped = 0;
   labels = new LabelStore();
   botColors = new BotColors();
@@ -104,13 +106,15 @@ export class Company {
   /** Lazy full-history stats pass (background). Per-file results cached in ~/.agent-office/cache/stats.json by size+mtime. */
   async buildStats() {
     type Row = [number, string, number, number, number, number]; // at, model, in, out, cacheRead, cacheWrite
-    type Entry = { size: number; mtimeMs: number; start: number; rows: Row[]; turns?: number; tools?: number; workMs?: number };
+    type Entry = { size: number; mtimeMs: number; start: number; rows: Row[]; turns?: number; tools?: number; workMs?: number; source?: string; project?: string };
     const cache = loadJson<{ schemaVersion: 1; files: Record<string, Entry> }>("cache/stats.json", { schemaVersion: 1, files: {} });
     const files: Record<string, Entry> = {}; let changed = false;
+    const stored = this.db.usageSessions();
+    const agg = new StatsAggregator(); // a fresh one each pass; swapped in at the end so readers never see half a rebuild
     for (const s of this.sessions.values()) {
-      let e = cache.files?.[s.file];
+      let e = cache.files?.[s.file], reread = false;
       if (!e || e.size !== s.sizeBytes || e.mtimeMs !== s.mtimeMs || e.turns === undefined) {
-        e = { size: s.sizeBytes, mtimeMs: s.mtimeMs, start: 0, rows: [], turns: 0, tools: 0, workMs: 0 }; changed = true;
+        e = { size: s.sizeBytes, mtimeMs: s.mtimeMs, start: 0, rows: [], turns: 0, tools: 0, workMs: 0 }; changed = true; reread = true;
         let prev = 0;
         try {
           const rl = createInterface({ input: createReadStream(s.file), crlfDelay: Infinity });
@@ -124,12 +128,20 @@ export class Company {
           }
         } catch { /* unreadable file: cache empty entry */ }
       }
+      if (e.source !== (s.source ?? "claude") || e.project !== s.cwd) { e.source = s.source ?? "claude"; e.project = s.cwd; changed = true; } // remembered so history outlives the transcript file
       files[s.file] = e;
       this.sessionStats.set(s.id, { turns: e.turns ?? 0, tools: e.tools ?? 0, workMs: e.workMs ?? 0, tokens: e.rows.reduce((n, r) => n + r[2] + r[3], 0), ctx: ctxOf(e.rows) });
-      if (e.start) this.stats.sessionStarted(s.id, s.cwd, e.start);
-      for (const [at, model, input, output, cacheRead, cacheWrite] of e.rows) this.stats.add({ kind: "usage", session: s.id, at, model, input, output, cacheRead, cacheWrite }, s.cwd);
+      if (e.start) agg.sessionStarted(s.id, s.cwd, e.start);
+      if (reread || !stored.has(s.id)) this.db.replaceSession(s.id, hourly(s.id, e.source!, s.cwd, e.rows)); // kept forever, even after the transcript is deleted
     }
-    if (changed || Object.keys(cache.files ?? {}).length !== Object.keys(files).length) saveJson("cache/stats.json", { files });
+    // Transcripts the tool deleted (Claude Code removes old ones after ~30 days) are only in the cache file: move them into the database once.
+    for (const [file, e] of Object.entries(cache.files ?? {})) {
+      if (files[file] || !e.source || !e.project || stored.has(file)) continue;
+      this.db.replaceSession(file, hourly(file, e.source, e.project, e.rows));
+    }
+    for (const r of this.db.allUsage()) agg.add({ kind: "usage", session: r.session, at: r.hour, model: r.model, input: r.input, output: r.output, cacheRead: r.cacheRead, cacheWrite: r.cacheWrite }, r.project, r.source, r.n);
+    this.stats = agg;
+    if (changed || Object.keys(cache.files ?? {}).length !== Object.keys(files).length) saveJson("cache/stats.json", { schemaVersion: 1, files });
   }
 
   /** Exact events from installed hooks (highest-priority source). */

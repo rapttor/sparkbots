@@ -41,7 +41,7 @@ interface OfficeState {
   clearFollowers: () => void;
   meetingOpen: boolean;       // the one-message-to-everyone chat
   setMeetingOpen: (v: boolean) => void;
-  viewInfo: { mode: "overview" | "walk"; locked: boolean; hasDefault: boolean; tags: boolean; showAll: boolean }; // mirrored from the 3D office for the View panel
+  viewInfo: { mode: "overview" | "walk"; locked: boolean; hasDefault: boolean; tags: boolean; showAll: boolean; zoomPct: number; fitDist: number; maxDist: number }; // mirrored from the 3D office for the View panel
   setViewInfo: (v: Partial<OfficeState["viewInfo"]>) => void;
   showKeymap: boolean;        // the clickable key legend in the 3D view
   setShowKeymap: (v: boolean) => void;
@@ -95,7 +95,7 @@ export const useStore = create<OfficeState>((set) => ({
   clearFollowers: () => set({ followers: [], meetingOpen: false }),
   meetingOpen: false,
   setMeetingOpen: (meetingOpen) => set({ meetingOpen }),
-  viewInfo: { mode: "overview", locked: false, hasDefault: false, tags: false, showAll: false },
+  viewInfo: { mode: "overview", locked: false, hasDefault: false, tags: false, showAll: false, zoomPct: 0, fitDist: 0, maxDist: 0 },
   setViewInfo: (v) => set((s) => ({ viewInfo: { ...s.viewInfo, ...v } })),
   showKeymap: (() => { try { return localStorage.getItem("ao.keymap") !== "0"; } catch { return true; } })(),
   setShowKeymap: (showKeymap) => { try { localStorage.setItem("ao.keymap", showKeymap ? "1" : "0"); } catch { /* private mode */ } set({ showKeymap }); },

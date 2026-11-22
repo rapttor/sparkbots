@@ -1,0 +1,14 @@
+# local scratch space (use this instead of /tmp for project work)
+.tmp/
+
+# OS / editor junk
+.DS_Store
+*.log
+
+# dependencies
+node_modules/
+
+# local env / secrets
+.env
+.env.*
+!.env.example

@@ -71,7 +71,10 @@ for (const id of company.sessions.keys()) await company.ingest(id, true);
 hub = new Hub(wss, company);
 company.indexSessions().catch((e) => console.log(`(search index: ${(e as Error).message})`));
 setInterval(() => { company.indexSessions().catch(() => {}); }, 60_000);
-company.buildStats().then(() => { push(); ping("stats"); }).catch(() => {});
+// Stats are rebuilt every 30 s (unchanged transcripts come from the per-file cache, so only changed sessions are re-read).
+let building = false;
+const rebuildStats = () => { if (building) return; building = true; company.buildStats().then(() => { push(); ping("stats"); }).catch(() => {}).finally(() => { building = false; }); };
+rebuildStats(); setInterval(rebuildStats, 30_000);
 chokidar.watch(join(claudeDir(), "projects"), { depth: 1, ignoreInitial: true, ignored: /observer-sessions/ })
   .on("add", async () => { await company.refreshSessions(); })
   .on("change", async (f) => {

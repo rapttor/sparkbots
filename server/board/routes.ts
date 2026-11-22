@@ -5,6 +5,7 @@ import type { Company } from "../model/company";
 import type { RunManager } from "../adapters/claude-code/command";
 import { teamFor } from "../adapters/claude-code/discover";
 import { findTaskFile, listTasks } from "../tasks";
+import { createBacklog, readBacklog } from "../backlog";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -42,6 +43,15 @@ export function registerBoard(app: FastifyInstance, c: Company, runs: RunManager
    * Fill the board from a project's task list file (docs/TASKS.md and friends). Explicit button only. Unchecked items go to
    * Backlog, checked ones to Done (they are already done in the file); items already imported are skipped.
    */
+  const teamCwd = (team: string) => {
+    const s = [...c.sessions.values()].filter((x) => teamFor(x.cwd, c.teams.merges) === team).sort((a, b) => b.mtimeMs - a.mtimeMs)[0];
+    if (!team || !s) throw bad("unknown team");
+    return s.cwd;
+  };
+  /** The project's backlog.md as a read-only list (`null` when it has none). */
+  app.get<{ Querystring: { team?: string } }>("/api/backlog", async (req) => readBacklog(teamCwd(String(req.query.team ?? ""))));
+  app.post<{ Body: { team?: string } }>("/api/backlog/create", async (req) => ({ file: createBacklog(teamCwd(String(req.body?.team ?? ""))) }));
+
   app.post<{ Body: { team?: string } }>("/api/board/import", async (req) => {
     const team = String(req.body?.team ?? "");
     const sessions = [...c.sessions.values()].filter((s) => teamFor(s.cwd, c.teams.merges) === team).sort((a, b) => b.mtimeMs - a.mtimeMs);

@@ -56,3 +56,16 @@ describe("StatsAggregator", () => {
     expect(a.snapshot().sessionsPerDay["2026-11-20"]).toBe(2);
   });
 });
+
+describe("StatsAggregator per service", () => {
+  it("splits tokens by source and prices only Claude", () => {
+    const a = new StatsAggregator();
+    a.add(ev({ input: 1_000_000 }), "p", "claude");
+    a.add(ev({ input: 1_000_000, model: "gpt-x" }), "p", "codex");
+    const s = a.snapshot();
+    expect(s.bySource.claude!.input).toBe(1_000_000);
+    expect(s.bySourceDay.codex!["2026-11-20"]!.input).toBe(1_000_000);
+    expect(s.costBySource.codex).toBeUndefined();
+    expect(s.estCostUsd).toBeCloseTo(3);
+  });
+});
