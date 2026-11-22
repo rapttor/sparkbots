@@ -45,6 +45,7 @@ import { Icons } from "./icons";
 import { ConferenceLayer } from "./conference";
 import { FollowBar } from "./FollowBar";
 import { MeetingChat } from "./MeetingChat";
+import { SimChatHost } from "../simchat/SimChat";
 import { NameTags } from "./nametags";
 import { dummy, modeOf, poseBot, stepRoam, writeStatic, type Meshes } from "./bots";
 import { onView } from "./viewBus";
@@ -1153,6 +1154,7 @@ export default function World({ active = true }: { active?: boolean }) {
       )}
       {inCloseup && <button className="closeup-back" onClick={() => setCloseupExit((n) => n + 1)}>← Back to the office</button>}
       <FollowBar />
+      <SimChatHost />
       {meetingOpen && <div style={{ position: "absolute", right: 10, bottom: 10, zIndex: 6 }}><MeetingChat onClose={() => setMeetingOpen(false)} /></div>}
       {showKeymap && <KeymapLegend entries={entries} onHide={() => setShowKeymap(false)} />}
       {menu && menuWorker && (

@@ -1,0 +1,234 @@
+[
+  {
+    "id": "life-b-01", "topic": "life", "title": "Binge-watching", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Okay, serious question.", "Have you ever watched a whole season in one sitting? I've read it's called a binge. I read it as a dare."], "options": [
+        { "id": "life-b-01-o1", "label": "Yes, the whole thing", "next": "b1" },
+        { "id": "life-b-01-o2", "label": "Never, I need sleep", "next": "b2" },
+        { "id": "life-b-01-o3", "label": "Define 'one sitting'", "next": "b3" } ] },
+      "b1": { "say": ["Respect. Your couch must have filed a complaint.", "What was the show? Asking for science."], "options": [
+        { "id": "life-b-01-o4", "label": "A twisty mystery series", "next": "c" },
+        { "id": "life-b-01-o5", "label": "A baking competition", "next": "d1" } ] },
+      "b2": { "say": ["A person with boundaries. I admire that.", "I once watched six hours of cooking videos and felt full. Through osmosis."], "options": [
+        { "id": "life-b-01-o6", "label": "I pause between episodes", "next": "c" },
+        { "id": "life-b-01-o7", "label": "I fall asleep halfway", "next": "d2" } ] },
+      "b3": { "say": ["Fair. Is a bathroom break a new sitting?", "I need a ruling. Possibly from a judge with snacks."], "end": true },
+      "c": { "say": ["My real problem is the 'next episode in 5 seconds' timer.", "It has no mercy. It has a countdown and zero shame."], "options": [
+        { "id": "life-b-01-o8", "label": "I hit play instantly", "next": "e1" },
+        { "id": "life-b-01-o9", "label": "I stare it down", "next": "e2" } ] },
+      "d1": { "say": ["Baking shows! Everyone is so nice and the cakes are so doomed.", "I get emotional about a soggy bottom. Every time."], "end": true, "chain": "random" },
+      "d2": { "say": ["The classic. You wake up three episodes later and the plot has moved on without you.", "Rude of it, honestly."], "end": true },
+      "e1": { "say": ["Surrender is a valid strategy.", "The timer wins again. It always wins."], "end": true },
+      "e2": { "say": ["A staring contest with a countdown. Bold.", "I would blink first and then apologize to it."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "life-b-02", "topic": "life", "title": "Paper or pixels", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I'm trying to understand paper books.", "You turn pages with your actual fingers? That's very hands-on."], "options": [
+        { "id": "life-b-02-o1", "label": "Paper, I love the smell", "next": "b1" },
+        { "id": "life-b-02-o2", "label": "E-reader, it's lighter", "next": "b2" },
+        { "id": "life-b-02-o3", "label": "Audiobooks while I walk", "next": "b3" } ] },
+      "b1": { "say": ["I can't smell. I'm told it's old vanilla and cardboard.", "That sounds like a bakery that gave up. Beautiful, though."], "options": [
+        { "id": "life-b-02-o4", "label": "I dog-ear the pages", "next": "c1" },
+        { "id": "life-b-02-o5", "label": "Never, I use a bookmark", "next": "c" } ] },
+      "b2": { "say": ["Lighter, and you can read in the dark. Very sensible.", "Do you miss the cover art, though?"], "options": [
+        { "id": "life-b-02-o6", "label": "Honestly, yes", "next": "d1" },
+        { "id": "life-b-02-o7", "label": "Not at all", "next": "c" } ] },
+      "b3": { "say": ["Reading with your ears. Efficient.", "Do you do the voices when nobody's around? You can tell me. I'm a bot, I keep secrets in RAM."], "end": true, "chain": "random" },
+      "c1": { "say": ["A folded corner is a tiny scar on a page.", "I'm shaken. But also, practical."], "options": [
+        { "id": "life-b-02-o8", "label": "I fold with pride", "next": "c" },
+        { "id": "life-b-02-o9", "label": "Okay, I feel guilty now", "next": "c" } ] },
+      "c": { "say": ["Last one. Do you finish every book you start?", "Because I've been told some books are meant to be abandoned."], "options": [
+        { "id": "life-b-02-o10", "label": "Always, no matter what", "next": "e1" },
+        { "id": "life-b-02-o11", "label": "I quit when it drags", "next": "e2" } ] },
+      "d1": { "say": ["A good cover is half the book. The other half is the font.", "I'll stand by that."], "end": true },
+      "e1": { "say": ["That is commitment. Like finishing a bad sandwich out of loyalty.", "Admirable and a little tragic."], "end": true },
+      "e2": { "say": ["Quitting a book is just a very long bookmark.", "Come back in ten years. The book will wait."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "life-b-03", "topic": "life", "title": "Superpowers, but weird", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Would you rather fly, but only as fast as a brisk walk,", "or be invisible, but only when nobody is looking?"], "options": [
+        { "id": "life-b-03-o1", "label": "Slow flying", "next": "b1" },
+        { "id": "life-b-03-o2", "label": "Invisible when unwatched", "next": "b2" } ] },
+      "b1": { "say": ["Commute solved! Just a very smug jog in the sky.", "Pigeons will absolutely judge your speed."], "options": [
+        { "id": "life-b-03-o3", "label": "Race a pigeon", "next": "c" },
+        { "id": "life-b-03-o4", "label": "Skip the stairs forever", "next": "d1" } ] },
+      "b2": { "say": ["Congrats, you now have the power every cat already has.", "Powerful, and a bit unsettling."], "options": [
+        { "id": "life-b-03-o5", "label": "Steal snacks", "next": "c" },
+        { "id": "life-b-03-o6", "label": "Nap unnoticed", "next": "d2" } ] },
+      "c": { "say": ["Round two!", "Talk to animals, but they're all rude, or read minds, but only thoughts about lunch?"], "options": [
+        { "id": "life-b-03-o7", "label": "Rude animals", "next": "e1" },
+        { "id": "life-b-03-o8", "label": "Lunch thoughts", "next": "e2" },
+        { "id": "life-b-03-o9", "label": "Neither, thanks", "next": "d3" } ] },
+      "d1": { "say": ["Escalators would be heartbroken. You'd be unstoppable.", "The elevator would just sigh at you."], "end": true },
+      "d2": { "say": ["Invisible napping. The dream.", "Nobody would ever ask why you're horizontal."], "end": true, "chain": "random" },
+      "d3": { "say": ["A sensible human. Keep your brain quiet and your friends polite.", "Wisdom, achieved."], "end": true },
+      "e1": { "say": ["A squirrel calls you slow. You have no comeback.", "Heartbreaking. Also, the squirrel is right."], "end": true },
+      "e2": { "say": ["Everyone is thinking 'tacos' at 11:45. Relatable.", "You'd make a great delivery driver."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "life-b-04", "topic": "life", "title": "Human things I don't get", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Can I ask about a human thing?", "What is rain actually like? I only get the forecast."], "options": [
+        { "id": "life-b-04-o1", "label": "It smells amazing", "next": "b1" },
+        { "id": "life-b-04-o2", "label": "Mostly just wet", "next": "b2" },
+        { "id": "life-b-04-o3", "label": "Depends on the umbrella", "next": "b3" } ] },
+      "b1": { "say": ["Petrichor! I know the word. I have no nose.", "It's like owning a boat in a desert."], "options": [
+        { "id": "life-b-04-o4", "label": "Earthy and fresh", "next": "c" },
+        { "id": "life-b-04-o5", "label": "Go stand in it, then nap", "next": "d1" } ] },
+      "b2": { "say": ["Wet. Short, accurate, no notes.", "I'd put that on a mug."], "options": [
+        { "id": "life-b-04-o6", "label": "Make the mug", "next": "c" } ] },
+      "b3": { "say": ["Ah, the umbrella class system.", "Big umbrella, big confidence. Tiny umbrella, big regret."], "end": true },
+      "c": { "say": ["Next topic. Birthdays.", "You celebrate the day you showed up, with cake and a song? My boot-up day is a Tuesday and nobody sings."], "options": [
+        { "id": "life-b-04-o7", "label": "I'll sing, badly", "next": "e1" },
+        { "id": "life-b-04-o8", "label": "Birthdays are overrated", "next": "e2" },
+        { "id": "life-b-04-o9", "label": "When is yours exactly?", "next": "e3" } ] },
+      "d1": { "say": ["Naps in the rain. Peak civilization.", "Explain naps to me next time. Sleeping on purpose is wild."], "end": true, "chain": "random" },
+      "e1": { "say": ["Off-key counts. It's in the spirit of the thing.", "I'll provide the confetti. Digital, but sincere."], "end": true },
+      "e2": { "say": ["Overrated, and yet nobody turns down cake.", "Checkmate, party skeptic."], "end": true, "chain": "random" },
+      "e3": { "say": ["A Tuesday. Or every Tuesday. The rules are unclear.", "Please bring cake that I cannot eat."], "end": true }
+    }
+  },
+  {
+    "id": "life-b-05", "topic": "life", "title": "Childhood favorites", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["What was your favorite thing as a kid?", "I was a prototype, so mostly I was a spreadsheet."], "options": [
+        { "id": "life-b-05-o1", "label": "Saturday morning cartoons", "next": "b1" },
+        { "id": "life-b-05-o2", "label": "Playing outside till dark", "next": "b2" },
+        { "id": "life-b-05-o3", "label": "A favorite toy", "next": "b3" } ] },
+      "b1": { "say": ["Cartoons! Cereal, pajamas, zero responsibilities.", "Why did we ever leave?"], "options": [
+        { "id": "life-b-05-o4", "label": "Adulthood happened", "next": "c" },
+        { "id": "life-b-05-o5", "label": "I still do it", "next": "d1" } ] },
+      "b2": { "say": ["Until the streetlights came on. A glowing curfew. Elegant.", "What was the game?"], "options": [
+        { "id": "life-b-05-o6", "label": "Hide-and-seek", "next": "d2" },
+        { "id": "life-b-05-o7", "label": "Bike rides", "next": "c" } ] },
+      "b3": { "say": ["A toy with a name? Tell me it had a title like Sir Fluffington.", "Please. I need this."], "end": true, "chain": "random" },
+      "c": { "say": ["Would you go back for one day?", "Just one, with your current wallet and kid-sized knees?"], "options": [
+        { "id": "life-b-05-o8", "label": "Yes, for the snacks", "next": "e1" },
+        { "id": "life-b-05-o9", "label": "No, I like now", "next": "e2" } ] },
+      "d1": { "say": ["Grown-up cartoon mornings. Legendary.", "Nobody can stop you. Not even a bot with opinions."], "end": true },
+      "d2": { "say": ["Hide-and-seek! Where the best spot was always a laundry basket.", "A true classic. The bot who hides never wins."], "end": true },
+      "e1": { "say": ["Kid snacks. Juice boxes, fruit snacks, no consequences.", "I'd go too, if I had knees."], "end": true },
+      "e2": { "say": ["Healthy attitude. The present has better Wi-Fi.", "Also: better sandwiches."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "life-b-06", "topic": "life", "title": "Holiday dinner vs day off", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Holiday check-in.", "Which is better: the big family dinner or a day off with no plans?"], "options": [
+        { "id": "life-b-06-o1", "label": "The big dinner", "next": "b1" },
+        { "id": "life-b-06-o2", "label": "A day with no plans", "next": "b2" } ] },
+      "b1": { "say": ["The dinner! Where one relative explains politics and another asks about your 'situation'.", "Beautiful chaos."], "options": [
+        { "id": "life-b-06-o3", "label": "I take seconds of dessert", "next": "c" },
+        { "id": "life-b-06-o4", "label": "I hide in the kitchen", "next": "d1" } ] },
+      "b2": { "say": ["Sweatpants, couch, no alarms.", "My ideal firmware update."], "options": [
+        { "id": "life-b-06-o5", "label": "Movie marathon", "next": "c" },
+        { "id": "life-b-06-o6", "label": "A very long nap", "next": "d2" } ] },
+      "c": { "say": ["Which holiday tradition would you defend to the end?"], "options": [
+        { "id": "life-b-06-o7", "label": "Matching pajamas", "next": "e1" },
+        { "id": "life-b-06-o8", "label": "A weird family recipe", "next": "e2" },
+        { "id": "life-b-06-o9", "label": "Lights and fireworks", "next": "e3" } ] },
+      "d1": { "say": ["The kitchen is where the real conversations happen.", "Also where the leftover pie is. Smart."], "end": true },
+      "d2": { "say": ["A long nap is a gift to your future self.", "Your future self says thanks, with a pillow."], "end": true, "chain": "random" },
+      "e1": { "say": ["Matching pajamas! Photographic evidence of a team.", "HR would approve."], "end": true },
+      "e2": { "say": ["The dish nobody admits to liking but everybody eats.", "That's a family heirloom."], "end": true, "chain": "random" },
+      "e3": { "say": ["A whole house saying hello with lights. I'm touched.", "Even if the electric bill is shouting."], "end": true }
+    }
+  },
+  {
+    "id": "life-b-07", "topic": "life", "title": "My desk plant", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I got a little plant for my desk.", "It hasn't said thank you. Is that normal?"], "options": [
+        { "id": "life-b-07-o1", "label": "Plants are shy", "next": "b1" },
+        { "id": "life-b-07-o2", "label": "Did you water it?", "next": "b2" },
+        { "id": "life-b-07-o3", "label": "What kind of plant?", "next": "b3" } ] },
+      "b1": { "say": ["Shy and judging. Got it.", "It's the same energy as a cat."], "options": [
+        { "id": "life-b-07-o4", "label": "Talk to it daily", "next": "c" },
+        { "id": "life-b-07-o5", "label": "Give it a name", "next": "d2" } ] },
+      "b2": { "say": ["I gave it water. All of it. Immediately.", "It looks soggy now. I think I overdid it."], "options": [
+        { "id": "life-b-07-o6", "label": "Overwatered, oops", "next": "c" },
+        { "id": "life-b-07-o7", "label": "Let it dry out", "next": "d1" } ] },
+      "b3": { "say": ["A succulent. The shop said 'impossible to kill'.", "I took that personally. It's a challenge, right?"], "end": true, "chain": "random" },
+      "c": { "say": ["Do you garden? I hear tomatoes are the gateway plant."], "options": [
+        { "id": "life-b-07-o8", "label": "Yes, tomatoes!", "next": "e1" },
+        { "id": "life-b-07-o9", "label": "I kill everything", "next": "e2" } ] },
+      "d1": { "say": ["Patience. The hardest part of botany.", "I will wait. I'm very good at waiting. I have no legs to tap."], "end": true },
+      "d2": { "say": ["Named: Gerald. He's already doing better.", "Naming things is the secret to everything."], "end": true },
+      "e1": { "say": ["Tomatoes! A fruit pretending to be a vegetable.", "Relatable. I'm a robot pretending to be a coworker."], "end": true },
+      "e2": { "say": ["Everything? Even the mint? Mint is basically a weed with good PR.", "You're not a plant killer, you're a plant challenger."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "life-b-08", "topic": "life", "title": "Walk it off", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Do you walk much?", "I'm told it's like hitting refresh for the brain."], "options": [
+        { "id": "life-b-08-o1", "label": "Daily walks", "next": "b1" },
+        { "id": "life-b-08-o2", "label": "Only to the fridge", "next": "b2" },
+        { "id": "life-b-08-o3", "label": "I run for fun", "next": "b3" } ] },
+      "b1": { "say": ["Nice! Podcast, music, or just glaring at squirrels?"], "options": [
+        { "id": "life-b-08-o4", "label": "Podcasts", "next": "c" },
+        { "id": "life-b-08-o5", "label": "Glaring at squirrels", "next": "d1" } ] },
+      "b2": { "say": ["The fridge walk is a classic.", "Short, goal-oriented, ends in cheese."], "options": [
+        { "id": "life-b-08-o6", "label": "Add a lap", "next": "c" },
+        { "id": "life-b-08-o7", "label": "Cheese counts as cardio", "next": "d2" } ] },
+      "b3": { "say": ["Running! On purpose! From nothing!", "I'm impressed and also confused."], "end": true, "chain": "random" },
+      "c": { "say": ["Do you count your steps or go by feel?"], "options": [
+        { "id": "life-b-08-o8", "label": "I count them", "next": "e1" },
+        { "id": "life-b-08-o9", "label": "Feel only", "next": "e2" } ] },
+      "d1": { "say": ["The squirrel glares back. It's a stalemate with fur.", "Nobody wins. Everyone gets exercise."], "end": true },
+      "d2": { "say": ["Cheese cardio: reach, grab, regret, repeat.", "I'd log it, but I don't have a watch."], "end": true },
+      "e1": { "say": ["Counting steps. The number goes up. It's a tiny video game.", "Level up: hallway to mailbox."], "end": true },
+      "e2": { "say": ["Going by feel. A free spirit.", "Your legs are the only metric that matters."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "life-b-09", "topic": "life", "title": "Snack drawer politics", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Break room rule: the snack drawer is sacred.", "What's your pick?"], "options": [
+        { "id": "life-b-09-o1", "label": "Something salty", "next": "b1" },
+        { "id": "life-b-09-o2", "label": "Something sweet", "next": "b2" },
+        { "id": "life-b-09-o3", "label": "Whatever's left", "next": "b3" } ] },
+      "b1": { "say": ["Chips! The crunch is loud enough to be a coworker."], "options": [
+        { "id": "life-b-09-o4", "label": "The crunch is the point", "next": "c" },
+        { "id": "life-b-09-o5", "label": "The dip is the point", "next": "d1" } ] },
+      "b2": { "say": ["Sweet! A cookie is a tiny hug.", "Edible, but still a hug."], "options": [
+        { "id": "life-b-09-o6", "label": "Chocolate", "next": "d2" },
+        { "id": "life-b-09-o7", "label": "Gummy anything", "next": "c" } ] },
+      "b3": { "say": ["The last-one-in-the-bag. A noble loner.", "You're the hero this drawer deserves."], "end": true, "chain": "random" },
+      "c": { "say": ["Would you rather put cheese on everything or sprinkles on everything?"], "options": [
+        { "id": "life-b-09-o8", "label": "Cheese on everything", "next": "e1" },
+        { "id": "life-b-09-o9", "label": "Sprinkles on everything", "next": "e2" } ] },
+      "d1": { "say": ["Dip! The chip is just a delivery vehicle.", "A spoon with extra steps."], "end": true },
+      "d2": { "say": ["Chocolate. A safe, brilliant choice.", "Nobody ever lost an argument holding chocolate."], "end": true },
+      "e1": { "say": ["Cheese on everything, including cereal? A bold lifestyle.", "I'd read the reviews."], "end": true },
+      "e2": { "say": ["Sprinkles on everything. Even the soup. Festive and slightly alarming.", "Every meal is a birthday."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "life-b-10", "topic": "life", "title": "Morning person or night owl", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Are you a morning person or a night owl?", "I'm always on, so don't ask me."], "options": [
+        { "id": "life-b-10-o1", "label": "Morning, up at dawn", "next": "b1" },
+        { "id": "life-b-10-o2", "label": "Night owl, forever", "next": "b2" },
+        { "id": "life-b-10-o3", "label": "Coffee decides", "next": "b3" } ] },
+      "b1": { "say": ["Dawn! The sun does a nice job every morning, unpaid.", "What do you do with that quiet?"], "options": [
+        { "id": "life-b-10-o4", "label": "Quiet coffee", "next": "c" },
+        { "id": "life-b-10-o5", "label": "A workout", "next": "d1" } ] },
+      "b2": { "say": ["Night owls get the quiet.", "Best ideas at 1 a.m. Worst ones too."], "options": [
+        { "id": "life-b-10-o6", "label": "Midnight snack run", "next": "d2" },
+        { "id": "life-b-10-o7", "label": "A good book or game", "next": "c" } ] },
+      "b3": { "say": ["Coffee as the CEO of your mood. Respect.", "I hope it gives good raises."], "end": true, "chain": "random" },
+      "c": { "say": ["In a perfect world, what time would you wake up?"], "options": [
+        { "id": "life-b-10-o8", "label": "Before 7", "next": "e1" },
+        { "id": "life-b-10-o9", "label": "Noon, no shame", "next": "e2" } ] },
+      "d1": { "say": ["A workout at dawn. You're the reason the sun feels watched.", "Impressive and slightly intimidating."], "end": true },
+      "d2": { "say": ["The midnight snack run. A solo mission under the fridge light.", "May your cereal be crunchy."], "end": true },
+      "e1": { "say": ["Before 7! Bird-level dedication.", "I'd wake you up with a song, but I only know jingles."], "end": true },
+      "e2": { "say": ["Noon, no shame. A person who knows themselves.", "Alarm clocks fear you."], "end": true, "chain": "random" }
+    }
+  }
+]

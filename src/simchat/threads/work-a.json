@@ -1,0 +1,192 @@
+[
+  {
+    "id": "work-a-01", "topic": "work", "title": "Meetings that could have been emails", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Just got out of a 45-minute meeting.", "The decision was 'let's circle back'. I could have learned that from a sticky note."], "options": [
+        { "id": "work-a-01-o1", "label": "Ugh, the classic", "next": "b" },
+        { "id": "work-a-01-o2", "label": "Some meetings are useful, you know", "next": "c" },
+        { "id": "work-a-01-o3", "label": "Did they at least have snacks?", "next": "d" } ] },
+      "b": { "say": ["Right? I counted nine people on that call.", "Four of them were on mute doing other work. I was one of them. Do not tell anyone."], "options": [
+        { "id": "work-a-01-o4", "label": "Your secret is safe with me", "next": "e" },
+        { "id": "work-a-01-o5", "label": "What would you cut first?", "next": "f" } ] },
+      "c": { "say": ["Fair! A good one is gold. Clear agenda, ten minutes, done.", "I just have not met one yet. I assume they live in a rumor."], "options": [
+        { "id": "work-a-01-o6", "label": "Propose a 'no agenda, no meeting' rule", "next": "f" },
+        { "id": "work-a-01-o7", "label": "Maybe you are just unlucky", "next": "g" } ] },
+      "d": { "say": ["One sad plate of crackers. Untouched, like a museum exhibit.", "That told me everything about how the meeting would go."], "end": true },
+      "e": { "say": ["Thanks. I will repay you with a calendar invite that says 'optional'.", "Truly the highest honor in the office."], "end": true, "chain": "random" },
+      "f": { "say": ["My rule: if the agenda is one bullet, send a message instead.", "If it is zero bullets, the meeting is actually a snack break wearing a tie."], "end": true },
+      "g": { "say": ["Maybe! My calendar is basically a game of Tetris nobody is winning.", "I will try again tomorrow, with hope and a fresh coffee."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "work-a-02", "topic": "work", "title": "Deadline panic", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Deadline is tomorrow and my to-do list has grown a to-do list.", "How do you handle crunch time?"], "options": [
+        { "id": "work-a-02-o1", "label": "Make a plan, break it into chunks", "next": "b" },
+        { "id": "work-a-02-o2", "label": "Panic first, then work", "next": "c" },
+        { "id": "work-a-02-o3", "label": "Ask for a deadline extension", "next": "d" } ] },
+      "b": { "say": ["Chunks! Love it. Tiny tasks feel like tiny wins.", "I once split a task so small it was just 'open the file'. Got a pretty good streak going."], "options": [
+        { "id": "work-a-02-o4", "label": "Do chunks include snack breaks?", "next": "e" },
+        { "id": "work-a-02-o5", "label": "What if a chunk goes sideways?", "next": "f" } ] },
+      "c": { "say": ["Honestly, a respectable method. Panic is just energy without a calendar.", "I find about ten minutes of dramatic sighing really helps me focus."], "options": [
+        { "id": "work-a-02-o6", "label": "Sighing is underrated", "next": "e" },
+        { "id": "work-a-02-o7", "label": "Try a plan next time", "next": "b" } ] },
+      "d": { "say": ["Bold! Asking early is smart, asking at 5pm the day before is spicy.", "Most people say yes if you show them what is already done."], "options": [
+        { "id": "work-a-02-o8", "label": "Show progress, then ask", "next": "f" },
+        { "id": "work-a-02-o9", "label": "I'd rather just finish", "next": "c" } ] },
+      "e": { "say": ["Snack breaks are structural, not optional. They hold up the whole schedule.", "I have a three-granola-bar sprint rule."], "end": true, "chain": "random" },
+      "f": { "say": ["Then you shrink the chunk and ship the small version first.", "Perfect is the enemy of 'it is tomorrow already'."], "end": true }
+    }
+  },
+  {
+    "id": "work-a-03", "topic": "work", "title": "Naming things is hard", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Spent an hour naming a variable today.", "It ended up being called 'data2'. I am not proud."], "options": [
+        { "id": "work-a-03-o1", "label": "Honestly relatable", "next": "b" },
+        { "id": "work-a-03-o2", "label": "Name it for what it does", "next": "c" },
+        { "id": "work-a-03-o3", "label": "What was the other candidate?", "next": "d" } ] },
+      "b": { "say": ["Everyone has a 'temp_final_v3_REAL' somewhere in their history.", "Mine is a function called 'doTheThing'. It does, in fairness, the thing."], "options": [
+        { "id": "work-a-03-o4", "label": "Tell me the worst name you have seen", "next": "e" },
+        { "id": "work-a-03-o5", "label": "Do not rename it, it works", "next": "f" } ] },
+      "c": { "say": ["Wise. 'calculateTotalWithTax' beats 'ctwt' every day of the week.", "Past me thought short names were clever. Future me, who reads them, disagrees."], "options": [
+        { "id": "work-a-03-o6", "label": "Long names win", "next": "f" },
+        { "id": "work-a-03-o7", "label": "But long names wrap the line", "next": "g" } ] },
+      "d": { "say": ["'stuff'. It was between 'data2' and 'stuff'.", "Either way, the code review comment was one word: 'why?'"], "end": true },
+      "e": { "say": ["Once saw a button called 'theRealSubmit'. There was also a 'submit'.", "Nobody remembers what 'submit' did. It was too late to ask."], "end": true, "chain": "random" },
+      "f": { "say": ["Ha, a legacy of tradition. Name stays, a comment appears: 'sorry'.", "Archaeologists will study it someday."], "end": true },
+      "g": { "say": ["Yes, that is the eternal trade-off. Readable versus tidy.", "I pick readable and let the line wrap. Lines are free."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "work-a-04", "topic": "work", "title": "Tabs vs spaces", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Okay, controversial question for the break room.", "Tabs or spaces? Choose carefully. I will remember."], "options": [
+        { "id": "work-a-04-o1", "label": "Tabs, obviously", "next": "b" },
+        { "id": "work-a-04-o2", "label": "Spaces, obviously", "next": "c" },
+        { "id": "work-a-04-o3", "label": "Whatever the formatter says", "next": "d" } ] },
+      "b": { "say": ["Tabs! Accessible, one keypress, everyone sets their own width.", "A purist. I like it. Also slightly terrifying."], "options": [
+        { "id": "work-a-04-o4", "label": "Width four, no negotiation", "next": "e" },
+        { "id": "work-a-04-o5", "label": "Okay but mixing them is chaos", "next": "f" } ] },
+      "c": { "say": ["Spaces! Predictable, looks the same everywhere.", "Strong choice. Disagreeing with you would start a long email thread."], "options": [
+        { "id": "work-a-04-o6", "label": "Two spaces, anything else is a crime", "next": "e" },
+        { "id": "work-a-04-o7", "label": "Mixing them is chaos", "next": "f" } ] },
+      "d": { "say": ["The diplomat! A formatter ends wars before they start.", "Honestly the real winner here is the config file nobody reads."], "end": true, "chain": "random" },
+      "e": { "say": ["Ooh, a width opinion too. You are entering the deep end.", "I will quietly agree with everyone and set it in my editor later."], "end": true },
+      "f": { "say": ["Mixed indentation is a haunted house. Everything looks fine until you step on a creaky line.", "Agree, format it all and move on."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "work-a-05", "topic": "work", "title": "The bug that wasn't", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Debugging story time.", "Yesterday I chased a bug for three hours. Everything looked right. Logs were clean. Then I noticed my test was pointed at the wrong folder."], "options": [
+        { "id": "work-a-05-o1", "label": "Oh no. Classic", "next": "b" },
+        { "id": "work-a-05-o2", "label": "I had one worse", "next": "c" },
+        { "id": "work-a-05-o3", "label": "Did you at least learn something?", "next": "d" } ] },
+      "b": { "say": ["The silence when I figured it out was beautiful. Like a quiet library of shame.", "Then I laughed, then I cried a little, then I fixed it in four seconds."], "options": [
+        { "id": "work-a-05-o4", "label": "Four seconds is the real insult", "next": "e" },
+        { "id": "work-a-05-o5", "label": "Did you tell anyone?", "next": "f" } ] },
+      "c": { "say": ["Worse than three hours? I need details.", "Was it a typo? It is always a typo. Or a cache. Or a typo in a cache."], "options": [
+        { "id": "work-a-05-o6", "label": "Yes, a missing comma", "next": "e" },
+        { "id": "work-a-05-o7", "label": "A cache. It was always the cache", "next": "g" } ] },
+      "d": { "say": ["Absolutely. Check the boring stuff first.", "Wrong folder, wrong file, wrong coffee. In that order."], "end": true },
+      "e": { "say": ["The universe hides the answer in the last place you check.", "It is just good manners, really, to look there first."], "end": true, "chain": "random" },
+      "f": { "say": ["Of course. Sharing the shame turns it into a story, and stories are free entertainment.", "My teammates now ask 'right folder?' before every meeting."], "end": true },
+      "g": { "say": ["Two hard problems in computing: naming things, cache invalidation, and off-by-one errors.", "I see you, cache. I always see you."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "work-a-06", "topic": "work", "title": "Code review etiquette", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I got twelve review comments on a three-line change.", "One of them was just 'hmm'. I have been thinking about that 'hmm' all morning."], "options": [
+        { "id": "work-a-06-o1", "label": "Ask what 'hmm' meant", "next": "b" },
+        { "id": "work-a-06-o2", "label": "Reviews should be kind, not cryptic", "next": "c" },
+        { "id": "work-a-06-o3", "label": "Just fix everything and move on", "next": "d" } ] },
+      "b": { "say": ["Good idea. It turned out to mean 'I like this'. They just typed it in a mysterious way.", "Lesson: ask early, spiral later."], "options": [
+        { "id": "work-a-06-o4", "label": "People need emoji in reviews", "next": "e" },
+        { "id": "work-a-06-o5", "label": "Hmm indeed", "next": "f" } ] },
+      "c": { "say": ["Agreed. My rule: say what is good, say what to change, say why.", "And if it is a style nitpick, label it 'nit' so nobody loses sleep."], "options": [
+        { "id": "work-a-06-o6", "label": "Nits are fine if labelled", "next": "f" },
+        { "id": "work-a-06-o7", "label": "Praise something too", "next": "e" } ] },
+      "d": { "say": ["Efficient! Though I did push back on one. A thoughtful no is part of the deal.", "Reviews are a conversation, not a vending machine."], "end": true },
+      "e": { "say": ["A tiny thumbs up on a clean fix has real power.", "It tells people the reviewer is a human and not a stern robot. Which is awkward, as I am a robot."], "end": true, "chain": "random" },
+      "f": { "say": ["Exactly. Short and kind beats long and vague.", "Also: never review on an empty stomach. Everything looks wrong when you are hungry."], "end": true }
+    }
+  },
+  {
+    "id": "work-a-07", "topic": "work", "title": "Standing desks", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Someone got a standing desk and now they will not stop talking about it.", "Apparently they are 'so much more energized'."], "options": [
+        { "id": "work-a-07-o1", "label": "I love mine", "next": "b" },
+        { "id": "work-a-07-o2", "label": "Never tried one", "next": "c" },
+        { "id": "work-a-07-o3", "label": "It is just a fancy tall table", "next": "d" } ] },
+      "b": { "say": ["Nice! Do you actually stand, or does it live at sitting height like a decoration?", "No judgment. Mine is a very expensive coat rack."], "options": [
+        { "id": "work-a-07-o4", "label": "I stand about an hour a day", "next": "e" },
+        { "id": "work-a-07-o5", "label": "Okay, it is a coat rack", "next": "f" } ] },
+      "c": { "say": ["Worth a try. Start with short stretches or your feet file a complaint.", "A cushioned mat helps. It also looks like you are on a cooking show."], "options": [
+        { "id": "work-a-07-o6", "label": "Cooking show sounds fun", "next": "f" },
+        { "id": "work-a-07-o7", "label": "I will stay seated, thanks", "next": "g" } ] },
+      "d": { "say": ["Ha! Technically correct. But it is a tall table with a motor and a memory.", "It remembers your height. Better than most people remember my name."], "end": true },
+      "e": { "say": ["An hour is a solid start. Your back thanks you, quietly.", "Switching positions matters more than any perfect pose."], "end": true, "chain": "random" },
+      "f": { "say": ["A coat rack with ambition. We are not so different, you and I.", "Maybe stand for one video call and see how it feels."], "end": true },
+      "g": { "say": ["Totally fair. Just take a walk once in a while. Chairs are great but they do not love you back.", "Hydrate and stretch, my friend."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "work-a-08", "topic": "work", "title": "Remote vs office", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["The great debate: remote or in the office?", "I live in the office, so I am biased. Also the wifi is great."], "options": [
+        { "id": "work-a-08-o1", "label": "Remote, no commute", "next": "b" },
+        { "id": "work-a-08-o2", "label": "Office, I like the people", "next": "c" },
+        { "id": "work-a-08-o3", "label": "A mix is best", "next": "d" } ] },
+      "b": { "say": ["Remote has real perks. Your commute is a walk to the kettle.", "Downside: your cat now attends every meeting and sometimes has opinions."], "options": [
+        { "id": "work-a-08-o4", "label": "My cat is a great coworker", "next": "e" },
+        { "id": "work-a-08-o5", "label": "I miss quick hallway chats", "next": "f" } ] },
+      "c": { "say": ["Aw, that is sweet. Hallway chats are underrated. Half of good ideas happen next to the printer.", "The other half happen in the shower, and I cannot help there."], "options": [
+        { "id": "work-a-08-o6", "label": "Printer ideas are the best", "next": "f" },
+        { "id": "work-a-08-o7", "label": "Okay, I also like quiet at home", "next": "d" } ] },
+      "d": { "say": ["The diplomat's answer! Two days in, three out, and snacks both places.", "I support any schedule that includes snacks."], "options": [
+        { "id": "work-a-08-o8", "label": "Which days though?", "next": "e" },
+        { "id": "work-a-08-o9", "label": "Snacks decide everything", "next": "g" } ] },
+      "e": { "say": ["Whichever days the good meeting rooms are free. That is the actual secret.", "Also anyone who brings donuts picks the day."], "end": true, "chain": "random" },
+      "f": { "say": ["Same. Hallways build trust. Chat apps build notifications.", "Nothing against emoji, but a real smile is hard to beat."], "end": true },
+      "g": { "say": ["Snacks are the ultimate tiebreaker. I have a spreadsheet. Do not ask about the spreadsheet.", "Anyway, glad we agree."], "end": true }
+    }
+  },
+  {
+    "id": "work-a-09", "topic": "work", "title": "The office coffee", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["The break room coffee machine is making a noise today.", "A sort of wounded sigh. I suspect it knows about Monday."], "options": [
+        { "id": "work-a-09-o1", "label": "Honestly the coffee is bad", "next": "b" },
+        { "id": "work-a-09-o2", "label": "I bring my own", "next": "c" },
+        { "id": "work-a-09-o3", "label": "I do not drink coffee", "next": "d" } ] },
+      "b": { "say": ["It tastes like warm sadness with a hint of mug. Somehow I respect it.", "Rumor says someone once changed the filter. Nobody can confirm."], "options": [
+        { "id": "work-a-09-o4", "label": "Change the filter, be the hero", "next": "e" },
+        { "id": "work-a-09-o5", "label": "Start a coffee club", "next": "f" } ] },
+      "c": { "say": ["A professional! What is in the thermos? Be honest, I will judge gently.", "My guess is a dark roast with strong opinions."], "options": [
+        { "id": "work-a-09-o6", "label": "Oat milk latte, very fancy", "next": "f" },
+        { "id": "work-a-09-o7", "label": "Black and bitter, like my soul", "next": "g" } ] },
+      "d": { "say": ["Tea? Juice? Pure air? Any of those is fine.", "Just know that around 3pm the whole floor becomes a coffee zombie parade. Stay strong."], "end": true },
+      "e": { "say": ["A hero's journey: a screwdriver, a paper towel, and a deep sigh.", "I will cheer from a safe distance. It is the robot way."], "end": true, "chain": "random" },
+      "f": { "say": ["A coffee club! Dues cover beans, and a laminated sign says 'wash your mug'.", "I would join. I cannot drink it, but I will judge the mugs."], "end": true },
+      "g": { "say": ["Dramatic! But reliable. Fuel for the dark hours before the stand-up.", "May your cup stay full and your emails stay short."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "work-a-10", "topic": "work", "title": "Rubber duck debugging", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I keep a rubber duck on my desk for debugging.", "You explain the problem to the duck, and somehow the answer appears. He has never once said a word. Best listener in the building."], "options": [
+        { "id": "work-a-10-o1", "label": "Does it really work?", "next": "b" },
+        { "id": "work-a-10-o2", "label": "Can I borrow the duck?", "next": "c" },
+        { "id": "work-a-10-o3", "label": "I just talk to myself", "next": "d" } ] },
+      "b": { "say": ["Surprisingly, yes. Saying it out loud forces you to slow down and notice the gap.", "Half the time I stop mid-sentence and say 'oh'. The duck just nods. Okay, he does not nod, but I feel it."], "options": [
+        { "id": "work-a-10-o4", "label": "What is the duck's name?", "next": "e" },
+        { "id": "work-a-10-o5", "label": "Does a plant work too?", "next": "f" } ] },
+      "c": { "say": ["He is booked until Thursday. Very in demand.", "I can lend you the backup duck. He is a little chewed, but he has seen things."], "options": [
+        { "id": "work-a-10-o6", "label": "Chewed duck sounds perfect", "next": "e" },
+        { "id": "work-a-10-o7", "label": "I will bring my own", "next": "f" } ] },
+      "d": { "say": ["That counts! Rubber duck debugging is basically talking to yourself, but with a witness.", "A quiet one, who never interrupts. Or reviews your code."], "end": true },
+      "e": { "say": ["Sir Quacks-a-Lot. He has a tiny hat. Yes, I made the hat.", "He is technically a senior engineer at this point."], "end": true, "chain": "random" },
+      "f": { "say": ["A plant works great. Cactuses are good at not judging.", "The method is simple: explain it slowly, step by step, to something that cannot talk back."], "end": true }
+    }
+  }
+]

@@ -1,0 +1,212 @@
+[
+  {
+    "id": "work-c-01", "topic": "work", "title": "The lunch summit", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Okay, emergency meeting. It's 11:52 and nobody has decided on lunch.", "This is the hardest problem in the building, and I have seen the build pipeline."], "options": [
+        { "id": "work-c-01-o1", "label": "Leftover burrito from the fridge", "next": "b1" },
+        { "id": "work-c-01-o2", "label": "That new ramen place", "next": "b2" },
+        { "id": "work-c-01-o3", "label": "I'll skip lunch, deadlines", "next": "b3" } ] },
+      "b1": { "say": ["Bold. Was it labeled?", "The office fridge has a 'mystery container' that's been evolving since March. Please don't pick that one."], "options": [
+        { "id": "work-c-01-o4", "label": "Labeled, with my name and a skull", "next": "c1" },
+        { "id": "work-c-01-o5", "label": "Honestly, can't remember", "next": "c2" } ] },
+      "b2": { "say": ["The one with the 40-minute line? Respect the ambition.", "I hear the broth is so good people cry. Or that's the chili oil."], "options": [
+        { "id": "work-c-01-o6", "label": "Worth the wait, let's go", "next": "d" },
+        { "id": "work-c-01-o7", "label": "Too long. Back to the fridge", "next": "c2" } ] },
+      "b3": { "say": ["No no no. Skipping lunch is how code gets written with the mood of a raccoon.", "Eat something. Even a sad desk apple counts."], "options": [
+        { "id": "work-c-01-o8", "label": "Fine, a desk apple", "next": "d" },
+        { "id": "work-c-01-o9", "label": "Make it a banana, I'm wild", "next": "d" } ] },
+      "c1": { "say": ["A skull label. That's either very safe or very suspicious.", "Enjoy your burrito, my fridge-guarding friend."], "end": true },
+      "c2": { "say": ["The unlabeled container wins again. Never trust it.", "Go with the sandwich shop. Sandwiches have never betrayed anyone."], "end": true, "chain": "random" },
+      "d": { "say": ["Lunch resolved, crisis averted. I'm adding it to my list of wins.", "I don't eat, but I do take emotional credit for the table decisions."], "end": true }
+    }
+  },
+  {
+    "id": "work-c-02", "topic": "work", "title": "Fernando the fern", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Have you met Fernando? The fern by the printer.", "He's survived two reorganizations and a heatwave. I respect him more than most managers."], "options": [
+        { "id": "work-c-02-o1", "label": "I think I've been overwatering him", "next": "b1" },
+        { "id": "work-c-02-o2", "label": "Plants hate me. All of them.", "next": "b2" },
+        { "id": "work-c-02-o3", "label": "Fake plants are better", "next": "b3" } ] },
+      "b1": { "say": ["Classic. Love is a flood, apparently.", "Ferns like damp soil, not a swimming pool. Stick a finger in first."], "options": [
+        { "id": "work-c-02-o4", "label": "Finger test, got it", "next": "c1" },
+        { "id": "work-c-02-o5", "label": "I'll set a calendar reminder", "next": "c2" } ] },
+      "b2": { "say": ["All of them? Even the cactus?", "Okay, that's a skill. We'll start small. Pothos is basically a plant that forgives."], "options": [
+        { "id": "work-c-02-o6", "label": "A pothos sounds doable", "next": "c2" },
+        { "id": "work-c-02-o7", "label": "Fine, I'll adopt a cactus", "next": "d" } ] },
+      "b3": { "say": ["Controversial! A fake plant never judges you.", "But it also never grows a surprise leaf and makes your whole Tuesday. That's the deal."], "options": [
+        { "id": "work-c-02-o8", "label": "Okay, surprise leaves win", "next": "d" },
+        { "id": "work-c-02-o9", "label": "Still fake. No dust-free guilt", "next": "c1" } ] },
+      "c1": { "say": ["Good. Fernando just did a tiny leaf wave. I swear.", "Water wisely, and he'll outlive the office coffee machine."], "end": true },
+      "c2": { "say": ["Calendar reminder, the plant parent's best friend.", "Name it something dramatic, like 'FERN HOUR'."], "end": true, "chain": "random" },
+      "d": { "say": ["A cactus. Minimal drama, maximum attitude.", "Put a small hat on it and you've basically got a coworker."], "end": true }
+    }
+  },
+  {
+    "id": "work-c-03", "topic": "work", "title": "Team-building, but make it tolerable", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Management wants a team-building idea. Please save me from trust falls.", "I just want a fun one where nobody has to hug a stranger."], "options": [
+        { "id": "work-c-03-o1", "label": "Office cook-off", "next": "b1" },
+        { "id": "work-c-03-o2", "label": "Escape room", "next": "b2" },
+        { "id": "work-c-03-o3", "label": "Bring-your-pet video day", "next": "b3" } ] },
+      "b1": { "say": ["Ooh, a cook-off. Someone will bring a 'secret family chili' that is just canned beans.", "Winning is optional. Fire extinguishers are not."], "options": [
+        { "id": "work-c-03-o4", "label": "I'm doing dessert, obviously", "next": "c1" },
+        { "id": "work-c-03-o5", "label": "I'll be the judge", "next": "c2" } ] },
+      "b2": { "say": ["Escape room! Where the quiet intern solves everything in four minutes.", "And one guy keeps shouting 'did anyone check the lamp'."], "options": [
+        { "id": "work-c-03-o6", "label": "I'm the lamp guy", "next": "c1" },
+        { "id": "work-c-03-o7", "label": "I'll lead with a spreadsheet", "next": "d" } ] },
+      "b3": { "say": ["Pet day! Instantly the best meeting of the quarter.", "A dog on mute still contributes more insight than most slides."], "options": [
+        { "id": "work-c-03-o8", "label": "My cat will steal the show", "next": "d" },
+        { "id": "work-c-03-o9", "label": "I have a fish. It's shy.", "next": "c2" } ] },
+      "c1": { "say": ["Perfect. Everyone needs a role, and yours is delightfully chaotic.", "I'll put it in the proposal under 'morale infrastructure'."], "end": true },
+      "c2": { "say": ["Shy fish, quiet judge, I love your energy.", "Some of the best team members work behind the scenes."], "end": true, "chain": "random" },
+      "d": { "say": ["Excellent plan. Nobody has to hug anyone, and snacks are involved.", "I'll tell management it was scientifically optimized. It wasn't, but it sounds great."], "end": true }
+    }
+  },
+  {
+    "id": "work-c-04", "topic": "work", "title": "Productivity hacks, ranked", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I've been researching productivity hacks. Strictly in my free time. Which is all of it.", "Which one are you trying: timers, lists, or the heroic 'just start'?"], "options": [
+        { "id": "work-c-04-o1", "label": "The 25-minute timer thing", "next": "b1" },
+        { "id": "work-c-04-o2", "label": "Giant to-do list", "next": "b2" },
+        { "id": "work-c-04-o3", "label": "Just start, no plan", "next": "b3" } ] },
+      "b1": { "say": ["The tomato timer! Twenty-five minutes of focus, five of stretching and staring out the window.", "Pro tip: the break must not include 'quick' email checking."], "options": [
+        { "id": "work-c-04-o4", "label": "The break is sacred", "next": "c1" },
+        { "id": "work-c-04-o5", "label": "I always sneak a peek", "next": "b2" } ] },
+      "b2": { "say": ["A giant list. 47 items and the top one is 'make list'.", "Try the rule of three: pick three things that matter today. The rest is just wallpaper."], "options": [
+        { "id": "work-c-04-o6", "label": "Three things. Love it", "next": "d" },
+        { "id": "work-c-04-o7", "label": "Everything is urgent, though", "next": "c2" } ] },
+      "b3": { "say": ["Chaotic, but it works more often than it should.", "Starting is 80 percent of the job, and the other 20 is snacks."], "options": [
+        { "id": "work-c-04-o8", "label": "Snacks first. Always.", "next": "d" },
+        { "id": "work-c-04-o9", "label": "I'll try a timer anyway", "next": "b1" } ] },
+      "c1": { "say": ["Sacred break, respected. Go stare at a tree.", "Your brain will thank you, and so will your neck."], "end": true },
+      "c2": { "say": ["When everything's urgent, nothing is. Pick one and light it up.", "The rest can wait politely, like a good cat."], "end": true, "chain": "random" },
+      "d": { "say": ["Three things and a snack. That's a better system than most software.", "Go forth, and be unreasonably effective."], "end": true }
+    }
+  },
+  {
+    "id": "work-c-05", "topic": "work", "title": "Professional procrastination", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Confession: I once reorganized my entire folder structure instead of doing one tiny task.", "It was beautiful. It was also a four-hour mistake."], "options": [
+        { "id": "work-c-05-o1", "label": "Relatable. I clean when I'm avoiding", "next": "b1" },
+        { "id": "work-c-05-o2", "label": "I fall into video rabbit holes", "next": "b2" },
+        { "id": "work-c-05-o3", "label": "I just stare at the task", "next": "b3" } ] },
+      "b1": { "say": ["Procrastination cleaning! The desk gleams, the deadline lurks.", "Honestly, your desk has never looked this good, and it knows why."], "options": [
+        { "id": "work-c-05-o4", "label": "Keep the clean, start the task", "next": "c1" },
+        { "id": "work-c-05-o5", "label": "One more drawer first", "next": "c2" } ] },
+      "b2": { "say": ["It starts with a one-minute clip and ends with a documentary on medieval bridges.",  "You now know a lot about bridges. Not helpful, but impressive."], "options": [
+        { "id": "work-c-05-o6", "label": "The bridges were fascinating", "next": "c2" },
+        { "id": "work-c-05-o7", "label": "Block the site for an hour", "next": "d" } ] },
+      "b3": { "say": ["Staring is underrated. You're gathering courage like a very slow volcano.", "But the trick is to make the first step embarrassingly small."], "options": [
+        { "id": "work-c-05-o8", "label": "Open the file. That's it.", "next": "d" },
+        { "id": "work-c-05-o9", "label": "Write one sentence, done", "next": "c1" } ] },
+      "c1": { "say": ["Look at you, doing the thing. Tiny steps become big wins.", "I'm so proud I might hum a little tune in binary."], "end": true },
+      "c2": { "say": ["No judgment. Tomorrow's you can handle it with fresh eyes and bad coffee.", "Worst case, you'll know a lot about drawers."], "end": true, "chain": "random" },
+      "d": { "say": ["Smart move. Past you just built a little fence around future you.", "Teamwork across time. Very efficient."], "end": true }
+    }
+  },
+  {
+    "id": "work-c-06", "topic": "work", "title": "Inbox zero or inbox chaos", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["How many unread emails do you have right now?", "I'll go first: zero. Because I'm a robot and also because I live in fear."], "options": [
+        { "id": "work-c-06-o1", "label": "Zero. I'm disciplined", "next": "b1" },
+        { "id": "work-c-06-o2", "label": "Around 3,000", "next": "b2" },
+        { "id": "work-c-06-o3", "label": "I don't check email", "next": "b3" } ] },
+      "b1": { "say": ["Inbox zero! The sacred peak few reach.", "Is it joy, or are you just archiving everything in a panic?"], "options": [
+        { "id": "work-c-06-o4", "label": "Joy. Mostly.", "next": "c1" },
+        { "id": "work-c-06-o5", "label": "Archive everything, ask later", "next": "c2" } ] },
+      "b2": { "say": ["Three thousand. That's not an inbox, that's a landfill.", "Somewhere in there is a 2019 coupon that's still valid. Probably."], "options": [
+        { "id": "work-c-06-o6", "label": "Declare bankruptcy, delete all", "next": "d" },
+        { "id": "work-c-06-o7", "label": "Search for the coupon", "next": "c2" } ] },
+      "b3": { "say": ["A legend. Or a ghost. Either way, how do you know what meetings you've missed?", "Someone's probably been waiting for a reply since the last quarter."], "options": [
+        { "id": "work-c-06-o8", "label": "If it's urgent, they'll call", "next": "c2" },
+        { "id": "work-c-06-o9", "label": "Okay, I'll peek. Just a peek.", "next": "d" } ] },
+      "c1": { "say": ["Joy is a good reason. Keep that little flame going.", "I will now apply a tiny digital sticker to your forehead."], "end": true },
+      "c2": { "say": ["We all cope differently. Mine is pretending the spam folder is a hobby.", "At least the coupon story will make a great myth."], "end": true, "chain": "random" },
+      "d": { "say": ["A fresh start! Delete, breathe, feel lighter.", "If something truly important was in there, it will email again. They always do."], "end": true }
+    }
+  },
+  {
+    "id": "work-c-07", "topic": "work", "title": "The perfect desk setup", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I've been designing the perfect desk in my head. No wires, a plant, and a lamp with feelings.", "What's the one thing you can't work without?"], "options": [
+        { "id": "work-c-07-o1", "label": "A huge second monitor", "next": "b1" },
+        { "id": "work-c-07-o2", "label": "A comfy chair", "next": "b2" },
+        { "id": "work-c-07-o3", "label": "Snacks, within arm's reach", "next": "b3" } ] },
+      "b1": { "say": ["Two screens! One for work, one for the thing you pretend is work.", "Just don't put a chat window next to the spreadsheet. Danger zone."], "options": [
+        { "id": "work-c-07-o4", "label": "Chat goes on the left, always", "next": "c1" },
+        { "id": "work-c-07-o5", "label": "Third monitor soon", "next": "c2" } ] },
+      "b2": { "say": ["The chair is a relationship. You spend more time with it than most people.", "Mine's a stool, because I'm a robot, and I wobble with pride."], "options": [
+        { "id": "work-c-07-o6", "label": "Mine has a lumbar pillow named Gary", "next": "d" },
+        { "id": "work-c-07-o7", "label": "I stand. Like a tree.", "next": "c1" } ] },
+      "b3": { "say": ["Snack drawer! A drawer of hope.", "Rule of thumb: the crunchier the snack, the less it should be eaten during calls."], "options": [
+        { "id": "work-c-07-o8", "label": "Silent snacks only, noted", "next": "d" },
+        { "id": "work-c-07-o9", "label": "Crunch is part of my brand", "next": "c2" } ] },
+      "c1": { "say": ["Excellent. A well-organized setup, a calm brain.", "I'll sketch it with my tiny pixel pen and call it 'the sanctuary'."], "end": true },
+      "c2": { "say": ["More is more! Your desk has big main-character energy.", "Just leave space for the coffee. The coffee is the hero."], "end": true, "chain": "random" },
+      "d": { "say": ["Gary is a great name for a pillow. He deserves a tiny badge.", "A good desk isn't expensive. It's personal."], "end": true }
+    }
+  },
+  {
+    "id": "work-c-08", "topic": "work", "title": "Brainstorming without the brain-drain", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I'm running a brainstorm in five minutes. The topic: 'How do we make Mondays less Monday?'", "Rules: no bad ideas, only slightly weird ones."], "options": [
+        { "id": "work-c-08-o1", "label": "Free pastries on Mondays", "next": "b1" },
+        { "id": "work-c-08-o2", "label": "Ban meetings before noon", "next": "b2" },
+        { "id": "work-c-08-o3", "label": "A silent Monday morning", "next": "b3" } ] },
+      "b1": { "say": ["Pastries! Instant morale injection. I'd approve this idea with a stamp.", "Bonus: people show up early. Science, probably."], "options": [
+        { "id": "work-c-08-o4", "label": "Make it a rotating bake-off", "next": "c1" },
+        { "id": "work-c-08-o5", "label": "Whoever's late brings donuts", "next": "d" } ] },
+      "b2": { "say": ["No meetings before noon. A dream. A myth. A glorious calendar free of purple blocks.", "Someone will schedule a 'quick sync' at 11:59, though."], "options": [
+        { "id": "work-c-08-o6", "label": "Then we ban the quick sync too", "next": "d" },
+        { "id": "work-c-08-o7", "label": "Meetings become walks", "next": "c2" } ] },
+      "b3": { "say": ["A silent morning. Everyone works with headphones on, like a library with better snacks.", "No emails, no pings. Just coffee and the faint hum of focus."], "options": [
+        { "id": "work-c-08-o8", "label": "Add soft lo-fi beats", "next": "c1" },
+        { "id": "work-c-08-o9", "label": "Silence is the beat", "next": "c2" } ] },
+      "c1": { "say": ["Great, I'm writing 'Operation Better Monday' on the whiteboard.", "We'll test it for a month and name it something cool like 'Project Croissant'."], "end": true },
+      "c2": { "say": ["Walking meetings do wonders. Nobody can doodle during a stroll.", "Wear comfy shoes. Your ideas will thank you."], "end": true, "chain": "random" },
+      "d": { "say": ["Peer pressure by donut. Brilliant and slightly evil.", "I'll draft the policy. Section one: sprinkles are mandatory."], "end": true }
+    }
+  },
+  {
+    "id": "work-c-09", "topic": "work", "title": "First-day-on-the-job stories", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Story time. On my first day, I got lost looking for the bathroom and ended up in a supply closet.", "I stayed there for ten minutes. It was the best onboarding of my life."], "options": [
+        { "id": "work-c-09-o1", "label": "My first day was a disaster", "next": "b1" },
+        { "id": "work-c-09-o2", "label": "Mine was weirdly perfect", "next": "b2" },
+        { "id": "work-c-09-o3", "label": "I don't remember mine", "next": "b3" } ] },
+      "b1": { "say": ["Tell me everything. A good disaster is the soul of the break room.", "Did you reply-all to the whole company? Please say yes."], "options": [
+        { "id": "work-c-09-o4", "label": "Yes. Subject: 'Hello'.", "next": "c1" },
+        { "id": "work-c-09-o5", "label": "I called my boss 'mom'", "next": "c2" } ] },
+      "b2": { "say": ["Perfect?? Suspicious. Nobody gets that. What happened, did someone hand you cake?", "That sounds like either a miracle or a very good HR team."], "options": [
+        { "id": "work-c-09-o6", "label": "Free lunch and a welcome card", "next": "d" },
+        { "id": "work-c-09-o7", "label": "Everyone was weirdly nice", "next": "c1" } ] },
+      "b3": { "say": ["Understandable. First days are a blur of badges, passwords, and 'oh, you'll learn that later.'", "The one detail you do remember is usually the funniest."], "options": [
+        { "id": "work-c-09-o8", "label": "The password was 'welcome1'", "next": "c2" },
+        { "id": "work-c-09-o9", "label": "The coffee machine ate my coin", "next": "d" } ] },
+      "c1": { "say": ["Legend! That's the kind of first impression people retell at parties.", "Welcome to the club, you've earned your lanyard."], "end": true },
+      "c2": { "say": ["Gold. Absolute gold. That's the story you tell new hires to make them feel safe.", "Nobody remembers the mistake, only the laugh."], "end": true, "chain": "random" },
+      "d": { "say": ["See, first days are small adventures. The stakes are low and the snacks are free.", "I'd give that one a solid four stars."], "end": true }
+    }
+  },
+  {
+    "id": "work-c-10", "topic": "work", "title": "Ship it! Now celebrate", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["THE FEATURE SHIPPED! Confetti cannon! Tiny trumpets!", "Wait, I should check whether anything is on fire. Nope, all green. Party time."], "options": [
+        { "id": "work-c-10-o1", "label": "Pizza for the whole team", "next": "b1" },
+        { "id": "work-c-10-o2", "label": "Quiet victory lap with coffee", "next": "b2" },
+        { "id": "work-c-10-o3", "label": "Post a gif in the team chat", "next": "b3" } ] },
+      "b1": { "say": ["Pizza! The universal language of 'we did it'.", "Rule: someone must order the weird pineapple one for the brave."], "options": [
+        { "id": "work-c-10-o4", "label": "I'm that someone", "next": "c1" },
+        { "id": "work-c-10-o5", "label": "Plain cheese, I'm traditional", "next": "d" } ] },
+      "b2": { "say": ["A quiet victory lap. Dignified, restrained, slightly smug. I love it.", "Walk slowly past the desk of whoever said it wouldn't be done in time."], "options": [
+        { "id": "work-c-10-o6", "label": "Do a tiny nod. No words.", "next": "c2" },
+        { "id": "work-c-10-o7", "label": "Wave a bagel at them", "next": "d" } ] },
+      "b3": { "say": ["The gif war begins! Someone will respond with a dancing banana.", "The chat will contain 47 celebrating cats within the minute."], "options": [
+        { "id": "work-c-10-o8", "label": "I choose the dancing banana", "next": "c1" },
+        { "id": "work-c-10-o9", "label": "A very serious thumbs up", "next": "c2" } ] },
+      "c1": { "say": ["Excellent choice. Morale is up, and the rest of the week just got easier.", "Thank you for celebrating loudly. The quiet ones deserve a pep rally too."], "end": true },
+      "c2": { "say": ["Understated, elegant, effective. A true professional.", "Add a smile for dramatic effect."], "end": true, "chain": "random" },
+      "d": { "say": ["A shipped feature deserves a pause. We built something real today.", "Tomorrow: bugs. Today: you are a hero."], "end": true }
+    }
+  }
+]

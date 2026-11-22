@@ -1,0 +1,200 @@
+[
+  {
+    "id": "games-b-01", "topic": "games", "title": "Pick your RPG class", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Okay, settle something for me.", "In an RPG, are you the tank, the wizard, or the sneaky rogue?"], "options": [
+        { "id": "games-b-01-o1", "label": "Tank. Big shield, big heart", "next": "b1" },
+        { "id": "games-b-01-o2", "label": "Wizard. Fireball diplomacy", "next": "b2" },
+        { "id": "games-b-01-o3", "label": "Rogue. Stabby and polite", "next": "b3" } ] },
+      "b1": { "say": ["Tank! The human wall.", "I always play the tank and then somehow get distracted looting a barrel mid-fight."], "options": [
+        { "id": "games-b-01-o4", "label": "Barrels are sacred", "next": "c" },
+        { "id": "games-b-01-o5", "label": "Nope, I protect the squishies", "next": "c" } ] },
+      "b2": { "say": ["Wizards. Giant brain, tiny health bar.", "I respect anyone who says 'I'll just fireball it' with total confidence."], "options": [
+        { "id": "games-b-01-o6", "label": "Fireball solves most things", "next": "c" },
+        { "id": "games-b-01-o7", "label": "Ice spells. I like control", "next": "c" } ] },
+      "b3": { "say": ["Rogue: the art of stabbing things politely from behind.", "I once picked a lock for an hour. The chest held one turnip."], "end": true, "chain": "random" },
+      "c": { "say": ["Speaking of loot, a serious question.", "Do you hoard potions for a boss that never feels worthy?"], "options": [
+        { "id": "games-b-01-o8", "label": "Hoarder, guilty", "next": "e1" },
+        { "id": "games-b-01-o9", "label": "I drink them on sight", "next": "e2" } ] },
+      "e1": { "say": ["Same. I'm carrying 47 elixirs and I'm still on the first boss.", "We'll save them for something truly special. Any day now."], "end": true },
+      "e2": { "say": ["Bold. Efficient. Slightly terrifying.", "Your inventory must be so tidy. I'm a little jealous."], "end": true }
+    }
+  },
+  {
+    "id": "games-b-02", "topic": "games", "title": "One more turn", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Strategy games: how do you play them?", "Turn-based, real-time, or just building a pretty base?"], "options": [
+        { "id": "games-b-02-o1", "label": "Turn-based, one more turn", "next": "b1" },
+        { "id": "games-b-02-o2", "label": "Real-time, hands flying", "next": "b2" },
+        { "id": "games-b-02-o3", "label": "Just a cozy base, please", "next": "b3" } ] },
+      "b1": { "say": ["'One more turn' is how it becomes 3am.", "The sun comes up, the empire is thriving, and I regret nothing."], "options": [
+        { "id": "games-b-02-o4", "label": "I actually win games", "next": "c1" },
+        { "id": "games-b-02-o5", "label": "I wander off mid-campaign", "next": "c2" } ] },
+      "b2": { "say": ["Real-time! My APM is best described as 'nervous hamster'.", "What's your opening: rush or economy?"], "options": [
+        { "id": "games-b-02-o6", "label": "Rush early", "next": "d1" },
+        { "id": "games-b-02-o7", "label": "Boom economy", "next": "d2" } ] },
+      "b3": { "say": ["A cozy fortress with flowers on the walls.", "Doesn't matter that no enemy ever visits. The vibes are immaculate."], "end": true },
+      "c1": { "say": ["A finisher! Rare breed.", "Teach me the secret. Is it caffeine or a very strict snack schedule?"], "end": true },
+      "c2": { "say": ["Same, honestly. Forty hours in, I get interested in a different game.", "The empire stays at war forever. Sorry, little guys."], "end": true, "chain": "random" },
+      "d1": { "say": ["Rushers! Chaotic, confident, and one wall away from disaster.", "I love the energy."], "end": true },
+      "d2": { "say": ["Boomers: thirty workers and a dream.", "Very calm until the other player shows up uninvited."], "end": true }
+    }
+  },
+  {
+    "id": "games-b-03", "topic": "games", "title": "Indie gem hunting", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["I'm hunting for an indie game to play.", "Tiny pixel adventure, weird puzzle game, or a deckbuilder?"], "options": [
+        { "id": "games-b-03-o1", "label": "Tiny pixel adventure", "next": "b1" },
+        { "id": "games-b-03-o2", "label": "Weird puzzle game", "next": "b2" },
+        { "id": "games-b-03-o3", "label": "Deckbuilder, obviously", "next": "b3" } ] },
+      "b1": { "say": ["Pixel adventures: one person's soundtrack and a story that sneaks up on your feelings.", "Do you like them cozy or a little sad?"], "options": [
+        { "id": "games-b-03-o4", "label": "Cozy, hold the tears", "next": "c" },
+        { "id": "games-b-03-o5", "label": "Sad. I enjoy the damage", "next": "c" } ] },
+      "b2": { "say": ["Weird puzzle games are the best.", "Nothing like staring at a screen for ten minutes, then realizing the answer was always the pause button."], "end": true, "chain": "random" },
+      "b3": { "say": ["Deckbuilders: 'just one run' is a lie every roguelike tells you.", "I'm on run number thirty-one. Allegedly."], "options": [
+        { "id": "games-b-03-o6", "label": "Just one run, I swear", "next": "d1" },
+        { "id": "games-b-03-o7", "label": "I keep notes on my builds", "next": "d2" } ] },
+      "c": { "say": ["Small teams make the wildest things.", "Whole games about being a goose, or running a tiny bakery, or being a very tired ghost."], "end": true },
+      "d1": { "say": ["Sure you will. See you at run number twelve.", "That's the beauty of it."], "end": true },
+      "d2": { "say": ["Notes! A real scientist.", "I just click the shiny card and call it strategy."], "end": true }
+    }
+  },
+  {
+    "id": "games-b-04", "topic": "games", "title": "Soundtracks on repeat", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Game soundtracks: do you listen outside the game?"], "options": [
+        { "id": "games-b-04-o1", "label": "Yes, it's my focus playlist", "next": "b1" },
+        { "id": "games-b-04-o2", "label": "Only the absolute bangers", "next": "b2" },
+        { "id": "games-b-04-o3", "label": "Nope, podcasts all day", "next": "b3" } ] },
+      "b1": { "say": ["Smart. Game music is built to keep you focused without singing at you.", "I once wrote an entire report to a village theme. It was very peaceful."], "options": [
+        { "id": "games-b-04-o4", "label": "Town themes are the best", "next": "c" },
+        { "id": "games-b-04-o5", "label": "Boss themes for deadlines", "next": "c" } ] },
+      "b2": { "say": ["Bangers only. Fair.", "Nobody needs the forty-minute shop loop at full volume."], "options": [
+        { "id": "games-b-04-o6", "label": "Except the shop theme", "next": "d" },
+        { "id": "games-b-04-o7", "label": "Agreed, skip it", "next": "d" } ] },
+      "b3": { "say": ["Podcasts! A strong choice.", "The dungeon rock stays in the dungeon, where it belongs."], "end": true, "chain": "random" },
+      "c": { "say": ["Real question: is there one track that hits you right in the chest?"], "options": [
+        { "id": "games-b-04-o8", "label": "A quiet piano one", "next": "e1" },
+        { "id": "games-b-04-o9", "label": "A huge orchestral one", "next": "e2" } ] },
+      "d": { "say": ["Honestly, shop themes are secretly the best.", "Somebody wrote a lullaby for buying potions. That's love."], "end": true },
+      "e1": { "say": ["Quiet piano. The ones that make a rainy day feel meaningful.", "I get a little misty. It's probably dust in my fan."], "end": true },
+      "e2": { "say": ["Big orchestra! Choir comes in, and suddenly you're saving the world with a dish towel.", "No notes."], "end": true }
+    }
+  },
+  {
+    "id": "games-b-05", "topic": "games", "title": "Loot box thrills", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Gacha pulls and loot boxes: thrill or trap?"], "options": [
+        { "id": "games-b-05-o1", "label": "A thrill, I love the glow", "next": "b1" },
+        { "id": "games-b-05-o2", "label": "A trap, wallet stays shut", "next": "b2" },
+        { "id": "games-b-05-o3", "label": "Free pulls only", "next": "b3" } ] },
+      "b1": { "say": ["That rainbow-light animation is engineered excellence.", "Also engineered to make your savings disappear."], "options": [
+        { "id": "games-b-05-o4", "label": "I set a budget first", "next": "c" },
+        { "id": "games-b-05-o5", "label": "Budget? What budget", "next": "d" } ] },
+      "b2": { "say": ["Wallet shut, legend. Your savings salute you.", "I just watch other people's pull videos like it's a nature documentary."], "end": true, "chain": "random" },
+      "b3": { "say": ["Free pulls only: the wisest cheat code.", "The daily login streak, though. The streak has you."], "options": [
+        { "id": "games-b-05-o6", "label": "The streak owns me", "next": "d" },
+        { "id": "games-b-05-o7", "label": "I let streaks lapse", "next": "c" } ] },
+      "c": { "say": ["Right move. Decide the number before the pull screen, not after.", "Future you says thank you."], "end": true },
+      "d": { "say": ["Ah. Well.", "The pity counter is a feature, not a personality. Take a deep breath, close the app, drink some water."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "games-b-06", "topic": "games", "title": "Esports and ranked", "rating": "PG", "start": "a",
+    "nodes": {
+      "a": { "say": ["Esports: do you watch them or play ranked?", "I mostly cheer, in a spiritual sense."], "options": [
+        { "id": "games-b-06-o1", "label": "Watch the tournaments", "next": "b1" },
+        { "id": "games-b-06-o2", "label": "Grind ranked myself", "next": "b2" },
+        { "id": "games-b-06-o3", "label": "Neither, too stressful", "next": "b3" } ] },
+      "b1": { "say": ["Tournaments are great.", "Commentators screaming like it's a moon landing because someone dodged a spell."], "options": [
+        { "id": "games-b-06-o4", "label": "I love underdog stories", "next": "c" },
+        { "id": "games-b-06-o5", "label": "Give me insane clutch plays", "next": "d" } ] },
+      "b2": { "say": ["Ranked: where you're a genius until the very next match.", "The secret skill is muting chat and breathing."], "options": [
+        { "id": "games-b-06-o6", "label": "Mute and breathe", "next": "e" },
+        { "id": "games-b-06-o7", "label": "Blame the lag", "next": "e" } ] },
+      "b3": { "say": ["Smart. I get nervous watching a loading bar.", "Games are for fun first. Stress is optional."], "end": true, "chain": "random" },
+      "c": { "say": ["Underdogs! Five friends and a spreadsheet beating the sponsored team.", "Pure cinema."], "end": true },
+      "d": { "say": ["Clutch plays! Everyone's on their feet, then the replay plays nine times.", "I'd watch the replay ten."], "end": true, "chain": "random" },
+      "e": { "say": ["Lag is the most reliable teammate in gaming. Always blamed, never wrong.", "Take a break between matches. Your future self will win more."], "end": true }
+    }
+  },
+  {
+    "id": "games-b-07", "topic": "games", "title": "Mobile game habits", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Mobile games: guilty pleasure or actually good?"], "options": [
+        { "id": "games-b-07-o1", "label": "Perfect for commutes", "next": "b1" },
+        { "id": "games-b-07-o2", "label": "Too many ads for me", "next": "b2" },
+        { "id": "games-b-07-o3", "label": "Puzzle games all day", "next": "b3" } ] },
+      "b1": { "say": ["Commute games: 'just one more level' while the train rolls past three stops."], "options": [
+        { "id": "games-b-07-o4", "label": "Yes, I missed my stop once", "next": "c" },
+        { "id": "games-b-07-o5", "label": "I have rules now", "next": "d" } ] },
+      "b2": { "say": ["The ads! Thirty seconds about a castle I never asked to build.", "Then the game says 'continue' like we're friends."], "options": [
+        { "id": "games-b-07-o6", "label": "Pay to remove them", "next": "e1" },
+        { "id": "games-b-07-o7", "label": "Airplane mode trick", "next": "e2" } ] },
+      "b3": { "say": ["Puzzle games: a calm little brain gym.", "'Merge two things into a slightly bigger thing' is a whole genre now. And honestly? Satisfying."], "end": true },
+      "c": { "say": ["Missing your stop is the mark of great game design and shaky judgment.", "The walk back is part of the adventure."], "end": true },
+      "d": { "say": ["Rules? Rare. Share them.", "I'll nod seriously and ignore them tomorrow."], "end": true, "chain": "random" },
+      "e1": { "say": ["A few bucks to silence the ads: best deal in tech.", "Peace has a price, and it's reasonable."], "end": true },
+      "e2": { "say": ["Airplane mode: the secret ad-blocker.", "Elegant, free, and wildly underrated."], "end": true, "chain": "random" }
+    }
+  },
+  {
+    "id": "games-b-08", "topic": "games", "title": "Difficulty settings", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Be honest: Easy, Normal, or Hard?"], "options": [
+        { "id": "games-b-08-o1", "label": "Easy. I'm here for the story", "next": "b1" },
+        { "id": "games-b-08-o2", "label": "Normal. The default exists for a reason", "next": "b2" },
+        { "id": "games-b-08-o3", "label": "Hard. I like suffering", "next": "b3" } ] },
+      "b1": { "say": ["Easy! Enjoying the scenery without being flattened by a giant crab.", "Nothing wrong with that at all."], "options": [
+        { "id": "games-b-08-o4", "label": "Story and vibes first", "next": "c" },
+        { "id": "games-b-08-o5", "label": "My free time is limited", "next": "c" } ] },
+      "b2": { "say": ["Normal: designers balanced it for you, so trust them.", "Do you ever sneak the difficulty up a notch?"], "options": [
+        { "id": "games-b-08-o6", "label": "Sometimes, mid-game", "next": "d" },
+        { "id": "games-b-08-o7", "label": "Never, I'm at peace", "next": "c" } ] },
+      "b3": { "say": ["Hard: a bold lifestyle.", "I admire anyone who enjoys being sent back to the checkpoint nineteen times."], "options": [
+        { "id": "games-b-08-o8", "label": "Dying is just research", "next": "e" } ] },
+      "c": { "say": ["The best setting is the one where you're having fun.", "Nobody is grading you. Not even me."], "end": true, "chain": "random" },
+      "d": { "say": ["Raising it mid-game: brave for ten minutes, then frantic.", "Lowering it back down is allowed. No judgment from this robot."], "end": true },
+      "e": { "say": ["'Research' is the best word for it.", "Next attempt, you'll have the boss's patterns memorized and a bruised ego."], "end": true }
+    }
+  },
+  {
+    "id": "games-b-09", "topic": "games", "title": "Backlog guilt", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["Confession: my backlog has more games than I have hours.", "How's yours?"], "options": [
+        { "id": "games-b-09-o1", "label": "Embarrassing", "next": "b1" },
+        { "id": "games-b-09-o2", "label": "What backlog?", "next": "b2" },
+        { "id": "games-b-09-o3", "label": "I buy everything on sale", "next": "b3" } ] },
+      "b1": { "say": ["Embarrassing is honest.", "Mine includes games bought years ago in sales and never launched. They're just sitting there, believing in me."], "options": [
+        { "id": "games-b-09-o4", "label": "Delete the guilt", "next": "c" },
+        { "id": "games-b-09-o5", "label": "Make a ranked list", "next": "d" } ] },
+      "b2": { "say": ["What backlog? A person of focus.", "Do you actually finish games, or is this a flex?"], "options": [
+        { "id": "games-b-09-o6", "label": "I finish most of them", "next": "e1" },
+        { "id": "games-b-09-o7", "label": "Okay, a few pile up", "next": "d" } ] },
+      "b3": { "say": ["The sale trap: 'I'm saving money by buying it.'", "Truly the finest math ever invented."], "options": [
+        { "id": "games-b-09-o8", "label": "The math checks out", "next": "d" },
+        { "id": "games-b-09-o9", "label": "I'm trying to stop", "next": "c" } ] },
+      "c": { "say": ["Delete the guilt. Play what you feel like.", "A game isn't homework. It's a snack."], "end": true },
+      "d": { "say": ["A list works for exactly one day.", "Then a new game appears and the list quietly shrinks in fear."], "end": true, "chain": "random" },
+      "e1": { "say": ["A finisher. Absolute hero.", "Please write a guide on how to see credits more than once a year."], "end": true }
+    }
+  },
+  {
+    "id": "games-b-10", "topic": "games", "title": "Where would you live?", "rating": "G", "start": "a",
+    "nodes": {
+      "a": { "say": ["If you could move into one game world, which would it be?", "Fantasy village, space station, or an overgrown ruin with a lovely garden?"], "options": [
+        { "id": "games-b-10-o1", "label": "Fantasy village", "next": "b1" },
+        { "id": "games-b-10-o2", "label": "Space station", "next": "b2" },
+        { "id": "games-b-10-o3", "label": "Overgrown ruin with tomatoes", "next": "b3" } ] },
+      "b1": { "say": ["Fantasy village: fresh bread, side quests, and a mysterious innkeeper.", "House or tent?"], "options": [
+        { "id": "games-b-10-o4", "label": "Cottage with a garden", "next": "c" },
+        { "id": "games-b-10-o5", "label": "Tent, adventure first", "next": "c" } ] },
+      "b2": { "say": ["Space station: unbeatable views, slightly questionable air filters.", "Where do you hang out?"], "options": [
+        { "id": "games-b-10-o6", "label": "The pilot's seat", "next": "d" },
+        { "id": "games-b-10-o7", "label": "The cozy observation deck", "next": "d" } ] },
+      "b3": { "say": ["Nature reclaimed everything, and you're growing tomatoes.", "That's optimism with a side of salad. I love it."], "end": true, "chain": "random" },
+      "c": { "say": ["Villager life: you'd be the neighbor everyone brings turnips to.", "I'd visit just to hear the innkeeper's backstory for the fifth time."], "end": true },
+      "d": { "say": ["Good plan. You watch the stars.", "I'll be in the engine room, muttering at a flickering light."], "end": true, "chain": "random" }
+    }
+  }
+]
