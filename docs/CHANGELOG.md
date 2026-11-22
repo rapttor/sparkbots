@@ -20,5 +20,6 @@ Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest f
 - **Perform menu:** one joined row of seven grey-until-hover icon tiles with a click-to-open explanation; every Perform action wakes a sleeping agent first.
 - **Stats:** Refresh button (`POST /api/stats/refresh`).
 - **Call to desk / send home:** click a desk to call its agent back, "Call to the desk" in the agent menu, clickable project badge and 🏠 in the menu header [13.1.31].
+- **Restaurant:** glass in front of the chef and a kitchen that transforms with the cuisine [13.6.8]; **Fix:** games chips no longer cover the hand buttons, close-up shows Back in hand and walk mode [13.1.32].
 - **Fix:** API calls with a query string no longer produce a bad token [13.3.8].
 - **Tasks:** 13.0 reduced to a small `app.db` for new data; sync, card links and other tasks simplified or deferred; 7.41 split.
