@@ -35,6 +35,7 @@ import { Cubicles } from "./cubicles";
 import { RoomsContent } from "./rooms/RoomsContent";
 import { DataCenter, consoleSpot, openDataRoom } from "./datacenter";
 import { GamesLayer } from "./games/GamesLayer";
+import { RaceLayer } from "./games/race/RaceLayer";
 import { ManagerWalls } from "./walls";
 import { nerd, sampleFrame } from "../state/nerd";
 import { clearView, loadFlyPrefs, loadView, saveView } from "./viewDefault";
@@ -790,6 +791,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       <CoffeeFactory layout={layout} />
       <DataCenter layout={layout} />
       <GamesLayer layout={layout} />
+      <RaceLayer layout={layout} />
       <ServiceBots layout={layout} />
       <Cubicles layout={layout} />
       <RoomsContent layout={layout} />

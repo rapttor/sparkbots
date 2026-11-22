@@ -297,7 +297,12 @@ Do this first: games, rewards, caffeine and rankings all write here.
 - [ ] [S] 13.7.7 Billiards (aim/strength 1-9 or hold E; table colour by variant)
 - [ ] [S] 13.7.8 Basketball timing game (angle -> strength -> shot, speed-up, drone ball)
 - [ ] [S] 13.7.9 Claw machine + item inventory -> rewards
-- [ ] [O] 13.7.10 Race track (last): track from layout, car physics, powerups, traps, carmageddon
+- [~] [O] 13.7.10 Race track (last): track from layout, car physics, powerups, traps, carmageddon — **stages 1-4 done:** `src/world/games/race/` (`track.ts` loop from the layout: through the plaza if the gap to the team areas allows, else around the campus; `car.ts` arcade physics with drift and road-edge walls; `sim.ts` race + AI; `hub.ts` auto races for idle agents, join/leave; `RaceLayer.tsx` instanced cars + road, bottom chip, keyboard driving with arrows/WASD + Space), tests in `test/race.test.ts`. Checked in the browser: road and race run, standings update; cars not inspected up close.
+  - [ ] [S] 13.7.10a Camera follow for the driver (no camera API for a follow target yet; today you drive from the overview/walk view)
+  - [ ] [S] 13.7.10b Powerups and traps (boost field exists: `CarState.boost`)
+  - [ ] [S] 13.7.10c Carmageddon: opt-in mode, off by default
+  - [ ] [S] 13.7.10d Results into the rankings (needs a multi-player result shape; `GameResult` is a/b only, so a "race" id + podium rows or winner-vs-runner-up pairs)
+  - [ ] [H] 13.7.10e Drivers' bots stand at the track side while their car drives; tyre marks for drifts
 - [x] [H] 13.7.11 Scoreboard/ranking UI + persistence tests — **done:** 🎮 popover rankings (per game / all) in `GamesOverlay.tsx`; persistence + hub + sim tests in `test/games.test.ts`
 
 ### 13.8 Gym, anger room, sponsor
