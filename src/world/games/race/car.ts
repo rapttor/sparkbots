@@ -42,7 +42,7 @@ export function stepCar(c: CarState, inp: CarInput, dt: number, track: Track, sp
   if (vf < -spec.maxSpeed * 0.3) vf = -spec.maxSpeed * 0.3;
   if (vf > max) vf = vf > max + 0.5 ? vf - (vf - max) * Math.min(1, 3 * dt) : max; // too fast for the surface: bleeds off, no sudden stop
   const sp = Math.abs(vf);
-  const bite = Math.min(1, sp / 3) * (1 - 0.25 * Math.min(1, sp / spec.maxSpeed)); // no spinning on the spot; a little lazier flat out
+  const bite = Math.min(1, sp / 3) / (1 + 1.2 * Math.min(1, sp / spec.maxSpeed)); // no spinning on the spot; the wheel gets less sensitive the faster you go, so a rocket stays drivable
   const drift = inp.drift && sp > spec.maxSpeed * 0.4 && Math.abs(inp.steer) > 0.15;
   const yawWant = clamp(inp.steer, -1, 1) * spec.steer * bite * (drift ? 1.3 : 1);
   const over = (Math.abs(yawWant) * sp) / spec.cornerG;          // how far past the tyres' limit this bend asks for

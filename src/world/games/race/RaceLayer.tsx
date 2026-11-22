@@ -214,7 +214,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
     const pm = pickM.current;
     if (pm) { sim.decor.pickups.forEach((pk, i) => { dummy.position.set(pk.x, sim.pickupCd[i]! > 0 ? -50 : 0.9 + Math.sin(clock.current * 3 + i) * 0.12, pk.z); dummy.rotation.set(0.4, clock.current * 2 + i, 0.4); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); pm.setMatrixAt(i, dummy.matrix); }); pm.count = sim.decor.pickups.length; pm.instanceMatrix.needsUpdate = true; }
     const mm = missM.current;
-    if (mm) { sim.missiles.forEach((m, i) => { dummy.position.set(m.x, 0.7, m.z); dummy.rotation.set(0, -m.h, Math.PI / 2); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); mm.setMatrixAt(i, dummy.matrix); }); mm.count = sim.missiles.length; mm.instanceMatrix.needsUpdate = true; }
+    if (mm) { sim.missiles.forEach((m, i) => { dummy.position.set(m.x, 0.7, m.z); dummy.rotation.set(0, -Math.atan2(m.vz, m.vx), Math.PI / 2); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); mm.setMatrixAt(i, dummy.matrix); }); mm.count = sim.missiles.length; mm.instanceMatrix.needsUpdate = true; }
     const tm = trapM.current;
     if (tm) { sim.traps.forEach((tr, i) => { dummy.position.set(tr.x, 0.058, tr.z); dummy.rotation.set(0, 0, 0); dummy.scale.set(1.8, 1, 1.8); dummy.updateMatrix(); tm.setMatrixAt(i, dummy.matrix); }); tm.count = sim.traps.length; tm.instanceMatrix.needsUpdate = true; }
     while (sim.events.length) { const ev = sim.events.pop()!; splash(ev.x, ev.z, ev.color); }

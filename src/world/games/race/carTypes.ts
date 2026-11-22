@@ -1,7 +1,7 @@
 /** The cars (13.7.10, backlog "race track"): three types with their own speed, grip and look. Pure data; the renderer builds meshes from `parts`. */
 export type CarKind = "race" | "kart" | "monster";
 
-/** A typical agent's walking pace in m/s. Top speeds are multiples of it: monster truck 2x, rocket kart 3x, race car 4x. */
+/** A typical agent's walking pace in m/s. The monster truck is 2x of it (slowest); the rocket kart and race car are real speed machines (kart 32 m/s, race car 40 m/s). */
 export const AGENT_SPEED = 3.5;
 
 export type Shape = "box" | "cyl" | "cone" | "sph";
@@ -38,8 +38,8 @@ const wheel = (x: number, z: number, r: number, w: number): Part => ({ shape: "c
 
 export const CAR_TYPES: Record<CarKind, CarSpec> = {
   race: {
-    kind: "race", name: "Race car", icon: "🏎", maxSpeed: AGENT_SPEED * 4, accel: 13, brake: 24, steer: 2.4, grip: 9, cornerG: 24, radius: 0.8, hitRadius: 1.3,
-    camBack: 7.5, camUp: 3.2, eye: 0.8,
+    kind: "race", name: "Race car", icon: "🏎", maxSpeed: 40, accel: 26, brake: 45, steer: 2.4, grip: 9, cornerG: 32, radius: 0.8, hitRadius: 1.3,
+    camBack: 9, camUp: 3.4, eye: 0.8,
     parts: [
       { shape: "box", size: [2.6, 0.3, 0.8], at: [0, 0.38, 0], color: "team" },
       { shape: "cone", size: [0.4, 1.1, 0], at: [1.9, 0.36, 0], axis: "x", tip: 1, color: "team" },
@@ -56,8 +56,8 @@ export const CAR_TYPES: Record<CarKind, CarSpec> = {
     ],
   },
   kart: {
-    kind: "kart", name: "Rocket kart", icon: "🛺", maxSpeed: AGENT_SPEED * 3, accel: 10, brake: 20, steer: 2.5, grip: 8, cornerG: 16, radius: 0.9, hitRadius: 1.4,
-    camBack: 8, camUp: 3.6, eye: 1.5,
+    kind: "kart", name: "Rocket kart", icon: "🛺", maxSpeed: 32, accel: 30, brake: 40, steer: 2.5, grip: 8, cornerG: 26, radius: 0.9, hitRadius: 1.4,
+    camBack: 9.5, camUp: 3.8, eye: 1.5,
     parts: [
       { shape: "box", size: [2.2, 0.18, 1.3], at: [0, 0.36, 0], color: "team" },
       { shape: "box", size: [0.3, 0.24, 1.6], at: [1.25, 0.34, 0], color: "team" },
@@ -77,7 +77,7 @@ export const CAR_TYPES: Record<CarKind, CarSpec> = {
     ],
   },
   monster: {
-    kind: "monster", name: "Monster truck", icon: "🛻", maxSpeed: AGENT_SPEED * 2, accel: 7, brake: 16, steer: 1.9, grip: 7, cornerG: 11, radius: 1.2, hitRadius: 2.0,
+    kind: "monster", name: "Monster truck", icon: "🛻", maxSpeed: AGENT_SPEED * 2, accel: 8, brake: 16, steer: 1.9, grip: 7, cornerG: 11, radius: 1.2, hitRadius: 2.0,
     camBack: 10.5, camUp: 5, eye: 2.7,
     parts: [
       { shape: "box", size: [3.0, 0.35, 1.2], at: [0, 1.0, 0], color: DARK },
