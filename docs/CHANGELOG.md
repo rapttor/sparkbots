@@ -35,5 +35,6 @@ Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest f
 - **Agent chat tab:** clicking a bot shows Actions and Chat & history tabs; the chat tab is the full live chat, and the dialog is resizable and remembers its size [13.1.37].
 - **Desks walk-through:** agent desks no longer block you or the robots [13.1.38].
 - **Compact chat composer:** one row, message box up to 15 lines, icon buttons with labels, Archive last and red, Attach as an icon in the box [13.1.39].
+- **Chat composer v2:** model and new-worker are buttons in the same one-line button row; errors and notices are toasts; 401s explain where the run is sent [13.1.40].
 - **Fix:** API calls with a query string no longer produce a bad token [13.3.8].
 - **Tasks:** 13.0 reduced to a small `app.db` for new data; sync, card links and other tasks simplified or deferred; 7.41 split.

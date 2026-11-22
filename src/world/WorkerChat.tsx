@@ -15,6 +15,24 @@ import { attachedImageIds, imageType, stripAttachmentList } from "../shared/atta
 
 const stopProp = (e: React.SyntheticEvent) => e.stopPropagation();
 
+interface Toast { id: string; level: "info" | "warn" | "error"; text: string }
+const TOAST_ICON = { info: "✓", warn: "⚠", error: "✖" } as const;
+/** Small floating messages above the composer (errors, "Sent", "Queued"…); each has a close button. */
+function ChatToasts({ toasts, onClose }: { toasts: Toast[]; onClose: (id: string) => void }) {
+  if (!toasts.length) return null;
+  return (
+    <div className="wc-toasts" role="status" aria-live="polite">
+      {toasts.map((t) => (
+        <div key={t.id} className={`wc-toast ${t.level}`} role={t.level === "error" ? "alert" : undefined}>
+          <span className="wc-toast-ico" aria-hidden="true">{TOAST_ICON[t.level]}</span>
+          <span className="wc-toast-text">{t.text}</span>
+          <button className="icon-btn" aria-label="Dismiss" onClick={() => onClose(t.id)}>×</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Bubble({ m, color }: { m: ChatMessage; color: string }) {
   const mine = m.role === "user";
   const images = mine ? attachedImageIds(m.text) : [];
@@ -66,9 +84,9 @@ function ModelPicker({ value, sessionModel, serviceModels, onPick }: { value: st
   const pick = (m: string) => { onPick(m); setOpen(false); setCustom(""); };
   return (
     <span className="wc-mp">
-      <button type="button" className="wc-model-open" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}
-        title="Model used for the next message. Switching models mid-conversation is fine: the session keeps its history.">
-        <span className="muted">Model</span> <b>{modelLabel(value, sessionModel)}</b> <span aria-hidden>▾</span>
+      <button type="button" className="wc-ib" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}
+        title={`Model for the next message: ${modelLabel(value, sessionModel)}. Switching models mid-conversation is fine: the session keeps its history.`}>
+        <span className="wc-ico">🧠</span><small className="wc-ib-label">{modelLabel(value, sessionModel)}</small>
       </button>
       {open && (
         <div className="wc-mp-pop" role="listbox" aria-label="Model" onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Escape") setOpen(false); }}>
@@ -170,6 +188,18 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
       setApprovals(mine?.status === "running" ? pendingApprovals(lines) : []);
     } catch { /* transient */ }
   }, ["messages", "runs"], workerId);
+
+  // Errors and notices float over the conversation as toasts: notes fade after a few seconds, errors stay a bit longer, a live run problem stays while it lasts.
+  const [hiddenProblem, setHiddenProblem] = useState("");
+  useEffect(() => { if (!note) return; const t = setTimeout(() => setNote(""), 4000); return () => clearTimeout(t); }, [note]);
+  useEffect(() => { if (!err) return; const t = setTimeout(() => setErr(""), 9000); return () => clearTimeout(t); }, [err]);
+  const showProblem = !!problem && (run?.status === "running" || problem.level === "error") && hiddenProblem !== problem.text;
+  const toasts: Toast[] = [
+    ...(showProblem && problem ? [{ id: "problem", level: problem.level === "retry" ? "warn" as const : "error" as const, text: `${problem.text}${problem.level === "retry" ? ". Use Stop to cancel." : ""}` }] : []),
+    ...(err ? [{ id: "err", level: "error" as const, text: err }] : []),
+    ...(note ? [{ id: "note", level: "info" as const, text: note }] : []),
+  ];
+  const closeToast = (id: string) => { if (id === "problem" && problem) setHiddenProblem(problem.text); else if (id === "err") setErr(""); else setNote(""); };
 
   const taRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { // the message box grows with its text, up to 15 lines, then scrolls
@@ -307,6 +337,7 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
       </div>
 
       <footer className="wc-foot" onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); }} onDrop={(e) => { if (e.dataTransfer.files.length) { e.preventDefault(); void attach(e.dataTransfer.files); } }}>
+        <ChatToasts toasts={toasts} onClose={closeToast} />
         {(files.length > 0 || uploading > 0) && (
           <div className="wc-files">
             {files.map((f) => <span key={f.id} className="chip on" title={`${f.name} (${Math.round(f.size / 1024)} KB)`}>{thumbs[f.id] ? <img className="wc-thumb" src={thumbs[f.id]} alt="" /> : "📎"} {f.name}<button className="icon-btn" aria-label={`Remove ${f.name}`} onClick={() => setFiles((c) => c.filter((x) => x.id !== f.id))}>×</button></span>)}
@@ -340,6 +371,10 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
           {!isCodex && <button type="button" className="wc-attach" onClick={() => fileInput.current?.click()} title="Attach files or images (max 15 MB each)" aria-label="Attach files">📎</button>}
           </div>
           <div className="wc-btns">
+            {isOpenCode && <button type="button" className="wc-ib" onClick={() => setModelPicker(true)} title={`Model: ${model || "project / global default"}. Browse OpenCode models with provider, version, context and cost`}><span className="wc-ico">🧠</span><small className="wc-ib-label">{model || "default"}</small></button>}
+            {!isCodex && !isOpenCode && <ModelPicker value={model} sessionModel={w.model} serviceModels={svcModels} onPick={setModel} />}
+            {!isCodex && <button type="button" className={`wc-ib ${showFresh ? "on" : ""}`} onClick={() => setShowFresh(!showFresh)} title="Start a new worker in this project's directory"><span className="wc-ico">＋</span><small>New</small></button>}
+            <span className="wc-btns-gap" />
             <button className={`wc-ib wc-send ${hasContent && (isCodex || !w.liveInTerminal) ? "" : "off"}`} aria-disabled={!hasContent || (!isCodex && w.liveInTerminal)} onClick={onSend} title={!isCodex && w.liveInTerminal ? "Open in a terminal: use Send as fork" : "Send (Enter)"}><span className="wc-ico">➤</span><small>Send</small></button>
             {!isCodex && <div className="wc-forkcell">
               <button className={`wc-ib ${hasContent ? "" : "off"}`} aria-disabled={!hasContent} onClick={onFork} title={`A new agent that continues from this conversation${w.liveInTerminal ? " (required: a terminal holds this session)" : ""}`}><span className="wc-ico">⑂</span><small>Fork{w.liveInTerminal ? " *" : ""}</small></button>
@@ -362,15 +397,8 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
         )}
         <div className="wc-tools">
           {!isCodex && <input ref={fileInput} type="file" multiple hidden onChange={(e) => { if (e.target.files) void attach(e.target.files); e.target.value = ""; }} />}
-          {isOpenCode && <button type="button" className="wc-model-open" onClick={() => setModelPicker(true)} title="Browse OpenCode models with provider, version, context and cost">
-            <span className="muted">Model</span> <b>{model || "project / global default"}</b> <span aria-hidden>▾</span>
-          </button>}
-          {!isCodex && !isOpenCode && <ModelPicker value={model} sessionModel={w.model} serviceModels={svcModels} onPick={setModel} />}
         </div>
         {(problem?.kind === "model" || problem?.kind === "auth") && <ModelHelp what={problem.kind} onTry={(m) => { setModel(m); }} />}
-        {problem && (run?.status === "running" || problem.level === "error") && (
-          <p className="wc-note wc-err" role="status">{problem.level === "retry" ? "⚠ " : "✖ "}{problem.text}{problem.level === "retry" ? " — use Stop to cancel" : ""}</p>
-        )}
         {run?.status === "running" && approvals.map((a) => <ApprovalCard key={a.request_id} a={a} onAnswer={(allow) => answer(a, allow)} />)}
         {run && denials.length > 0 && (
           <div className="wc-help" role="status">
@@ -385,12 +413,8 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
             </div>
           </div>
         )}
-        {note && <p className="wc-note">{note}</p>}
-        {err && <p className="wc-note wc-err" role="alert">{err}</p>}
-        {!isCodex && <div className="wc-new">
-          {!showFresh
-            ? <button className="wc-link" onClick={() => setShowFresh(true)}>＋ New worker here</button>
-            : (
+        {!isCodex && showFresh && <div className="wc-new">
+          {(
               <div className="wc-input">
                 <textarea
                   value={fresh}

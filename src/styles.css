@@ -561,3 +561,33 @@ button.project-link:hover{background:#ffffff10}
 .wc-ib.wc-danger:hover:not(:disabled){background:#f8717122;border-color:var(--red)}
 .wc-forkcell{position:relative}
 .wc-forkcell .wc-info{position:absolute;top:-2px;right:-2px;padding:0 3px;font-size:11px;line-height:1.2;background:var(--bg)}
+
+/* chat toasts: float over the conversation, just above the composer */
+.wc-foot{position:relative}
+.wc-toasts{position:absolute;left:10px;right:10px;bottom:calc(100% + 8px);display:flex;flex-direction:column;gap:6px;z-index:4;pointer-events:none}
+.wc-toast{pointer-events:auto;display:flex;align-items:flex-start;gap:8px;padding:7px 8px 7px 10px;border-radius:9px;border:1px solid var(--line);border-left:4px solid var(--accent);background:rgba(15,18,24,.96);box-shadow:0 6px 18px rgba(0,0,0,.45);font-size:12.5px;line-height:1.35;animation:wcToastIn .18s ease-out}
+.wc-toast.warn{border-left-color:var(--amber)}.wc-toast.warn .wc-toast-ico{color:var(--amber)}
+.wc-toast.error{border-left-color:var(--red)}.wc-toast.error .wc-toast-ico{color:var(--red)}
+.wc-toast.info .wc-toast-ico{color:var(--green)}
+.wc-toast-text{flex:1;min-width:0;overflow-wrap:anywhere}
+.wc-toast .icon-btn{padding:0 5px;font-size:15px;line-height:1.1}
+@keyframes wcToastIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.wc-toast{animation:none}}
+
+/* composer buttons: ONE line, each an icon with its label stacked under it */
+.wc-compose .wc-btns{display:flex;flex-direction:row;gap:4px;align-items:flex-end}
+.wc-compose .wc-btns .wc-ib{width:50px}
+.wc-forkcell{display:block}
+
+/* the buttons (model, new worker, send, fork, stop, archive) sit in ONE line; wide chat: beside the box, narrow: under it */
+.wc-foot{container-type:inline-size}
+.wc-compose{grid-template-columns:minmax(0,1fr)}
+.wc-compose .wc-btns{display:flex;flex-direction:row;flex-wrap:nowrap;gap:4px;align-items:flex-end;width:100%}
+.wc-btns-gap{flex:1}
+.wc-ib.on{border-color:var(--accent)}
+.wc-ib-label{max-width:46px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wc-mp{display:inline-block}
+@container (min-width: 640px){
+  .wc-compose{grid-template-columns:minmax(0,1fr) auto;align-items:end}
+  .wc-compose .wc-btns{width:auto}
+}
