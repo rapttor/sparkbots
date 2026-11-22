@@ -4,6 +4,7 @@ import { useLive } from "../state/live";
 import { useWidth } from "../dock/useLayout";
 import { runProblem } from "../world/runStatus";
 import { rateLimitedAt } from "../world/rateLimit";
+import { DOCK_COLOR_LABELS, dockColor, resetDockColors, setDockColor, useDockColorVersion } from "../state/dockColors";
 import { useStore } from "../state/store";
 import { KEYMAP } from "../world/keymap";
 import { listAvatars } from "../world/avatar";
@@ -184,6 +185,7 @@ function ArchiveList() {
 }
 
 export function Settings() {
+  useDockColorVersion(); // the colour pickers repaint as you pick
   const managerColor = useStore((s) => s.managerColor);
   const setManagerColor = useStore((s) => s.setManagerColor);
   const avatar = useStore((s) => s.avatar);
@@ -240,6 +242,16 @@ export function Settings() {
   const cfgSaved = <Status m={cfgMsg} />;
 
   const opts: Opt[] = [
+    { id: "dock-colors", section: "3D office", label: "Sidebar colours", words: "sidebar dock colour color tab theme tint panel accent glow",
+      desc: "Each sidebar tab tints the sidebar in its own colour (edge, header and background). Pick a colour per tab; Reset restores the defaults.",
+      body: <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 6 }}>
+        {DOCK_COLOR_LABELS.map((d) => (
+          <label key={d.key} className="small" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <input type="color" value={dockColor(d.key)} onChange={(e) => setDockColor(d.key, e.target.value)} aria-label={`${d.label} colour`} /> {d.label}
+          </label>
+        ))}
+        <button className="small" onClick={resetDockColors}>Reset colours</button>
+      </div> },
     { id: "controller", section: "Owner", form: true, label: "Controls", words: "avatar hand mouse pointer black white controller walk mode",
       desc: "Avatar: walk the office with WASD. Hand: a floating hand in the middle of the screen — move the mouse to glide it (faster when zoomed out, slower when zoomed in), A/D to turn, W/S to tilt, scroll to zoom. Click an agent to open it; close the menu to let go.",
       body: <select value={controller} onChange={(e) => setController(e.target.value as "avatar" | "hand")}>

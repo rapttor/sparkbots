@@ -280,12 +280,12 @@ button.kmap-row:disabled{opacity:.45;cursor:not-allowed}
 /* ---- dock layout: icon rail, always-visible 3D stage, tabbed dock, big dialog ---- */
 .stage{flex:1;min-width:0;position:relative;display:flex}
 /* The dock floats OVER the 3D stage like a force field (the stage never resizes; the camera re-centres instead, see World.tsx) */
-.dock{position:absolute;top:0;bottom:0;right:0;z-index:20000000;display:flex;flex-direction:column;min-width:0;background:rgba(12,17,28,.76);backdrop-filter:blur(7px) saturate(1.15);-webkit-backdrop-filter:blur(7px) saturate(1.15);border-left:1px solid rgba(79,209,197,.45);box-shadow:-6px 0 28px rgba(79,209,197,.12)}
-.dock.side-left{right:auto;left:0;border-left:0;border-right:1px solid rgba(79,209,197,.45);box-shadow:6px 0 28px rgba(79,209,197,.12)}
+.dock{--dock-accent:#4fd1c5;position:absolute;top:0;bottom:0;right:0;z-index:20000000;display:flex;flex-direction:column;min-width:0;background:color-mix(in srgb,var(--dock-accent) 13%,rgba(12,17,28,.77));backdrop-filter:blur(7px) saturate(1.15);-webkit-backdrop-filter:blur(7px) saturate(1.15);border-left:1px solid color-mix(in srgb,var(--dock-accent) 70%,transparent);box-shadow:-6px 0 28px color-mix(in srgb,var(--dock-accent) 22%,transparent);transition:background .25s,border-color .25s,box-shadow .25s}
+.dock.side-left{right:auto;left:0;border-left:0;border-right:1px solid color-mix(in srgb,var(--dock-accent) 70%,transparent);box-shadow:6px 0 28px color-mix(in srgb,var(--dock-accent) 22%,transparent)}
 .dock-grip{position:absolute;top:0;bottom:0;width:6px;cursor:col-resize;z-index:5}
 .dock-grip.right{left:-3px}.dock-grip.left{right:-3px}
 .dock-grip:hover{background:var(--accent);opacity:.5}
-.dock-tabs{display:flex;align-items:stretch;gap:2px;padding:4px 6px 0;border-bottom:1px solid var(--line);overflow-x:auto;flex:none;background:rgba(22,27,36,.55)}
+.dock-tabs{display:flex;align-items:stretch;gap:2px;padding:4px 6px 0;border-bottom:2px solid var(--dock-accent);overflow-x:auto;flex:none;background:color-mix(in srgb,var(--dock-accent) 18%,rgba(22,27,36,.55))}
 .dock-tab{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid transparent;border-bottom:0;border-radius:8px 8px 0 0;cursor:pointer;white-space:nowrap;font-size:13px;max-width:180px}
 .dock-tab.on{background:rgba(11,15,23,.7);border-color:var(--line)}
 .dock-tab-text{overflow:hidden;text-overflow:ellipsis}
@@ -347,7 +347,7 @@ button.kmap-row:disabled{opacity:.45;cursor:not-allowed}
 .card-meta{flex-wrap:wrap}
 .pm-row{gap:0;padding:1px}
 .pm-icon{width:28px;height:26px;border-radius:7px}
-.dock-title{display:flex;align-items:center;gap:7px;font-weight:600;font-size:13px;padding:6px 8px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dock-title{color:var(--dock-accent);display:flex;align-items:center;gap:7px;font-weight:600;font-size:13px;padding:6px 8px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dock-chats{display:flex;gap:2px;padding:4px 6px 0;border-bottom:1px solid var(--line);overflow-x:auto;flex:none}
 .chat-row{cursor:pointer}
 .chat-row:hover{border-color:var(--accent)}

@@ -5,6 +5,7 @@ import { displayName } from "../util";
 import { WorkerChat } from "../world/WorkerChat";
 import { PanelView } from "./PanelView";
 import { Icon, type IconName } from "./icons";
+import { colorOfDock, useDockColorVersion } from "../state/dockColors";
 
 /** Tabs next to the 3D office: panels and one chat per agent. A side column on wide screens, a bottom sheet on narrow ones. */
 export function Dock({ narrow }: { narrow: boolean }) {
@@ -17,6 +18,7 @@ export function Dock({ narrow }: { narrow: boolean }) {
   const resize = useStore((s) => s.resizeDock);
   const openDialog = useStore((s) => s.openDialog);
   const drag = useRef<{ x: number; w: number } | null>(null);
+  useDockColorVersion(); // repaint when a colour is changed in Settings
   const workers = snapshot?.teams.flatMap((t) => t.workers) ?? [];
 
   const chatLabel = (id: string) => { const w = workers.find((x) => x.id === id); return { text: w ? displayName(w) : "(agent)", state: w?.state }; };
@@ -32,7 +34,7 @@ export function Dock({ narrow }: { narrow: boolean }) {
 
   if (!dockVisible(dock)) return null;
   return (
-    <aside className={`dock ${narrow ? "sheet" : `side-${dock.side}`}`} style={narrow ? undefined : { width: dock.width }}>
+    <aside className={`dock ${narrow ? "sheet" : `side-${dock.side}`}`} style={{ "--dock-accent": colorOfDock(dock), ...(narrow ? {} : { width: dock.width }) } as React.CSSProperties}>
       {!narrow && <div className={`dock-grip ${dock.side}`} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={() => { drag.current = null; }} title="Drag to resize" />}
       <div className="dock-tabs">
         {title && <span className="dock-title"><Icon name={title.icon} size={15} /> {title.text}</span>}

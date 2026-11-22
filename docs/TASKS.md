@@ -271,6 +271,7 @@ Do this first: games, rewards, caffeine and rankings all write here.
 - [x] [H] 13.7.12 Games popover has two tabs, 🏆 Rankings (with the per-game filter) and 🎮 New game (game, players, Start, Stop all, Race…, idle agents play); clicks inside it no longer reach the 3D scene (shared `useSwallowEvents` in `games/swallow.tsx`, also used by the claw window)
 - [x] [S] 13.7.13 One header Stop for all special modes: `state/modes.ts` registry (`registerMode({id,label,active,stop})`), big red Stop button with a small "stop" label (`dock/StopModes.tsx`) shown while a game or smashing is on (race registers via the race session); it ends every active mode and sends the camera back behind the character/hand (`reset`). Race setup moves into Games > New game (race session, 13.7.10g)
 - [x] [H] 13.1.35 The floating dock sits above every 3D overlay (labels, bubbles, drone food icons): z-index 20000000 > drei Html range
+- [x] [S] 13.1.36 Sidebar colour per tab: every tab has a default colour (`state/dockColors.ts`) that tints the sidebar (edge, glow, header, title, background) and fades between tabs; Settings > 3D office "Sidebar colours" has a picker per tab + Reset (stored in `ao.dockColors`). Test in `test/dockcolors.test.ts`
 - [x] [H] 13.1.32 Fix: games chips covered the hand-mode buttons; laptop close-up hides the hand and its buttons and shows the real cursor (hand + walk both keep "Back to the office")
 
 ### 13.4 Cubicles, identity, caffeine, rate limit
