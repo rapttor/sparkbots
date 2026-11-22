@@ -25,6 +25,7 @@ export interface Racer {
   out: boolean;           // retired (its agent went back to work)
   item: Item | null;      // what you hold; the action key uses it
   itemWait: number;       // AI: seconds before it uses the item
+  stuck: number;          // seconds pinned against the wall with the throttle down
 }
 export type Item = "boost" | "missile" | "trap";
 export const ITEMS: Item[] = ["boost", "missile", "trap"];
@@ -50,6 +51,8 @@ export class RaceSim {
   readonly spec: CarSpec;
   decor: Decor;
   crossers: Crosser[];
+  /** Item boxes on the road (setup option). */
+  itemsOn = true;
   missiles: Missile[] = [];
   traps: Trap[] = [];
   events: Boom[] = [];            // explosions since the renderer last looked
@@ -67,7 +70,7 @@ export class RaceSim {
     const g = gridSlot(this.track, this.racers.length);
     const car = newCar(g.x, g.z, g.h);
     car.s = ((g.s % this.track.length) + this.track.length) % this.track.length;
-    const r: Racer = { id, name, color, user, car, input: { throttle: 0, steer: 0, drift: false }, skill: 0.82 + this.rng() * 0.18, lane: (this.rng() - 0.5) * this.track.halfWidth * 0.8, prog: g.s, lap: 0, finishedAt: null, lapAt: 0, lastLap: null, bestLap: null, bumps: 0, out: false, item: null, itemWait: 0 };
+    const r: Racer = { id, name, color, user, car, input: { throttle: 0, steer: 0, drift: false }, skill: 0.82 + this.rng() * 0.18, lane: (this.rng() - 0.5) * this.track.halfWidth * 0.8, prog: g.s, lap: 0, finishedAt: null, lapAt: 0, lastLap: null, bestLap: null, bumps: 0, out: false, item: null, itemWait: 0, stuck: 0 };
     this.racers.push(r);
     this.rank();
     return r;
@@ -109,6 +112,7 @@ export class RaceSim {
       if (free) this.keepNear(r.car);
       else this.hazards(r, h);
       this.pickups(r);
+      if (!free) this.marshal(r, h);
       if (r.finishedAt === null && !free) {
         r.prog += wrapDelta(r.car.s - prevS, this.track.length);
         const lap = Math.max(0, Math.floor(r.prog / this.track.length));
@@ -127,6 +131,16 @@ export class RaceSim {
     // over when every live car has finished; or a long time after the winner (stragglers and standing user cars do not hold things up)
     const winnerAt = Math.min(...this.racers.map((r) => r.finishedAt ?? Infinity));
     if (live.length === 0 || live.every((r) => r.finishedAt !== null) || this.time - winnerAt > 25) this.phase = "over";
+  }
+
+  /** Pinned against the wall for a while (nose into it, throttle down): a marshal lifts the car back onto the road, facing the way. */
+  private marshal(r: Racer, dt: number): void {
+    const c = r.car;
+    if (r.finishedAt === null && speedOf(c) < 1.5 && Math.abs(r.input.throttle) > 0.5 && Math.abs(c.lat) > this.track.halfWidth) r.stuck += dt; else r.stuck = 0;
+    if (r.stuck < 2.5) return;
+    const p = pointAt(this.track, c.s);
+    Object.assign(c, { x: p.x, z: p.z, h: Math.atan2(p.tz, p.tx), vx: 0, vz: 0, lat: 0, slick: 0, seg: -1 });
+    r.stuck = 0;
   }
 
   /** Potholes slow you down, oil takes your grip away, a mini robot in the way is knocked flat (and slows you a little). */
@@ -148,7 +162,7 @@ export class RaceSim {
 
   /** Driving over an item box gives you an item if your hands are empty; the box is back a few seconds later. */
   private pickups(r: Racer): void {
-    if (r.item !== null) return;
+    if (r.item !== null || !this.itemsOn) return;
     const c = r.car, list = this.decor.pickups;
     for (let i = 0; i < list.length; i++) {
       if (this.pickupCd[i]! > 0 || Math.abs(list[i]!.s - c.s) > 4) continue;

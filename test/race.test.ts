@@ -441,3 +441,30 @@ describe("missileStep (pure)", () => {
     expect(s.missiles.length).toBeLessThanOrEqual(MAX_MISSILES);
   });
 });
+
+describe("race setup options and the Stop mode", () => {
+  it("number of cars and items on/off come from the setup", () => {
+    const h = new RaceHub(mkEnvX(["a", "b", "c", "d", "e", "f", "g"])); h.setTrack(oval());
+    h.cars = 4; h.items = false;
+    expect(h.start(false)).toBe(true);
+    expect(h.sim!.racers.length).toBe(4);
+    expect(h.sim!.itemsOn).toBe(false);
+    const r = h.sim!.racers[0]!; adv(h.sim!, 3.1);
+    const pk = h.sim!.decor.pickups[0]!; Object.assign(r.car, { seg: -1, x: pk.x, z: pk.z }); h.sim!.step(0.02);
+    expect(r.item).toBeNull();                       // no item boxes without the option
+    h.stop(); h.cars = 2; h.items = true;
+    expect(h.join()).toBe(true); expect(h.sim!.racers.length).toBe(2); // you + one pit bot
+  });
+});
+
+describe("marshal", () => {
+  it("a car pinned against the wall with the throttle down is put back on the road facing the way", () => {
+    const s = new RaceSim(oval(), mulberry32(5), 3), r = s.add("u", "You", "#fc0", true)!;
+    s.add("a", "A", "#fff"); adv(s, 3.1);
+    const p = pointAt(s.track, 30), lim = s.track.halfWidth + 4 * s.spec.radius;
+    Object.assign(r.car, { seg: -1, s: 30, x: p.x - p.tz * lim, z: p.z + p.tx * lim, h: Math.atan2(p.tz, p.tx) + Math.PI / 2, vx: 0, vz: 0 }); // nose into the wall
+    for (let t = 0; t < 6; t += 0.05) { r.input.throttle = 1; s.step(0.05); if (Math.abs(r.car.lat) < 0.5) break; }
+    expect(Math.abs(r.car.lat)).toBeLessThan(0.5);
+    const fwd = r.car.vx * p.tx + r.car.vz * p.tz; expect(fwd).toBeGreaterThanOrEqual(0);
+  });
+});

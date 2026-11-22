@@ -4,7 +4,7 @@ import { hub, setAuto } from "./instance";
 import { GAMES, GAME_IDS } from "./registry";
 import type { GameId, RankRow } from "./types";
 import { goTo, spotBehindTable } from "./goto";
-import { openRacePanel } from "./race/RaceLayer";
+import { RaceSetup } from "./race/RaceSetup";
 import { useSwallowEvents } from "./swallow";
 
 const CSS = `
@@ -30,7 +30,7 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
   const [tab, setTab] = useState<GameId | "all">("all");
   const [rows, setRows] = useState<RankRow[]>([]);
   const [msg, setMsg] = useState("");
-  const [form, setForm] = useState<{ game: GameId; a: string; b: string }>({ game: "pong", a: "", b: "" });
+  const [form, setForm] = useState<{ game: GameId | "race"; a: string; b: string }>({ game: "pong", a: "", b: "" });
   const cand = open || hub.instances.some((i) => !i.seats[1].agent) ? hub.candidates() : [];
 
   useEffect(() => {
@@ -40,6 +40,7 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
   }, [open, tab, hub.version]);
 
   const start = () => {
+    if (form.game === "race") return;
     const ids = [form.a || cand[0], form.b].filter((x): x is string => !!x);
     if (!ids.length) { setMsg("No idle agent is free right now."); return; }
     const inst = hub.open(form.game, ids, true);
@@ -85,15 +86,18 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
           </>}
           {page === "new" && <>
           <form onSubmit={(e) => { e.preventDefault(); start(); }}>
-            <select aria-label="Game" value={form.game} onChange={(e) => setForm({ ...form, game: e.target.value as GameId })}>{GAME_IDS.map((g) => <option key={g} value={g} disabled={!hub.canOpen(g)}>{GAMES[g].icon} {GAMES[g].name}</option>)}</select>
+            <select aria-label="Game" value={form.game} onChange={(e) => setForm({ ...form, game: e.target.value as GameId | "race" })}>{GAME_IDS.map((g) => <option key={g} value={g} disabled={!hub.canOpen(g)}>{GAMES[g].icon} {GAMES[g].name}</option>)}<option value="race">🏎 Race</option></select>
+            {form.game !== "race" && <>
             <select aria-label="Player one" value={form.a} onChange={(e) => setForm({ ...form, a: e.target.value })}><option value="">first idle agent</option>{options(form.b)}</select>
             <select aria-label="Player two" value={form.b} onChange={(e) => setForm({ ...form, b: e.target.value })}><option value="">opponent: invite later</option>{options(form.a)}</select>
             <button type="submit">Start</button>
             {hub.instances.length > 0 && <button type="button" onClick={() => hub.stopAll()}>Stop all</button>}
-            <button type="button" title="Race track: cars, carmageddon" onClick={() => { openRacePanel(true); setOpen(false); }}>🏎 Race…</button>
+            </>}
+            <button type="button" title="Race track: cars, carmageddon" onClick={() => setForm({ ...form, game: "race" })}>🏎 Race…</button>
           </form>
+          {form.game === "race" && <RaceSetup onStarted={() => setOpen(false)} />}
           {msg && <p role="alert">{msg}</p>}
-          <label><input type="checkbox" checked={hub.auto} onChange={(e) => { setAuto(e.target.checked); setMsg(""); }} /> Idle agents play on their own</label>
+          {form.game !== "race" && <label><input type="checkbox" checked={hub.auto} onChange={(e) => { setAuto(e.target.checked); setMsg(""); }} /> Idle agents play on their own</label>}
           </>}
           <p className="muted">Games are for show: they never stop an agent from working, and nothing leaves your machine.</p>
         </div>

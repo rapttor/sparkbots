@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, Euler, Float32BufferAttribute, Matrix4, Object3D, Quaternion, SphereGeometry, type InstancedMesh } from "three";
+import { BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, Euler, Float32BufferAttribute, Matrix4, Object3D, Group, Quaternion, SphereGeometry, Vector3, type InstancedMesh } from "three";
 import { displayName } from "../../../util";
 import { mulberry32 } from "../types";
 import { effectiveState, roams } from "../../roam";
+import { registerMode } from "../../../state/modes";
 import type { Layout } from "../../layout";
 import { CARMA_TIME, ITEM_ICON, MAX_CARS } from "./sim";
 import { slideOf, speedOf } from "./car";
@@ -19,13 +20,9 @@ import { shortName } from "./names";
 /** The one race hub of the page. Its world is wired up by <RaceLayer>; until then nobody is idle. */
 const none: RaceEnv = { rng: Math.random, idle: () => [], alive: () => false, name: (a) => a, color: () => "#ffffff" };
 export const raceHub = new RaceHub(none);
+registerMode({ id: "race", label: "Race", active: () => raceHub.running, stop: () => raceHub.stop() }); // the header Stop button ends it
 const AUTO_KEY = "sparkbots.race.auto";
 try { raceHub.auto = localStorage.getItem(AUTO_KEY) !== "0"; } catch { /* storage blocked: default on */ }
-
-let panelOpen = false;
-const panelSubs = new Set<() => void>();
-/** Open (or close) the race setup panel; the 🎮 Games popover has the button for it. */
-export function openRacePanel(on = true): void { panelOpen = on; for (const f of panelSubs) f(); }
 
 const DRIVE_KEYS = new Set(["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", " ", "c", "escape", "e", "shift"]);
 let fpv = false; // camera: behind the car (default) or from the driver's seat; C toggles
@@ -139,10 +136,13 @@ export function RaceLayer({ layout }: { layout: Layout }) {
   const potM = useRef<InstancedMesh>(null), oilM = useRef<InstancedMesh>(null), tyreM = useRef<InstancedMesh>(null), botB = useRef<InstancedMesh>(null), botH = useRef<InstancedMesh>(null), splashM = useRef<InstancedMesh>(null);
   const pickM = useRef<InstancedMesh>(null), missM = useRef<InstancedMesh>(null), trapM = useRef<InstancedMesh>(null);
   const decorFor = useRef<unknown>(null);
+  const hudAnchor = useRef<Group>(null), fwdV = useMemo(() => new Vector3(), []);
   const clock = useRef(0);
 
   useFrame((_, dt) => {
     raceHub.tick(Math.min(dt, 0.1));
+    // the HUD's anchor rides in front of the camera: drei hides an <Html> whose anchor is behind it, and the chase camera looks away from the origin
+    if (hudAnchor.current) { camera.getWorldDirection(fwdV); hudAnchor.current.position.copy(camera.position).addScaledVector(fwdV, 5); }
     const sim = raceHub.sim;
     if (!sim) { decorFor.current = null; return; }
     clock.current += dt;
@@ -212,7 +212,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
     }
     // item boxes (spin; gone while cooling down), missiles in flight, oil slicks dropped by drivers, explosions
     const pm = pickM.current;
-    if (pm) { sim.decor.pickups.forEach((pk, i) => { dummy.position.set(pk.x, sim.pickupCd[i]! > 0 ? -50 : 0.9 + Math.sin(clock.current * 3 + i) * 0.12, pk.z); dummy.rotation.set(0.4, clock.current * 2 + i, 0.4); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); pm.setMatrixAt(i, dummy.matrix); }); pm.count = sim.decor.pickups.length; pm.instanceMatrix.needsUpdate = true; }
+    if (pm) { (sim.itemsOn ? sim.decor.pickups : []).forEach((pk, i) => { dummy.position.set(pk.x, sim.pickupCd[i]! > 0 ? -50 : 0.9 + Math.sin(clock.current * 3 + i) * 0.12, pk.z); dummy.rotation.set(0.4, clock.current * 2 + i, 0.4); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); pm.setMatrixAt(i, dummy.matrix); }); pm.count = sim.itemsOn ? sim.decor.pickups.length : 0; pm.instanceMatrix.needsUpdate = true; }
     const mm = missM.current;
     if (mm) { sim.missiles.forEach((m, i) => { dummy.position.set(m.x, 0.7, m.z); dummy.rotation.set(0, -Math.atan2(m.vz, m.vx), Math.PI / 2); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); mm.setMatrixAt(i, dummy.matrix); }); mm.count = sim.missiles.length; mm.instanceMatrix.needsUpdate = true; }
     const tm = trapM.current;
@@ -269,97 +269,43 @@ export function RaceLayer({ layout }: { layout: Layout }) {
           ))}
         </group>
       )}
-      <Html fullscreen zIndexRange={[40, 30]} style={{ pointerEvents: "none" }}><RaceOverlay /><RaceHud /></Html>
+      <group ref={hudAnchor}><Html fullscreen zIndexRange={[40, 30]} style={{ pointerEvents: "none" }}><RaceHud /></Html></group>
     </>
   );
 }
 
 const CSS = `
-.race-bar{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:flex-start;pointer-events:none}
-.race-bar>*{pointer-events:auto}
-.race-pop{padding:8px 10px;background:#151b27ee;border:1px solid #3a4558;border-radius:8px;color:#e7ecf5;font-size:12px;min-width:200px}
-.race-pop button{margin-right:6px}.race-pop ol{margin:4px 0;padding-left:18px}
-.race-stop{padding:3px 10px;background:#7a1f1f;border:1px solid #c44;border-radius:999px;color:#fff;font-size:12px;cursor:pointer}
-.race-hud{position:absolute;top:56px;left:12px;padding:8px 12px;background:#10151fcc;border:1px solid #3a4558;border-radius:8px;color:#e7ecf5;font:12px ui-monospace,Menlo,monospace;line-height:1.5;pointer-events:none;min-width:170px}\n.race-hud b{font-size:15px}\n.race-lights{font-size:20px;letter-spacing:4px}
+.race-hud{position:absolute;top:56px;left:12px;padding:8px 12px;background:#10151fcc;border:1px solid #3a4558;border-radius:8px;color:#e7ecf5;font:12px ui-monospace,Menlo,monospace;line-height:1.5;pointer-events:none;min-width:170px}
+.race-hud b{font-size:15px}
+.race-hud ol{margin:2px 0;padding-left:18px}
+.race-lights{font-size:20px;letter-spacing:4px}
 `;
-
-/** Bottom-centre chip: start a race, take a seat (arrows or WASD, space = drift), standings while it runs. */
-function RaceOverlay() {
-  useSyncExternalStore((cb) => raceHub.subscribe(cb), () => raceHub.version);
-  const open = useSyncExternalStore((cb) => { panelSubs.add(cb); return () => { panelSubs.delete(cb); }; }, () => panelOpen);
-  const setOpen = openRacePanel;
-  const [, tick] = useState(0);
-  const [msg, setMsg] = useState("");
-  const [pick, setPick] = useState("");    // car to take over ("" = a new car of your own)
-  const [color, setColor] = useState("#ffd166");
-  const sim = raceHub.sim;
-  useEffect(() => { if (!sim) return; const h = setInterval(() => tick((n) => n + 1), 400); return () => clearInterval(h); }, [sim]);
-  const lapOf = (id: string) => { const r = sim?.get(id); return r ? Math.min(LAPS, Math.max(0, r.lap) + 1) : 0; };
-  return (
-    <>
-      <style>{CSS}</style>
-      <div className="race-bar">
-        {sim && <button className="games-chip" style={{ display: "flex", gap: 6, padding: "3px 8px", background: "#151b27ee", border: "1px solid #3a4558", borderRadius: 999, color: "#e7ecf5", fontSize: 12, cursor: "pointer" }} title="Race track" onClick={() => setOpen(!open)}>
-          🏎 Race{sim.phase === "countdown" ? " · get ready" : sim.phase === "over" ? " · finished" : " · live"}
-        </button>}
-        {sim && <button className="race-stop" title="Stop the race (Esc while driving)" onClick={() => raceHub.stop()}>⏹ Stop race{raceHub.userRacing ? " · Esc" : ""}</button>}
-        {(open || sim) && (
-          <div className="race-pop" role="dialog" aria-label="Race track">
-            {sim?.phase === "countdown" && <div className="race-lights">{sim.time < -2 ? "🔴🔴🔴" : sim.time < -1 ? "🔴🔴" : "🔴"}</div>}
-            {sim && sim.phase !== "countdown" && (
-              <ol>
-                {(sim.phase === "over" ? raceHub.last.map((r, i) => <li key={i}>{r.name}{r.time !== null ? ` · ${r.time.toFixed(1)} s` : " · did not finish"}</li>) : sim.order.slice(0, 5).map((id) => <li key={id}>{sim.get(id)!.name} · lap {lapOf(id)}/{LAPS}</li>))}
-              </ol>
-            )}
-            <div>
-              {!sim && <button onClick={() => setOpen(false)} title="Close">✕</button>}
-              {!sim && !raceHub.carmageddon && <button onClick={() => { const ok = raceHub.start(false); setMsg(ok ? "" : "Needs at least two idle agents."); if (ok && raceHub.track) { const p = pointAt(raceHub.track, -9); goTo(p.x, p.z); } }}>Start race</button>}
-              {!sim && raceHub.carmageddon && <button onClick={() => setMsg(raceHub.join(undefined, color) ? "" : "Could not start.")}>Start carmageddon</button>}
-              {!raceHub.userRacing && !raceHub.carmageddon && (!sim || sim.phase !== "over") && <button onClick={() => setMsg(raceHub.join(pick || undefined, color) ? "" : "Could not take that seat.")}>Drive</button>}
-              {raceHub.userRacing && <button onClick={() => raceHub.leave()}>Leave</button>}
-              {sim && <button onClick={() => raceHub.stop()}>Stop</button>}
-            </div>
-            {!sim && (
-              <div>
-                <select aria-label="Car type" value={raceHub.kind} onChange={(e) => { raceHub.kind = e.target.value as CarKind; tick((n) => n + 1); }}>
-                  {CAR_KINDS.map((k) => <option key={k} value={k}>{CAR_TYPES[k].icon} {CAR_TYPES[k].name} · top {Math.round(CAR_TYPES[k].maxSpeed / AGENT_SPEED)}x agent</option>)}
-                </select>
-                <label title="Off by default. You drive anywhere, no road edge, and run agents over (they just flatten for a moment: cosmetic)."><input type="checkbox" checked={raceHub.carmageddon} onChange={(e) => { raceHub.carmageddon = e.target.checked; tick((n) => n + 1); }} /> Carmageddon</label>
-              </div>
-            )}
-            {sim?.carmageddon && <div>💥 Run over: <b>{raceHub.squashed}</b> · {Math.max(0, Math.round(240 - sim.time))} s left</div>}
-            {!raceHub.userRacing && (
-              <div>
-                {sim && sim.phase !== "over" && (
-                  <select aria-label="Car to drive" value={pick} onChange={(e) => setPick(e.target.value)}>
-                    <option value="">{sim.phase === "countdown" ? "my own new car" : "take over a car…"}</option>
-                    {sim.racers.filter((r) => !r.out && r.finishedAt === null).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                  </select>
-                )}
-                {(!sim || (!pick && sim.phase === "countdown")) && <label> colour <input type="color" aria-label="Car colour" value={color} onChange={(e) => setColor(e.target.value)} /></label>}
-              </div>
-            )}
-            {raceHub.userRacing && <div className="muted">Arrows or WASD to drive · Space to drift · E: use item · C: camera · Esc: stop</div>}
-            {sim && <div className="muted">The map stays as it was at the start until the race ends.</div>}
-            {msg && <div role="alert">{msg}</div>}
-            <label><input type="checkbox" checked={raceHub.auto} onChange={(e) => { raceHub.auto = e.target.checked; try { localStorage.setItem(AUTO_KEY, e.target.checked ? "1" : "0"); } catch { /* ignore */ } tick((n) => n + 1); }} /> Idle agents race on their own</label>
-          </div>
-        )}
-      </div>
-    </>
-  );
-}
 
 /** Nerd stats while you drive: place, lap, speed, lap times, bumps, drift, agents run over. Refreshes ~8 times a second. */
 function RaceHud() {
   useSyncExternalStore((cb) => raceHub.subscribe(cb), () => raceHub.version);
   const [, tick] = useState(0);
   const sim = raceHub.sim, me = sim && raceHub.userId ? sim.get(raceHub.userId) : undefined;
-  useEffect(() => { if (!me) return; const h = setInterval(() => tick((n) => n + 1), 120); return () => clearInterval(h); }, [me]);
-  if (!sim || !me || me.out) return null;
+  useEffect(() => { if (!sim) return; const h = setInterval(() => tick((n) => n + 1), 120); return () => clearInterval(h); }, [sim]);
+  if (!sim) return null;
+  if (!me || me.out) { // watching: countdown lights and the standings
+    const lapOf = (id: string) => Math.min(sim.laps, Math.max(0, sim.get(id)?.lap ?? 0) + 1);
+    return (
+      <div className="race-hud" role="status" aria-label="Race standings">
+        <style>{CSS}</style>
+        <div>{sim.spec.icon} {sim.carmageddon ? "Carmageddon" : "Race"}{sim.phase === "over" ? " · finished" : ""}</div>
+        {sim.phase === "countdown" && <div className="race-lights">{sim.time < -2 ? "🔴🔴🔴" : sim.time < -1 ? "🔴🔴" : "🔴"}</div>}
+        {sim.phase === "over" && raceHub.last.length > 0
+          ? <ol>{raceHub.last.map((r, i) => <li key={i}>{r.name}{r.time !== null ? ` · ${r.time.toFixed(1)} s` : " · did not finish"}</li>)}</ol>
+          : sim.phase !== "countdown" && <ol>{sim.order.slice(0, 6).map((id) => <li key={id}>{sim.get(id)!.name} · lap {lapOf(id)}/{sim.laps}</li>)}</ol>}
+      </div>
+    );
+  }
   const sp = speedOf(me.car), place = sim.order.indexOf(me.id) + 1, t = (v: number | null) => (v === null ? "–" : `${v.toFixed(1)}s`);
   return (
     <div className="race-hud" role="status" aria-label="Race stats">
+      <style>{CSS}</style>
+      {sim.phase === "countdown" && <div className="race-lights">{sim.time < -2 ? "🔴🔴🔴" : sim.time < -1 ? "🔴🔴" : "🔴"}</div>}
       <div>{sim.spec.icon} {sim.spec.name}{me.car.drifting ? " · 🔥 drifting" : ""}{me.car.slick > 0 ? " · 🛢 oil" : ""}</div>
       {sim.carmageddon ? (
         <>
@@ -379,3 +325,5 @@ function RaceHud() {
     </div>
   );
 }
+
+export { AUTO_KEY as RACE_AUTO_KEY };
