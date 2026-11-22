@@ -18,7 +18,7 @@ export type NerdInfo = ReturnType<typeof import("../server/nerd").nerdSnapshot>;
 export interface SearchHit { session: string; at: number; role: string; snippet: string; title: string; team: string; name?: string; archived: boolean }
 export interface SubagentInfo { id: string; type: string; description: string; model?: string; finished: boolean; mtimeMs: number }
 export interface ArchivedItem { id: string; at: number; title: string; team: string; name?: string }
-export type StreamLine = { type?: string; message?: { content?: { type?: string; text?: string }[] }; result?: string };
+export type StreamLine = { type?: string; message?: { content?: { type?: string; text?: string }[] }; result?: string; text?: string; permission_denials?: unknown[] };
 
 export interface TaskInfo { file: string; open: number; done: number; phase?: string }
 export type TeamTasks = Record<string, TaskInfo | null>;
@@ -44,6 +44,7 @@ export async function call<T>(method: string, path: string, body?: unknown): Pro
 export const api = {
   runs: () => call<RunRecord[]>("GET", "/api/runs"),
   runLog: (id: string) => call<StreamLine[]>("GET", `/api/runs/${id}/log`),
+  retryRun: (runId: string, tools: string[]) => call<SendResult>("POST", `/api/runs/${runId}/retry`, { tools }),
   send: (session: string, prompt: string, fork = false, model?: string, attachments?: string[]) => call<SendResult>("POST", "/api/send", { session, prompt, fork, model, attachments }),
   upload: (name: string, data: string) => call<{ id: string; name: string; size: number }>("POST", "/api/uploads", { name, data }),
   spawn: (cwd: string, prompt: string, model?: string) => call<RunRecord>("POST", "/api/spawn", { cwd, prompt, model }),

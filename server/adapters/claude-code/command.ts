@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { loadJson, saveJson } from "../../config";
 import type { SendOpts } from "../types";
+import { SAFE_TOOL } from "../../../src/shared/claudeStream";
 
 export interface RunRecord {
   runId: string; session?: string; cwd: string; prompt: string; pid: number;
@@ -18,7 +19,7 @@ const FORBIDDEN_MODES = new Set(["bypassPermissions"]);
 export function buildArgs(prompt: string, session: string | undefined, opts: SendOpts): string[] {
   if (opts.permissionMode && FORBIDDEN_MODES.has(opts.permissionMode)) throw new CommandError(400, "bypassPermissions is never allowed");
   const safePrompt = prompt.startsWith("-") ? " " + prompt : prompt; // can't be read as a flag
-  const a = ["-p", safePrompt, "--output-format", "stream-json", "--verbose"];
+  const a = ["-p", safePrompt, "--output-format", "stream-json", "--verbose", "--include-partial-messages"];
   if (session) a.push("--resume", session);
   if (session && opts.fork) a.push("--fork-session");
   if (opts.model !== undefined && opts.model !== "") {
@@ -50,6 +51,8 @@ export class RunManager {
   /** Environment for spawned `claude` processes (default: ours). */
   envProvider: () => NodeJS.ProcessEnv = () => process.env;
   runs: RunRecord[];
+  /** Options each run was started with (memory only), so "Allow this tool & retry" can repeat the run. */
+  private optsByRun = new Map<string, SendOpts>();
 
   /** `isLiveInTerminal(sessionId)` comes from liveness; `bin` is injectable for tests. */
   constructor(private isLiveInTerminal: (s: string) => boolean, private bin = "claude", private pidAlive = (p: number) => { try { process.kill(p, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; } }) {
@@ -73,6 +76,7 @@ export class RunManager {
     const args = buildArgs(prompt, session, opts);
     const child = spawn(this.bin, args, { cwd, shell: false, stdio: ["ignore", "pipe", "pipe"], env: this.envProvider() });
     const rec: RunRecord = { runId: randomUUID(), session: opts.fork ? undefined : session, cwd, prompt, pid: child.pid ?? -1, status: "running", startedAt: Date.now() };
+    this.optsByRun.set(rec.runId, opts); if (this.optsByRun.size > 200) this.optsByRun.delete(this.optsByRun.keys().next().value!);
     this.runs.push(rec); this.children.set(rec.runId, child); if (session && !opts.fork) this.busy.add(session); this.persist();
     let buf = "";
     child.stdout!.on("data", (d: Buffer) => {
@@ -89,6 +93,19 @@ export class RunManager {
     };
     child.on("error", () => end(null, true)); child.on("close", (c) => end(c));
     return rec;
+  }
+  /**
+   * Re-send a finished run's prompt with extra tools allowed for this one run only (`--allowedTools`, never persisted, never bypassPermissions).
+   * `base` is used when the original options are no longer known (server restart).
+   */
+  retryWithTools(runId: string, tools: string[], base: SendOpts = {}) {
+    const rec = this.runs.find((r) => r.runId === runId);
+    if (!rec) throw new CommandError(404, "Unknown run");
+    if (rec.status === "running") throw new CommandError(409, "That run is still going");
+    if (!tools.length || tools.length > 20 || !tools.every((t) => SAFE_TOOL.test(t))) throw new CommandError(400, "invalid tool name");
+    const o = { ...(this.optsByRun.get(runId) ?? base) };
+    const opts: SendOpts = { ...o, fork: false, allowedTools: [...new Set([...(o.allowedTools ?? []), ...tools])] };
+    return rec.session ? this.send(rec.session, rec.cwd, rec.prompt, opts) : { queued: false as const, run: this.spawnNew(rec.cwd, rec.prompt, opts) };
   }
   private emit(e: RunEvent) { for (const l of this.listeners) l(e); }
 

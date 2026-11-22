@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { Company } from "./model/company";
 import { RunManager, CommandError, type RunEvent } from "./adapters/claude-code/command";
+import { foldLog, isStreamEvent, permissionDenials, textDelta } from "../src/shared/claudeStream";
 import { teamFor } from "./adapters/claude-code/discover";
 import type { Slice } from "../src/shared/sync";
 import { registerBoard } from "./board/routes";
@@ -34,7 +35,13 @@ export const tasks: { fn: () => string } = { fn: () => "" };
 export function registerRoutes(app: FastifyInstance, c: Company, onChange: () => void = () => {}, ping: (kind: Slice, id?: string) => void = () => {}): RunManager {
   const runs = new RunManager((id) => c.live.get(id)?.kind === "interactive");
   const log = new Map<string, unknown[]>(); // runId -> recent stream lines (in memory, for the chat panel)
-  runs.listeners.add((e: RunEvent) => { const a = log.get(e.runId) ?? []; a.push(e.line); log.set(e.runId, a.slice(-200)); ping("runs"); });
+  let lastDeltaPing = 0;
+  runs.listeners.add((e: RunEvent) => {
+    const a = foldLog(log.get(e.runId) ?? [], e.line); log.set(e.runId, a.length > 200 ? a.slice(-200) : a);
+    if (textDelta(e.line) !== null) { const now = Date.now(); if (now - lastDeltaPing < 120) return; lastDeltaPing = now; } // streamed text: do not wake every browser per token
+    else if (isStreamEvent(e.line)) return;
+    ping("runs");
+  });
   runs.onChange = () => { ping("runs"); ping("processes"); };
 
   const teamOverride = (cwd: string): TeamOverride => c.teams.overrides[teamFor(cwd, c.teams.merges)] ?? {};
@@ -49,6 +56,14 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
 
   app.get("/api/runs", async () => runs.runs.slice(-50));
   app.get<{ Params: { id: string } }>("/api/runs/:id/log", async (r) => log.get(r.params.id) ?? []);
+  /** "Allow this tool & retry": only tools the run was actually denied can be allowed, for that one re-run. */
+  app.post<{ Params: { id: string }; Body: { tools?: unknown } }>("/api/runs/:id/retry", async (req) => {
+    const t = req.body?.tools; const asked = Array.isArray(t) && t.every((x) => typeof x === "string") ? (t as string[]) : [];
+    const denied = new Set(permissionDenials(log.get(req.params.id) ?? []).map((d) => d.tool));
+    if (!asked.length || !asked.every((t) => denied.has(t))) throw Object.assign(new Error("tools must be ones this run was denied"), { statusCode: 400 });
+    const cwd = runs.runs.find((r) => r.runId === req.params.id)?.cwd;
+    return wrap(() => runs.retryWithTools(req.params.id, asked, cwd ? overrides(cwd) : {}));
+  });
   app.post<{ Body: { session?: string; prompt?: string; fork?: boolean; model?: string; attachments?: unknown } }>("/api/send", async (req) => {
     const session = str(req.body?.session), prompt = str(req.body?.prompt);
     const s = session ? c.sessions.get(session) : undefined;

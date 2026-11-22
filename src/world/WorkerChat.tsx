@@ -7,6 +7,7 @@ import { useLive } from "../state/live";
 import { runProblem, type RunProblem } from "./runStatus";
 import { OpenCodeModelPicker } from "./OpenCodeModelPicker";
 import { displayName } from "../util";
+import { partialText, permissionDenials, type PermissionDenial } from "../shared/claudeStream";
 
 const stopProp = (e: React.SyntheticEvent) => e.stopPropagation();
 
@@ -83,6 +84,8 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
     } catch { setModelState(w?.source === "opencode" ? w.model ?? "" : ""); }
   }, [workerId, w?.source, w?.model]);
   const [problem, setProblem] = useState<RunProblem | null>(null);
+  const [streaming, setStreaming] = useState(""); // reply text streamed so far, replaced by the real message when the turn ends
+  const [denials, setDenials] = useState<PermissionDenial[]>([]);
   const [svcModels, setSvcModels] = useState<string[]>([]); // models of the services you added (Ollama, ...): usable names for the Model box
   useEffect(() => { call<{ status?: { models?: string[] } }[]>("GET", "/api/services").then((l) => setSvcModels([...new Set(l.flatMap((s) => s.status?.models ?? []))].slice(0, 30))).catch(() => {}); }, []);
   const [teams, setTeams] = useState<Teams | null>(null);
@@ -99,7 +102,10 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
       setMessages(m.messages);
       const mine = runs.filter((r) => r.session === workerId).sort((a, b) => b.startedAt - a.startedAt)[0];
       setRun(mine);
-      setProblem(mine ? runProblem(await api.runLog(mine.runId).catch(() => [])) : null);
+      const lines = mine ? await api.runLog(mine.runId).catch(() => []) : [];
+      setProblem(mine ? runProblem(lines) : null);
+      setStreaming(mine?.status === "running" ? partialText(lines) : "");
+      setDenials(mine && mine.status !== "running" ? permissionDenials(lines) : []);
     } catch { /* transient */ }
   }, ["messages", "runs"], workerId);
 
@@ -111,7 +117,7 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
       if (el) el.scrollTop = el.scrollHeight;
     });
     return () => cancelAnimationFrame(frame);
-  }, [messages, busy]);
+  }, [messages, busy, streaming]);
 
   useEffect(() => {
     // Escape closes the chat, but not while a picker is on top: that Escape belongs to the picker.
@@ -208,7 +214,8 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
       <div className="wc-body" ref={bodyRef}>
         {messages.length === 0 && <p className="wc-empty">No messages yet.</p>}
         {messages.map((m, i) => <Bubble key={`${m.at}-${i}`} m={m} color={w.color} />)}
-        {busy && (
+        {streaming && <Bubble m={{ role: "assistant", text: streaming, at: 0 } as ChatMessage} color={w.color} />}
+        {busy && !streaming && (
           <div className="wc-row wc-bot">
             <span className="wc-avatar"><BotIcon color={w.color} onPick={() => {}} size={22} title="" /></span>
             <div className="wc-bubble wc-typing" aria-label="working"><i /><i /><i /></div>
@@ -272,6 +279,19 @@ export function WorkerChat({ workerId, onClose, dock = "float", onDock }: { work
         {problem?.kind === "model" && <ModelHelp onTry={(m) => { setModel(m); }} />}
         {problem && (run?.status === "running" || problem.level === "error") && (
           <p className="wc-note wc-err" role="status">{problem.level === "retry" ? "⚠ " : "✖ "}{problem.text}{problem.level === "retry" ? " — use Stop to cancel" : ""}</p>
+        )}
+        {run && denials.length > 0 && (
+          <div className="wc-help" role="status">
+            <p className="small">The last run was denied permission to use: <b>{[...new Set(denials.map((d) => d.tool))].join(", ")}</b>.</p>
+            <div className="wc-help-actions">
+              {[...new Set(denials.map((d) => d.tool))].map((t) => (
+                <button key={t} className="small" title="Re-sends the same message with this tool allowed for that one run only"
+                  onClick={() => guard(async () => { await api.retryRun(run.runId, [t]); setDenials([]); setNote(`Retrying with ${t} allowed (this run only)`); })}>
+                  Allow {t} &amp; retry
+                </button>
+              ))}
+            </div>
+          </div>
         )}
         {note && <p className="wc-note">{note}</p>}
         {err && <p className="wc-note wc-err" role="alert">{err}</p>}
