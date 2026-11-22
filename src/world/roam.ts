@@ -102,9 +102,11 @@ export function separate(id: string, r: Roam): void {
   if (player.on) push(player.x, player.z, PLAYER_SEP, 1);
 }
 
-/** Pushes the manager out of any bot it overlaps (returns the corrected position). */
+/** Pushes the manager out of any bot it overlaps. Robots seated at their desk or lying in bed do not push: desks and
+ *  laptops are walk-through, so you can cross a desk even if its robot sits right there (the robot stays put). */
 export function pushPlayerOut(p: { x: number; z: number }): void {
   forEachNear(p.x, p.z, 0.7, (o) => {
+    if (!o.moving && (o.mode === "desk" || o.mode === "sleep")) return;
     const dx = p.x - o.x, dz = p.z - o.z, d = Math.hypot(dx, dz);
     if (d < 0.7 && d > 1e-3) { const k = (0.7 - d) / d; p.x += dx * k; p.z += dz * k; }
   });
