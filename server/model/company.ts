@@ -1,7 +1,8 @@
 import { toolActivity, parseLine } from "../adapters/claude-code/parse";
 import { discoverSessions, teamFor, teamColor } from "../adapters/claude-code/discover";
 import { discoverSessions as discoverCodexSessions } from "../adapters/codex/discover";
-import { parseLine as parseCodexLine, toolActivity as codexToolActivity } from "../adapters/codex/parse";
+import { parseLine as parseCodexLine, toolActivity as codexToolActivity, type CodexParseCtx } from "../adapters/codex/parse";
+import { codexLiveness } from "../adapters/codex/liveness";
 import { discoverSessions as discoverOpenCodeSessions } from "../adapters/opencode/discover";
 import { parseLine as parseOpenCodeLine, toolActivity as opencodeToolActivity } from "../adapters/opencode/parse";
 import { readLiveness } from "../adapters/claude-code/liveness";
@@ -46,7 +47,7 @@ export class Company {
   get search(): SearchIndex { return (this._search ??= new SearchIndex()); }
   /** Index new/changed transcripts in the background; cheap when nothing changed. */
   indexSessions(): Promise<void> {
-    return this.search.build([...this.sessions.values()].map((s) => ({ path: s.file, session: s.id, size: s.sizeBytes, mtime: s.mtimeMs })));
+    return this.search.build([...this.sessions.values()].map((s) => ({ path: s.file, session: s.id, size: s.sizeBytes, mtime: s.mtimeMs, source: s.source ?? "claude" })));
   }
   sessionStats = new Map<string, WorkStats>();
   constructor(public cfg: Config, public teams: Teams) {}
@@ -76,7 +77,10 @@ export class Company {
     for (const [id, s] of this.sessions) if (s.source === "opencode" && !seen.has(id)) { this.sessions.delete(id); this.runtimes.delete(id); this.live.delete(id); }
     return changed;
   }
-  async refreshLiveness() { this.live = await readLiveness(); }
+  async refreshLiveness() {
+    const [claude, codex] = await Promise.all([readLiveness(), codexLiveness(this.sessions.values()).catch(() => new Map())]);
+    this.live = new Map([...claude, ...codex]);
+  }
 
   /** Tail one file and feed events into the state machine. Returns number of events. */
   async ingest(id: string, initial = false): Promise<number> {
@@ -101,7 +105,11 @@ export class Company {
     if (initial) { r.state = "asleep"; r.since = Date.now(); r.helpers.clear(); } // history never implies "working"
   }
 
-  private parse(s: SessionRef, line: string) { return s.source === "codex" ? parseCodexLine(line) : s.source === "opencode" ? parseOpenCodeLine(line) : parseLine(line); }
+  private codexCtx = new Map<string, CodexParseCtx>(); // the model name comes from turn_context records, so it is remembered per session
+  private parse(s: SessionRef, line: string, ctx?: CodexParseCtx) {
+    if (s.source === "codex") { let c = ctx ?? this.codexCtx.get(s.id); if (!c) this.codexCtx.set(s.id, c = {}); return parseCodexLine(line, c); }
+    return s.source === "opencode" ? parseOpenCodeLine(line) : parseLine(line);
+  }
 
   /** Lazy full-history stats pass (background). Per-file results cached in ~/.agent-office/cache/stats.json by size+mtime. */
   async buildStats() {
@@ -115,10 +123,10 @@ export class Company {
       let e = cache.files?.[s.file], reread = false;
       if (!e || e.size !== s.sizeBytes || e.mtimeMs !== s.mtimeMs || e.turns === undefined) {
         e = { size: s.sizeBytes, mtimeMs: s.mtimeMs, start: 0, rows: [], turns: 0, tools: 0, workMs: 0 }; changed = true; reread = true;
-        let prev = 0;
+        let prev = 0; const ctx: CodexParseCtx = {};
         try {
           const rl = createInterface({ input: createReadStream(s.file), crlfDelay: Infinity });
-          for await (const line of rl) for (const ev of this.parse(s, line).events) {
+          for await (const line of rl) for (const ev of this.parse(s, line, ctx).events) {
             if (!e.start) e.start = ev.at;
             if (ev.kind === "turn_start") e.turns!++;
             if (ev.kind === "tool") e.tools!++;

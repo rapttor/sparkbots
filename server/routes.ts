@@ -15,6 +15,7 @@ import { listSubagents } from "./adapters/claude-code/subagents";
 import { recentMessages } from "./adapters/claude-code/transcript";
 import { recentMessages as recentCodexMessages } from "./adapters/codex/transcript";
 import { recentMessages as recentOpenCodeMessages } from "./adapters/opencode/transcript";
+import { listArchived as listCodexArchived, loadArchived as loadCodexArchived } from "./adapters/codex/archive";
 import { CodexCommandError, queueMessage as queueCodexMessage } from "./adapters/codex/command";
 import { listModels as listOpenCodeModels, OpenCodeCommandError, queueMessage as queueOpenCodeMessage, spawnSession as spawnOpenCodeSession } from "./adapters/opencode/command";
 import { runPrompt, taskInfo, type TaskInfo } from "./tasks";
@@ -56,6 +57,7 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
     if (s.source === "codex") {
       if (req.body?.fork) throw Object.assign(new Error("Forking Codex chats is not supported yet"), { statusCode: 409 });
       if (Array.isArray(req.body?.attachments) && req.body.attachments.length) throw Object.assign(new Error("Attachments to Codex chats are not supported yet"), { statusCode: 409 });
+      if (c.live.get(s.id)?.kind === "interactive") throw Object.assign(new Error("This Codex chat is open in a terminal. Close it there first so its transcript is not written by two writers."), { statusCode: 409 });
       try { await queueCodexMessage(s.id, prompt, s.cwd); }
       catch (e) { if (e instanceof CodexCommandError) throw Object.assign(new Error(e.message), { statusCode: e.status }); throw e; }
       ping("messages", s.id);
@@ -185,6 +187,20 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
       const s = c.sessions.get(h.session);
       return { ...h, title: s?.title ?? h.session, team: s ? teamFor(s.cwd, c.teams.merges) : "", name: c.botColors.names[h.session], archived: c.archive.has(h.session) };
     });
+  });
+  /** Archived Codex sessions (.jsonl.zst). Listing is cheap; loading decompresses into ~/.agent-office/cache/codex/ on request only. */
+  app.get("/api/codex/archived", async () => (await listCodexArchived()).map((a) => ({ id: a.id, sizeBytes: a.sizeBytes, mtimeMs: a.mtimeMs, loaded: a.loaded })));
+  app.post<{ Body: { ids?: string[] } }>("/api/codex/archived/load", async (r) => {
+    const ids = Array.isArray(r.body?.ids) ? r.body.ids.filter((x) => typeof x === "string").slice(0, 500) : undefined;
+    const res = await loadCodexArchived({ ids });
+    if (res.loaded) {
+      const known = new Set(c.sessions.keys());
+      await c.refreshSessions();
+      for (const id of c.sessions.keys()) if (!known.has(id)) await c.ingest(id, true);
+      c.indexSessions().catch(() => {});
+      ping("stats");
+    }
+    return res;
   });
   app.get("/api/search/status", async () => ({ ...c.search.stats(), building: c.search.building, sessions: c.sessions.size }));
   app.get("/api/archive", async () => Object.entries(c.archive.items).map(([id, i]) => {
