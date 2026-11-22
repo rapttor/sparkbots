@@ -56,7 +56,7 @@ const all = Object.values(mods).map((m) => m.default).filter((z) => {
 /** Icon of a room on the minimap and in titles: the zone's own `icon`, else a default by id. */
 const ZONE_ICONS: Record<string, string> = {
   "coffee-station": "☕", "water-cooler": "💧", cafe: "🍰", kitchen: "🍳", restroom: "🚻", "conference-room": "👥", "manager-room": "📋",
-  "data-room": "🗄", "game-room": "🎱", gym: "🏋", veranda: "🍖", yard: "🐕",
+  "data-room": "🗄", "game-room": "🎱", gym: "🏋", restaurant: "🍽", yard: "🐕", "anger-room": "💢", "sponsor-room": "💛",
 };
 export const zoneIcon = (z: Zone): string => z.icon ?? ZONE_ICONS[z.id] ?? "📍";
 export const ZONES: Zone[] = all.sort((a, b) => a.id.localeCompare(b.id));

@@ -32,6 +32,7 @@ import { Minibots } from "./minibots";
 import { MANAGER_ID, requestCoffee, ServiceBots } from "./servicebots";
 import { CoffeeFactory } from "./coffeefactory";
 import { Cubicles } from "./cubicles";
+import { RoomsContent } from "./rooms/RoomsContent";
 import { DataCenter, consoleSpot, openDataRoom } from "./datacenter";
 import { ManagerWalls } from "./walls";
 import { nerd, sampleFrame } from "../state/nerd";
@@ -788,6 +789,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       <DataCenter layout={layout} />
       <ServiceBots layout={layout} />
       <Cubicles layout={layout} />
+      <RoomsContent layout={layout} />
       <ManagerWalls layout={layout} onOpenBoard={() => useStore.getState().setPanel("board")} onOpenNotes={() => useStore.getState().setPanel("notes")} />
       {!labelsOnly && ctl.tags && <NameTags layout={layout} getCenter={() => (modeRef.current === "walk" ? pos.current : controls.current?.target ?? pos.current)} />}
       {!labelsOnly && <SpeechBubbles layout={layout} getPos={(id) => roams.get(id)} />}
