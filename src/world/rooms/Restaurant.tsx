@@ -4,7 +4,8 @@ import { useFrame } from "@react-three/fiber";
 import type { Group, Mesh } from "three";
 import type { Layout } from "../layout";
 import { newlyWorking } from "../servicebots";
-import { CHEF_LOOKS, MENU, chefLook, dishById, newOrder, place, tick, type Order } from "./menu";
+import { KITCHEN_SETS } from "./kitchenSets";
+import { CHEF_LOOKS, MENU, chefLook, dishById, newOrder, place, tick, type ChefLookId, type Order } from "./menu";
 import { FIRE_FLAG, initFire, loadFlag, tickFire, type FireState } from "./fire";
 import { FOOD_CHANCE, MAX_FLIGHTS, FLIGHT_S, emitFoodDelivered, flight } from "./drones";
 import { bubble, btn, panel, pointer, Stop } from "./ui";
@@ -28,6 +29,8 @@ export function Restaurant({ layout }: { layout: Layout }) {
   const fireDrones = useRef<(Group | null)[]>([]);
   const flames = useRef<(Mesh | null)[]>([]);
   const chef = useRef<Group>(null);
+  const sets = useRef<Partial<Record<ChefLookId, Group | null>>>({});
+  const kit = useRef<{ id: ChefLookId; from: ChefLookId | null; t0: number }>({ id: "plain", from: null, t0: -10 }); // the kitchen set on show and when it changed
   const lay = useRef(layout); lay.current = layout;
 
   // an agent just started work: sometimes a meal drone flies out to its desk (straight line, no pathfinding)
@@ -71,6 +74,17 @@ export function Restaurant({ layout }: { layout: Layout }) {
       g.visible = fire.current.responders;
       if (g.visible) g.position.set(-2.6 + (i ? 1.0 : -0.8), 2.3 + Math.sin(t * 5 + i) * 0.05, -3.2);
     });
+    // the kitchen transforms with the cuisine: the old set collapses, the new one pops up with a little overshoot
+    const want = chefLook(orderRef.current).id;
+    if (want !== kit.current.id) kit.current = { id: want, from: kit.current.id, t0: t };
+    const since = t - kit.current.t0;
+    for (const id of Object.keys(KITCHEN_SETS) as ChefLookId[]) {
+      const g = sets.current[id]; if (!g) continue;
+      let k = 0;
+      if (id === kit.current.id) { const u = Math.min(1, Math.max(0, (since - 0.2) / 0.5)); k = u <= 0 ? 0 : 1 + 2.2 * Math.pow(u - 1, 3) + 1.2 * Math.pow(u - 1, 2); }
+      else if (id === kit.current.from) k = Math.max(0, 1 - since / 0.2);
+      g.visible = k > 0.01; g.scale.set(1, Math.max(0.01, k), 1);
+    }
     if (chef.current) {
       const busy = orderRef.current.state === "preparing";
       chef.current.position.y = busy ? Math.abs(Math.sin(t * 6)) * 0.04 : Math.sin(t * 1.3) * 0.015;
@@ -84,8 +98,29 @@ export function Restaurant({ layout }: { layout: Layout }) {
   const dish = dishById(order.dish ?? "");
   return (
     <>
-      {/* chef behind the counter */}
-      <group position={[rz.x, 0.35, rz.z - 4.0]}> {/* 0.3 = raised kitchen floor in zones/restaurant.ts */}
+      {/* the kitchen behind the chef: one set per cuisine, only the active one is visible (see kitchenSets.ts) */}
+      <group position={[rz.x, 0.3, rz.z]}> {/* 0.3 = raised kitchen floor in zones/restaurant.ts */}
+        {(Object.keys(KITCHEN_SETS) as ChefLookId[]).map((id) => (
+          <group key={id} ref={(g) => { sets.current[id] = g; }} visible={id === "plain"}>
+            {KITCHEN_SETS[id].map((b, i) => (
+              <mesh key={i} position={[b.at[0], (b.y ?? 0) + b.size[1] / 2, b.at[1]]}>
+                <boxGeometry args={b.size} />
+                {b.glow ? <meshBasicMaterial color={b.color} toneMapped={false} />
+                  : b.glass ? <meshStandardMaterial color={b.color} transparent opacity={0.55} roughness={0.2} />
+                  : <meshStandardMaterial color={b.color} roughness={0.7} />}
+              </mesh>
+            ))}
+          </group>
+        ))}
+      </group>
+      {/* glass in front of the chef: you watch the cook through it, over the counter */}
+      <mesh position={[rz.x, 0.3 + 1.6, rz.z - 3.52]} renderOrder={3}>
+        <boxGeometry args={[6.0, 1.3, 0.04]} /><meshPhysicalMaterial color="#bdeaff" transparent opacity={0.16} roughness={0.05} depthWrite={false} />
+      </mesh>
+      <mesh position={[rz.x, 0.3 + 2.27, rz.z - 3.52]}><boxGeometry args={[6.1, 0.07, 0.09]} /><meshStandardMaterial color="#8d98a8" /></mesh>
+      {[-3.0, 0, 3.0].map((x) => <mesh key={x} position={[rz.x + x, 0.3 + 1.6, rz.z - 3.52]}><boxGeometry args={[0.07, 1.3, 0.09]} /><meshStandardMaterial color="#8d98a8" /></mesh>)}
+      {/* chef behind the counter and the glass */}
+      <group position={[rz.x, 0.35, rz.z - 4.0]} scale={1.3}>
         <group ref={chef}
           onClick={(e) => { e.stopPropagation(); setMenu((m) => !m); }} {...pointer}>
           <mesh position={[0, 0.9, 0]}><boxGeometry args={[1.2, 1.9, 1.0]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh>
