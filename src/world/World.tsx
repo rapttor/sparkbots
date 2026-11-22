@@ -36,6 +36,8 @@ import { CoffeeFactory } from "./coffeefactory";
 import { Cubicles } from "./cubicles";
 import { RoomsContent } from "./rooms/RoomsContent";
 import { DataCenter, consoleSpot, openDataRoom } from "./datacenter";
+import { TeleportFx, playBeam } from "./teleport";
+import { nearestFree, roomCenter, travelMode } from "./goto";
 import { GamesLayer, GamesHud } from "./games/GamesLayer";
 import { ClawLayer } from "./games/ClawLayer";
 import { RaceLayer } from "./games/race/RaceLayer";
@@ -322,11 +324,34 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     }
   }, [controller]);
 
+  // "Go there": near = walk (the click-to-move walk), far = transport like in Star Trek: dematerialize here, the camera flies, materialize there.
+  const tele = useRef<{ phase: "out" | "gone" | "in"; t: number } | null>(null);
+  useFrame((_, dt) => {
+    const g = player.current, T = tele.current;
+    if (!g || !T) return;
+    T.t += Math.min(dt, 0.1);
+    if (T.phase === "out") { const k = Math.min(1, T.t / 0.7); g.scale.set(Math.max(0.001, 1 - k), 1 + k * 1.2, Math.max(0.001, 1 - k)); if (k >= 1) { T.phase = "gone"; T.t = 0; } }
+    else if (T.phase === "gone") { g.scale.set(0.001, 1, 0.001); if (T.t > 10) { T.phase = "in"; T.t = 0; } } // safety: never stay invisible
+    else { const k = Math.min(1, T.t / 0.8); g.scale.set(Math.max(0.001, k), 1 + (1 - k) * 1.2, Math.max(0.001, k)); if (k >= 1) { g.scale.set(1, 1, 1); tele.current = null; } }
+  });
+  const travelTo = useCallback((target: { x: number; z: number }) => {
+    const free = nearestFree(nav.flow?.grid, target.x, target.z), next = new Vector3(free.x, 0, free.z);
+    if (controllerRef.current === "hand") { handPos.current.copy(next); clampHand(); camFocus.current.copy(handPos.current); clampFocus(); const pose = officePose(next, 0.5); flyTo(pose.cam, pose.target); return; }
+    if (travelMode(pos.current, next) === "walk") { flight.current = null; dest.current = next; return; }
+    dest.current = null;
+    playBeam(pos.current.x, pos.current.z, "out"); tele.current = { phase: "out", t: 0 };
+    const pose = officePose(next, avatarRef.current.focusY);
+    flyTo(pose.cam, pose.target, { done: () => { pos.current.copy(next); playBeam(next.x, next.z, "in"); tele.current = { phase: "in", t: 0 }; } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flyTo, officePose]);
+
   useEffect(() => {
     if (!jump) return;
     const { area } = jump;
     if (zoomT.current >= OVERVIEW_ZOOM) zoomT.current = 0.6; // picking a project from the top view dives back into the office
     if (modeRef.current === "walk") {
+      const room = layoutRef.current.zones.find((z) => Math.abs(z.x - area.x) < 0.01 && Math.abs(z.z - area.z) < 0.01);
+      if (room) { travelTo(roomCenter(room)); return; } // a room: its centre (beam or walk)
       const next = new Vector3(area.x, 0, area.z + area.d / 2 + 1.5);
       if (controllerRef.current === "hand") { handPos.current.copy(next); handPos.current.y = 0; clampHand(); camFocus.current.copy(handPos.current); clampFocus(); const pose = officePose(next, 0.5); flyTo(pose.cam, pose.target); return; }
       dest.current = null;
@@ -486,9 +511,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     if (!w) return;
     const next = new Vector3(w.x, 0, w.z);
     if (controllerRef.current === "hand") { handPos.current.copy(next); clampHand(); camFocus.current.copy(handPos.current); clampFocus(); const pose = officePose(next, 0.5); flyTo(pose.cam, pose.target); return; }
-    dest.current = null;
-    const pose = officePose(next, avatarRef.current.focusY);
-    flyTo(pose.cam, pose.target, { done: () => pos.current.copy(next) });
+    travelTo(next);
   }, [ctl.warp, camera, flyTo, officePose]);
 
   // Mouse wheel / pinch zoom: scroll down = zoom out (toward top-down), up = zoom in (toward first-person).
@@ -815,6 +838,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       <Minibots layout={layout} subs={ctl.subs} />
       <CoffeeFactory layout={layout} />
       <DataCenter layout={layout} />
+      <TeleportFx />
       <GamesLayer layout={layout} />
       <ClawLayer layout={layout} />
       <RaceLayer layout={layout} />

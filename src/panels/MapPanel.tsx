@@ -4,7 +4,7 @@ import { useWidth } from "../dock/useLayout";
 import { Minimap, viewState } from "../world/controls3d";
 import { computeLayout } from "../world/layout";
 import { zoneIcon } from "../world/zones";
-import { roomFlyPoint } from "./mapFly";
+import { roomCenter } from "../world/goto";
 import { applyFilters } from "./teamFilters";
 
 /** The minimap as a tab: bigger than the floating one, with a list of rooms and projects. Click the map or a name to fly there. */
@@ -31,7 +31,7 @@ export function MapPanel() {
       <h2>Rooms</h2>
       <div className="map-list">
         {layout.zones.map((z) => (
-          <button key={z.zone.id} className="chip" onClick={() => { const p = roomFlyPoint(layout.zones, z); focusPoint(p.x, p.z); }} title={`Fly to ${z.zone.name}`}>{zoneIcon(z.zone)} {z.zone.name}</button>
+          <button key={z.zone.id} className="chip" onClick={() => { const p = roomCenter(z); focusPoint(p.x, p.z); }} title={`Fly to ${z.zone.name}`}>{zoneIcon(z.zone)} {z.zone.name}</button>
         ))}
       </div>
       <h2>Projects</h2>
