@@ -3,6 +3,7 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## 2026-11-23
+- **Camera:** starting a race from the top view no longer leaves the screen black; going to a game table or any spot from the top view dives back into the office [13.7.23].
 - **Monster truck:** the somersault now moves it forward at double speed [13.7.22].
 - **Race:** nitro for every car (charges in 9 s, Shift = 3x speed for a moment; the monster truck rears up on it); the monster truck's crash is now a forward somersault [13.7.21].
 - **Monster truck:** wheelies on a hard start, rolls over 2-3 times if you brake on its back wheels, smoke from the chimneys, fire from the back, and its wheels run agents over [13.7.20].

@@ -102,6 +102,16 @@ export function RaceLayer({ layout }: { layout: Layout }) {
   const track = useMemo(() => buildTrack(trackInput(layout)), [layout]);
   useEffect(() => { raceHub.setTrack(track); }, [track]);
   useTrackSideDrivers(raceHub, track, ver);
+  // a race starts: leave the top view (it hides the whole 3D world) and, when you only watch, take the camera to the start line
+  const wasRunning = useRef(false);
+  useEffect(() => {
+    const on = raceHub.running;
+    if (on && !wasRunning.current) {
+      sendView({ t: "reset" });
+      if (!raceHub.userRacing && track) goTo(track.xs[0]!, track.zs[0]! + track.halfWidth + 6);
+    }
+    wasRunning.current = on;
+  }, [ver, track]);
 
   useEffect(() => {
     const desk = (id: string) => layoutRef.current.desks.find((d) => d.worker.id === id);
@@ -124,7 +134,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
   useEffect(() => {
     if (!driving) { keys.current.clear(); return; }
     raceCam.active = true; camReady.current = false;
-    sendView({ t: "mode", mode: "walk" }); // the 3D scene (not the label map) must be showing
+    sendView({ t: "reset" }); // the 3D scene (not the top-view label map, which hides the world and left everything black) must be showing, at the default zoom
     const typing = (e: KeyboardEvent) => { const el = e.target as HTMLElement | null; return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable); };
     const down = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (!DRIVE_KEYS.has(k) || typing(e) || e.metaKey || e.ctrlKey || e.altKey) return; e.preventDefault(); e.stopImmediatePropagation(); if (k === "c") { if (!e.repeat) fpv = !fpv; raceCam.fpv = fpv; return; } if (k === "escape") { raceHub.stop(); return; } if (k === "e") { if (!e.repeat && raceHub.userId) raceHub.sim?.useItem(raceHub.userId); return; } if (k === "shift") { if (!e.repeat && raceHub.userId && raceHub.sim?.useNitro(raceHub.userId)) playScreech(1); return; } keys.current.add(k); };
     const up = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (DRIVE_KEYS.has(k)) { keys.current.delete(k); } };

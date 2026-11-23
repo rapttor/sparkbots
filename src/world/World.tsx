@@ -514,6 +514,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   useEffect(() => {
     const w = ctl.warp;
     if (!w) return;
+    if (zoomT.current >= OVERVIEW_ZOOM) zoomT.current = 0.6; // going somewhere from the top view (a game table, the race start, a map click) dives back into the office instead of staying on the black label map
     const next = new Vector3(w.x, 0, w.z);
     if (controllerRef.current === "hand") { handPos.current.copy(next); clampHand(); camFocus.current.copy(handPos.current); clampFocus(); const pose = officePose(next, 0.5); flyTo(pose.cam, pose.target); return; }
     travelTo(next);
