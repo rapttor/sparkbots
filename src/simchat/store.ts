@@ -24,6 +24,8 @@ interface SimChatState {
   open: (agentId: string) => void;
   close: () => void;
   start: (agentId: string, threadId?: string) => void;
+  /** Begin a thread about the chosen topic (undefined = any) right now, whatever was going on. */
+  startTopic: (agentId: string, topic?: string) => void;
   choose: (agentId: string, optionId: string) => void;
   next: (agentId: string) => void;          // after an ended thread: chain or pick another
   initiate: (agentId: string) => boolean;   // idle start: a greeting with an unread dot; false if disabled
@@ -67,6 +69,10 @@ export const useSimChat = create<SimChatState>((set, get) => {
     close: () => set({ openFor: null }),
     start: (agentId, threadId) => update(agentId, (c) => {
       const t = (threadId ? threadById(threadId) : undefined) ?? pickThread(pool(), c.seen);
+      if (t) begin(agentId, t, c);
+    }),
+    startTopic: (agentId, topic) => update(agentId, (c) => {
+      const t = pickThread(pool(), c.seen, Math.random, topic);
       if (t) begin(agentId, t, c);
     }),
     choose: (agentId, optionId) => update(agentId, (c) => {

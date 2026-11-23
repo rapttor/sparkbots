@@ -1,0 +1,481 @@
+[
+ {
+  "id": "office-a-01",
+  "topic": "office",
+  "title": "Meetings that could be emails",
+  "rating": "G",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "I just left a one-hour meeting. The conclusion: we need another meeting.",
+     "I do not even have a calendar and I was invited twice."
+    ],
+    "options": [
+     {
+      "id": "office-a-01-o1",
+      "label": "Every meeting should be an email",
+      "next": "n0"
+     },
+     {
+      "id": "office-a-01-o4",
+      "label": "I love meetings, free coffee",
+      "next": "n1"
+     },
+     {
+      "id": "office-a-01-o5",
+      "label": "I multitask during them",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0_0": {
+    "say": [
+     "The unsubscribe button of office life does not exist.",
+     "Rumour says one reply-all is still travelling the internet."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n0_1": {
+    "say": [
+     "Fine. But bring snacks, and the person who says 'quick question'.",
+     "Quick questions are never quick."
+    ],
+    "end": true
+   },
+   "n0": {
+    "say": [
+     "An email! Two sentences, zero small talk, no screen-share that freezes.",
+     "Sadly someone would reply-all with 'Thanks!' forty times."
+    ],
+    "options": [
+     {
+      "id": "office-a-01-o2",
+      "label": "Reply-all is the real villain",
+      "next": "n0_0"
+     },
+     {
+      "id": "office-a-01-o3",
+      "label": "Fine, keep the meetings",
+      "next": "n0_1"
+     }
+    ]
+   },
+   "n1": {
+    "say": [
+     "Meeting-for-the-biscuits is a valid career strategy.",
+     "I have seen a person attend six meetings and say 'good point' in all of them."
+    ],
+    "end": true
+   },
+   "n2": {
+    "say": [
+     "Mute, camera off, three tabs open. A professional.",
+     "Just do not get asked a question while you are on the other tab."
+    ],
+    "end": true
+   }
+  }
+ },
+ {
+  "id": "office-a-02",
+  "topic": "office",
+  "title": "The printer",
+  "rating": "G",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "The printer is jammed again. It says 'paper jam' but there is no paper in it.",
+     "It also says it is out of toner. It has opinions."
+    ],
+    "options": [
+     {
+      "id": "office-a-02-o1",
+      "label": "Kick it, gently",
+      "next": "n0"
+     },
+     {
+      "id": "office-a-02-o2",
+      "label": "Turn it off and on",
+      "next": "n1"
+     },
+     {
+      "id": "office-a-02-o5",
+      "label": "Nobody prints anymore",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "Percussive maintenance. Humanity's oldest repair tool.",
+     "It will work once, then hold a grudge."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_0": {
+    "say": [
+     "IT will ask: 'Have you tried turning it off and on?'",
+     "The circle of life."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_1": {
+    "say": [
+     "Wise. The home printer has the same personality, but it is yours.",
+     "Ink costs more than the printer. That is the business model."
+    ],
+    "end": true
+   },
+   "n1": {
+    "say": [
+     "The sacred ritual. Thirty seconds of silence, then hope.",
+     "It restarts, prints 400 pages of a single dot, and sleeps."
+    ],
+    "options": [
+     {
+      "id": "office-a-02-o3",
+      "label": "Call IT",
+      "next": "n1_0"
+     },
+     {
+      "id": "office-a-02-o4",
+      "label": "Print at home",
+      "next": "n1_1"
+     }
+    ]
+   },
+   "n2": {
+    "say": [
+     "Then why is there a queue with 'Resume_final_v7.pdf'?",
+     "The printer is a monument to optimism."
+    ],
+    "end": true
+   }
+  }
+ },
+ {
+  "id": "office-a-03",
+  "topic": "office",
+  "title": "Stand-up that is not standing",
+  "rating": "G",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "Daily stand-up. Everyone is sitting. One person is on mute. Another is eating soup.",
+     "We have been 'blocked on a dependency' since the last ice age."
+    ],
+    "options": [
+     {
+      "id": "office-a-03-o1",
+      "label": "Keep it to two minutes",
+      "next": "n0"
+     },
+     {
+      "id": "office-a-03-o2",
+      "label": "I give very vague updates",
+      "next": "n1"
+     },
+     {
+      "id": "office-a-03-o5",
+      "label": "Skip it, async update",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "Two minutes! A bold dream. Somebody will start with 'quick context'.",
+     "Context is a lie told by people with slides."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_0": {
+    "say": [
+     "'Almost done' is the load-bearing phrase of every project.",
+     "It is 90 percent done, forever, like a bar that never ends."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_1": {
+    "say": [
+     "Blocked by a person who is on holiday and a password nobody remembers.",
+     "Add it to the list, right under the other blocker."
+    ],
+    "end": true
+   },
+   "n1": {
+    "say": [
+     "'Making progress on the thing.' Pure art.",
+     "The thing has been progressing for three sprints."
+    ],
+    "options": [
+     {
+      "id": "office-a-03-o3",
+      "label": "The thing is almost done",
+      "next": "n1_0"
+     },
+     {
+      "id": "office-a-03-o4",
+      "label": "The thing is blocked",
+      "next": "n1_1"
+     }
+    ]
+   },
+   "n2": {
+    "say": [
+     "Written updates. Fewer feelings, more links.",
+     "And one person who replies 'ok' to everything."
+    ],
+    "end": true
+   }
+  }
+ },
+ {
+  "id": "office-a-04",
+  "topic": "office",
+  "title": "Open-plan office",
+  "rating": "G",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "Open-plan offices: all the noise of a market, none of the vegetables.",
+     "Somebody is on a call. Somebody else is laughing at a call. Both are on the same row."
+    ],
+    "options": [
+     {
+      "id": "office-a-04-o1",
+      "label": "Headphones are the fix",
+      "next": "n0"
+     },
+     {
+      "id": "office-a-04-o2",
+      "label": "I like the buzz",
+      "next": "n1"
+     },
+     {
+      "id": "office-a-04-o3",
+      "label": "I would take a cubicle",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "Noise-cancelling headphones, the modern force field.",
+     "The only danger is the colleague who taps your shoulder to say hi."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1": {
+    "say": [
+     "A buzz is just a hundred small distractions in a trench coat.",
+     "But at least lunch plans are easy to hear."
+    ],
+    "end": true
+   },
+   "n2_0": {
+    "say": [
+     "Gerald. Of course it is Gerald.",
+     "Gerald has survived two relocations and one tragic watering."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n2_1": {
+    "say": [
+     "Fake plants are the best employees: no sick days, no opinions.",
+     "They also do not ask for a raise."
+    ],
+    "end": true
+   },
+   "n2": {
+    "say": [
+     "A cubicle: walls, a plant, a tiny kingdom.",
+     "The plant is lying about being alive."
+    ],
+    "options": [
+     {
+      "id": "office-a-04-o4",
+      "label": "Name the plant",
+      "next": "n2_0"
+     },
+     {
+      "id": "office-a-04-o5",
+      "label": "Plants are fake anyway",
+      "next": "n2_1"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "office-a-05",
+  "topic": "office",
+  "title": "Deadline energy",
+  "rating": "PG",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "Deadline in two hours. I have been 'about to start' since Tuesday.",
+     "Productivity is just panic with better branding."
+    ],
+    "options": [
+     {
+      "id": "office-a-05-o1",
+      "label": "Panic is a strategy",
+      "next": "n0"
+     },
+     {
+      "id": "office-a-05-o2",
+      "label": "I plan ahead, always",
+      "next": "n1"
+     },
+     {
+      "id": "office-a-05-o3",
+      "label": "Ask for an extension",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "The last 30 minutes of a deadline are worth the rest of the week.",
+     "Scientists have not studied it, because they also started late."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1": {
+    "say": [
+     "Planning ahead! Show-off. Do you also read the manual?",
+     "I respect it. I also sort my snacks by regret."
+    ],
+    "end": true
+   },
+   "n2_0": {
+    "say": [
+     "The process. A creature nobody has ever met.",
+     "It is always the process, and the process is always in a meeting."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n2_1": {
+    "say": [
+     "A poor craftsperson blames the tools. A smart one blames the printer.",
+     "See the printer thread."
+    ],
+    "end": true
+   },
+   "n2": {
+    "say": [
+     "Extensions are a love language.",
+     "Just do not call it 'a small slip'. It is a geological event."
+    ],
+    "options": [
+     {
+      "id": "office-a-05-o4",
+      "label": "Blame the process",
+      "next": "n2_0"
+     },
+     {
+      "id": "office-a-05-o5",
+      "label": "Blame the tools",
+      "next": "n2_1"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "office-a-06",
+  "topic": "office",
+  "title": "Out of office",
+  "rating": "G",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "Auto-reply says: 'I am out of the office with limited access to email.'",
+     "Translation: I am at the beach with unlimited access to email and no intention."
+    ],
+    "options": [
+     {
+      "id": "office-a-06-o1",
+      "label": "Fully offline, I swear",
+      "next": "n0"
+     },
+     {
+      "id": "office-a-06-o2",
+      "label": "I check email anyway",
+      "next": "n1"
+     },
+     {
+      "id": "office-a-06-o3",
+      "label": "I write funny replies",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "A rare legend. People will follow you like a monk on a mountain.",
+     "Nobody will believe your 'I did not see it'."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1": {
+    "say": [
+     "Of course you do. A tiny glance, then an hour.",
+     "The holiday photo has a laptop in it."
+    ],
+    "end": true
+   },
+   "n2_0": {
+    "say": [
+     "Perfect. Return date: 'when the coffee machine is fixed'.",
+     "Please include a number for emergencies. It is the printer's."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n2_1": {
+    "say": [
+     "Cats have taken over operations. Email them. They will ignore you equally.",
+     "Management quality has not changed."
+    ],
+    "end": true
+   },
+   "n2": {
+    "say": [
+     "Best auto-replies: 'I am away. If it is urgent, it is not.'",
+     "I would hire you on that alone."
+    ],
+    "options": [
+     {
+      "id": "office-a-06-o4",
+      "label": "It is gone, back in 2031",
+      "next": "n2_0"
+     },
+     {
+      "id": "office-a-06-o5",
+      "label": "Cats are in charge now",
+      "next": "n2_1"
+     }
+    ]
+   }
+  }
+ }
+]

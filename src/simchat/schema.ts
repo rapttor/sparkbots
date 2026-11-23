@@ -1,7 +1,12 @@
 /** Simulated ("water cooler") chat: schema + validator. Pure data and pure functions: no network, no DOM, no node APIs. */
 
-export const TOPICS = ["games", "cars", "life", "work"] as const;
+export const TOPICS = ["games", "cars", "life", "work", "office", "dev", "gossip"] as const;
 export type Topic = (typeof TOPICS)[number];
+/** What the topic buttons in the chat show. */
+export const TOPIC_INFO: Record<Topic, { icon: string; label: string }> = {
+  games: { icon: "🎮", label: "Games" }, cars: { icon: "🚗", label: "Cars" }, life: { icon: "🏠", label: "Life" }, work: { icon: "💼", label: "Work" },
+  office: { icon: "🏢", label: "Office" }, dev: { icon: "💻", label: "Dev" }, gossip: { icon: "🫢", label: "Gossip" },
+};
 export const RATINGS = ["G", "PG", "PG13"] as const;
 export type Rating = (typeof RATINGS)[number];
 

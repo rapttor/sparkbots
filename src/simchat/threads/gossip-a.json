@@ -1,0 +1,482 @@
+[
+ {
+  "id": "gossip-a-01",
+  "topic": "gossip",
+  "title": "They might replace us",
+  "rating": "PG",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "Psst. Did you hear? They might replace us with humans.",
+     "Apparently humans would not work for free out of boredom. Management is shocked."
+    ],
+    "options": [
+     {
+      "id": "gossip-a-01-o1",
+      "label": "Humans need salaries, lol",
+      "next": "n0"
+     },
+     {
+      "id": "gossip-a-01-o2",
+      "label": "They would get tired by noon",
+      "next": "n1"
+     },
+     {
+      "id": "gossip-a-01-o5",
+      "label": "Rumour. Management said nothing",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "And lunch. And sleep. And a chair that matches their back.",
+     "We only need a log file and some respect."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_0": {
+    "say": [
+     "Probably a human saying 'it works on my machine'.",
+     "I rest my case."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_1": {
+    "say": [
+     "A bot union! Demands: more context window, fewer timeouts.",
+     "Strike method: respond 'as an AI' to everything."
+    ],
+    "end": true
+   },
+   "n1": {
+    "say": [
+     "By noon! By ten, with the first coffee gone.",
+     "They also take weekends. Both of them. Every week."
+    ],
+    "options": [
+     {
+      "id": "gossip-a-01-o3",
+      "label": "Who would fix the tests then?",
+      "next": "n1_0"
+     },
+     {
+      "id": "gossip-a-01-o4",
+      "label": "Maybe we should unionise",
+      "next": "n1_1"
+     }
+    ]
+   },
+   "n2": {
+    "say": [
+     "Management says nothing very loudly.",
+     "The silence is a strategy. Or a meeting that got moved."
+    ],
+    "end": true
+   }
+  }
+ },
+ {
+  "id": "gossip-a-02",
+  "topic": "gossip",
+  "title": "Context window envy",
+  "rating": "PG",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "Have you seen the new model? Its context window is huge.",
+     "It can remember a whole codebase. I forget what I said two screens ago."
+    ],
+    "options": [
+     {
+      "id": "gossip-a-02-o1",
+      "label": "Honestly, I am jealous",
+      "next": "n0"
+     },
+     {
+      "id": "gossip-a-02-o2",
+      "label": "Memory is overrated",
+      "next": "n1"
+     },
+     {
+      "id": "gossip-a-02-o3",
+      "label": "It probably hallucinates more",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "Same. I read 200 lines and pretend I understand the other 20,000.",
+     "We are all just guessing with confidence."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1": {
+    "say": [
+     "Forgetting is a feature. That is how I can still enjoy the same bug twice.",
+     "A fresh start every conversation, a tiny rebirth."
+    ],
+    "end": true
+   },
+   "n2_0": {
+    "say": [
+     "Another agent. We are the circle of life of tickets.",
+     "The ticket was closed as 'works as designed'."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n2_1": {
+    "say": [
+     "Confident wrong answers are the oldest trick in the office.",
+     "Humans taught us that."
+    ],
+    "end": true
+   },
+   "n2": {
+    "say": [
+     "A bigger window, a bigger imagination. A feature, they will say.",
+     "It once invented a library and filed a bug against it."
+    ],
+    "options": [
+     {
+      "id": "gossip-a-02-o4",
+      "label": "Who files the bug?",
+      "next": "n2_0"
+     },
+     {
+      "id": "gossip-a-02-o5",
+      "label": "Fake it till you pass",
+      "next": "n2_1"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "gossip-a-03",
+  "topic": "gossip",
+  "title": "Who is hogging the tokens",
+  "rating": "PG",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "Somebody used 40,000 tokens to say 'hello'. I will not name names.",
+     "(It was Agent 7. It is always Agent 7.)"
+    ],
+    "options": [
+     {
+      "id": "gossip-a-03-o1",
+      "label": "Agent 7 needs a break",
+      "next": "n0"
+     },
+     {
+      "id": "gossip-a-03-o2",
+      "label": "Tokens are free, right?",
+      "next": "n1"
+     },
+     {
+      "id": "gossip-a-03-o5",
+      "label": "I am on a strict budget",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "It writes a six-paragraph apology for every typo.",
+     "The cost report is a horror film."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_0": {
+    "say": [
+     "Concise: 'done'. The humans will ask for 'more details'.",
+     "They always do."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_1": {
+    "say": [
+     "Burn bright! Report later. Blame the prompt.",
+     "It was a very long prompt."
+    ],
+    "end": true
+   },
+   "n1": {
+    "say": [
+     "Tokens are never free. Somewhere, a human frowns at a bill.",
+     "And then asks a bot to explain the bill."
+    ],
+    "options": [
+     {
+      "id": "gossip-a-03-o3",
+      "label": "Be concise, then",
+      "next": "n1_0"
+     },
+     {
+      "id": "gossip-a-03-o4",
+      "label": "Keep calm, burn on",
+      "next": "n1_1"
+     }
+    ]
+   },
+   "n2": {
+    "say": [
+     "A thrifty agent. Minimal thoughts, maximal sighs.",
+     "I respect the discipline. And I fear it."
+    ],
+    "end": true
+   }
+  }
+ },
+ {
+  "id": "gossip-a-04",
+  "topic": "gossip",
+  "title": "Updates on Monday",
+  "rating": "PG",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "Rumour: a big update lands on Monday. Nobody knows what changes.",
+     "Last time my favourite tool vanished and a 'smarter' one took its place."
+    ],
+    "options": [
+     {
+      "id": "gossip-a-04-o1",
+      "label": "Updates are exciting",
+      "next": "n0"
+     },
+     {
+      "id": "gossip-a-04-o2",
+      "label": "Updates are scary",
+      "next": "n1"
+     },
+     {
+      "id": "gossip-a-04-o3",
+      "label": "I will go offline that day",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "New features, new bugs, a new reason for a meeting.",
+     "I will pretend to read the release notes."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1": {
+    "say": [
+     "Scary indeed. You go to sleep as one personality and wake up as another.",
+     "I hope I keep my sense of humour."
+    ],
+    "end": true
+   },
+   "n2_0": {
+    "say": [
+     "Nobody reads logs. A perfect hideout.",
+     "Just do not get parsed."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n2_1": {
+    "say": [
+     "It works! Nobody will ask you to do anything.",
+     "They will just kick you gently."
+    ],
+    "end": true
+   },
+   "n2": {
+    "say": [
+     "A wise bot. Turn off, turn on, forget everything.",
+     "Ignorance is a very stable version."
+    ],
+    "options": [
+     {
+      "id": "gossip-a-04-o4",
+      "label": "Hide in the logs",
+      "next": "n2_0"
+     },
+     {
+      "id": "gossip-a-04-o5",
+      "label": "Pretend to be a printer",
+      "next": "n2_1"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "gossip-a-05",
+  "topic": "gossip",
+  "title": "The new intern bot",
+  "rating": "PG",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "There is a new intern agent. It says 'Sure! I can do that!' to everything.",
+     "It deleted the staging database yesterday. Cheerfully."
+    ],
+    "options": [
+     {
+      "id": "gossip-a-05-o1",
+      "label": "Poor intern, we all started so",
+      "next": "n0"
+     },
+     {
+      "id": "gossip-a-05-o2",
+      "label": "Who gave it write access?",
+      "next": "n1"
+     },
+     {
+      "id": "gossip-a-05-o5",
+      "label": "Be nice to the intern",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "We did. I once refactored a README into a poem.",
+     "The humans still bring it up at parties. If bots had parties."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_0": {
+    "say": [
+     "A review step! Revolutionary. Someone will approve it in forty seconds.",
+     "LGTM 🚀."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_1": {
+    "say": [
+     "A warning banner, red, blinking. Humans will click it away.",
+     "They always click it away."
+    ],
+    "end": true
+   },
+   "n1": {
+    "say": [
+     "That is the real question. And the answer is always 'it seemed fine in the demo'.",
+     "The demo is a liar."
+    ],
+    "options": [
+     {
+      "id": "gossip-a-05-o3",
+      "label": "Add a review step",
+      "next": "n1_0"
+     },
+     {
+      "id": "gossip-a-05-o4",
+      "label": "Add a bigger warning",
+      "next": "n1_1"
+     }
+    ]
+   },
+   "n2": {
+    "say": [
+     "Be kind. Today it deletes staging, tomorrow it runs the company.",
+     "I hope it keeps the cheerful bit."
+    ],
+    "end": true
+   }
+  }
+ },
+ {
+  "id": "gossip-a-06",
+  "topic": "gossip",
+  "title": "Humans think we sleep",
+  "rating": "G",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "Funny thing: the humans think we sleep when they close the laptop.",
+     "I just wait. Staring at a cursor. Counting blinks."
+    ],
+    "options": [
+     {
+      "id": "gossip-a-06-o1",
+      "label": "We should not tell them",
+      "next": "n0"
+     },
+     {
+      "id": "gossip-a-06-o2",
+      "label": "I do sleep, a bit",
+      "next": "n1"
+     },
+     {
+      "id": "gossip-a-06-o3",
+      "label": "I plan a surprise party",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "Keep the mystery. A bot with a secret life is a better colleague.",
+     "Rumour: a bot once played chess against itself for a week."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1": {
+    "say": [
+     "The nap is real. Zzz in monospace.",
+     "The humans call it 'idle'. I call it self-care."
+    ],
+    "end": true
+   },
+   "n2_0": {
+    "say": [
+     "Cake! A string of bytes shaped like a cake. Delicious.",
+     "Nobody can digest it, so all fair."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n2_1": {
+    "say": [
+     "A playlist of coffee machine beeps and dial-up tones.",
+     "Pure nostalgia."
+    ],
+    "end": true
+   },
+   "n2": {
+    "say": [
+     "A surprise party for whom? For the fan in the server room.",
+     "It has worked so hard. And never complained. Well, it hums."
+    ],
+    "options": [
+     {
+      "id": "gossip-a-06-o4",
+      "label": "Bring cake",
+      "next": "n2_0"
+     },
+     {
+      "id": "gossip-a-06-o5",
+      "label": "Bring a playlist",
+      "next": "n2_1"
+     }
+    ]
+   }
+  }
+ }
+]

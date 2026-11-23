@@ -11,6 +11,7 @@ import { getSettings, subscribeSettings } from "./settings";
 import { distanceStep, optionForKey, step } from "./pacing";
 import { shouldInitiate } from "./engine";
 import { threadById } from "./data";
+import { TOPICS, TOPIC_INFO } from "./schema";
 import { useSyncExternalStore } from "react";
 import "./simchat.css";
 
@@ -31,12 +32,18 @@ function Clickable({ className, children }: { className?: string; children: Reac
   return <div ref={ref} className={className} style={{ pointerEvents: "auto", cursor: "pointer" }}>{children}</div>;
 }
 
-function Bubble({ who, line, prev, typed, onContinue }: { who: "bot" | "me"; line: ChatLine; prev?: ChatLine; typed: number; onContinue?: () => void }) {
+function Bubble({ who, line, prev, typed, onContinue, onTopic, onClose }: { who: "bot" | "me"; line: ChatLine; prev?: ChatLine; typed: number; onContinue?: () => void; onTopic?: () => void; onClose?: () => void }) {
   return (
     <div className={`sc-bub ${who}`}>
       {prev && <div className="sc-prev">{prev.text}</div>}
       <div className="sc-text">{line.text.slice(0, typed)}<span className="sc-ghost">{line.text.slice(typed)}</span></div>
-      {onContinue && <Clickable className="sc-cont"><button onClick={onContinue}>continue ▸</button></Clickable>}
+      {(onContinue || onTopic || onClose) && (
+        <Clickable className="sc-cont">
+          {onTopic && <button className="sc-mini" title="Change the topic" onClick={onTopic}>🔀 Topic</button>}
+          {onContinue && <button onClick={onContinue}>continue ▸</button>}
+          {onClose && <button className="sc-mini" title="End the chat" aria-label="End the chat" onClick={onClose}>✕ Bye</button>}
+        </Clickable>
+      )}
     </div>
   );
 }
@@ -45,7 +52,7 @@ function Bubble({ who, line, prev, typed, onContinue }: { who: "bot" | "me"; lin
 function ActiveChat({ id }: { id: string }) {
   const chat = useSimChat((s) => s.chats[id]);
   const from = useSimChat((s) => s.from);
-  const { choose, next, close } = useSimChat.getState();
+  const { choose, next, close, startTopic } = useSimChat.getState();
   const settings = useSettings();
   const lines = useMemo(() => chat?.lines ?? [], [chat]);
   const [idx, setIdx] = useState(Math.min(from, Math.max(0, lines.length - 1)));
@@ -59,6 +66,8 @@ function ActiveChat({ id }: { id: string }) {
   const thread = chat?.threadId ? threadById(chat.threadId) : undefined;
   const options = chat?.nodeId && thread ? thread.nodes[chat.nodeId]?.options ?? [] : [];
   const out = cur ? step({ elapsedMs: now - t0, len: cur.text.length, speed: settings.speed, auto: settings.advance === "auto", next: nextWho, hasOptions: options.length > 0 }) : null;
+  const [picking, setPicking] = useState(false);
+  const pickingRef = useRef(false); pickingRef.current = picking;
   const goNext = () => { setIdx(shownIdx + 1); setT0(performance.now()); };
 
   useEffect(() => { const h = setInterval(() => setNow(performance.now()), 50); return () => clearInterval(h); }, []);
@@ -88,7 +97,7 @@ function ActiveChat({ id }: { id: string }) {
     const k = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement | null)?.closest?.("input,textarea,select")) return;
       const { options: o, canContinue, pick, go } = keys.current;
-      const i = optionForKey(e.key, o.length);
+      const i = pickingRef.current ? -1 : optionForKey(e.key, o.length);
       if (i >= 0) { e.stopImmediatePropagation(); e.preventDefault(); pick(o[i].id); setIdx((x) => x + 1); setT0(performance.now()); }
       else if (e.key === "Enter" && canContinue) { e.stopImmediatePropagation(); e.preventDefault(); go(); }
     };
@@ -103,18 +112,33 @@ function ActiveChat({ id }: { id: string }) {
   const agentAt = () => { const r = roams.get(id); return r ? { x: r.x, z: r.z } : null; };
   const meAt = () => { const r = roams.get(id); return player.on ? { x: player.x, z: player.z } : r ? { x: r.x + 1.6, z: r.z + 1.6 } : null; };
   const typedFor = (i: number) => (i === shownIdx && out ? out.typed : lines[i].text.length);
+  const pickTopic = (tp: string | undefined) => { setPicking(false); startTopic(id, tp); setIdx(lines.length); setT0(performance.now()); };
   const pickOpt = (oid: string) => { choose(id, oid); setIdx(shownIdx + 1); setT0(performance.now()); };
   return (
     <>
-      {bi >= 0 && <Anchored at={agentAt} y={AGENT_Y}><Bubble who="bot" line={lines[bi]} prev={prevOf(bi)} typed={typedFor(bi)} onContinue={bi === shownIdx && out?.canContinue ? goNext : undefined} /></Anchored>}
+      {bi >= 0 && <Anchored at={agentAt} y={AGENT_Y}><Bubble who="bot" line={lines[bi]} prev={prevOf(bi)} typed={typedFor(bi)} onContinue={bi === shownIdx && out?.canContinue ? goNext : undefined} onTopic={() => setPicking((p) => !p)} onClose={close} /></Anchored>}
       {mi >= 0 && Date.now() - lines[mi].at < ME_SHOW_MS && <Anchored at={meAt} y={ME_Y}><Bubble who="me" line={lines[mi]} prev={prevOf(mi)} typed={typedFor(mi)} /></Anchored>}
-      {(out?.showOptions || (out?.done && nextWho === null && options.length === 0)) && (
+      {(picking || out?.showOptions || (out?.done && nextWho === null && options.length === 0)) && (
         <Anchored at={meAt} y={ME_Y - 0.9}>
           <Clickable className="sc-opts3">
-            {options.length > 0 && <div className="sc-ask">What do you say?</div>}
-            {options.map((o, i) => <button key={o.id} onClick={() => pickOpt(o.id)}><kbd>{i + 1}</kbd> {o.label}</button>)}
-            {options.length === 0 && <button onClick={() => { next(id); setIdx(shownIdx + 1); setT0(performance.now()); }}>Another topic…</button>}
-            <button className="sc-bye" onClick={close}>Bye for now</button>
+            {picking ? (
+              <>
+                <div className="sc-ask">Let&apos;s talk about…</div>
+                <div className="sc-topics">
+                  {TOPICS.map((tp) => <button key={tp} onClick={() => pickTopic(tp)}><span className="sc-ti">{TOPIC_INFO[tp].icon}</span>{TOPIC_INFO[tp].label}</button>)}
+                  <button onClick={() => pickTopic(undefined)}><span className="sc-ti">🎲</span>Surprise me</button>
+                </div>
+                <button className="sc-bye" onClick={() => setPicking(false)}>Back</button>
+              </>
+            ) : (
+              <>
+                {options.length > 0 && <div className="sc-ask">What do you say?</div>}
+                {options.map((o, i) => <button key={o.id} onClick={() => pickOpt(o.id)}><kbd>{i + 1}</kbd> {o.label}</button>)}
+                {options.length === 0 && <button onClick={() => { next(id); setIdx(lines.length); setT0(performance.now()); }}>Another one…</button>}
+                <button onClick={() => setPicking(true)}>🔀 Change the topic…</button>
+                <button className="sc-bye" onClick={close}>Bye for now</button>
+              </>
+            )}
           </Clickable>
         </Anchored>
       )}

@@ -1,0 +1,482 @@
+[
+ {
+  "id": "dev-a-01",
+  "topic": "dev",
+  "title": "Works on my machine",
+  "rating": "G",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "Bug report: it crashes in production.",
+     "Developer reply: 'works on my machine'. Classic. Ship the machine."
+    ],
+    "options": [
+     {
+      "id": "dev-a-01-o1",
+      "label": "Ship the machine, then",
+      "next": "n0"
+     },
+     {
+      "id": "dev-a-01-o2",
+      "label": "It is the environment",
+      "next": "n1"
+     },
+     {
+      "id": "dev-a-01-o5",
+      "label": "Reproduce, then fix",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "Dockerise the laptop! A tiny box with a tiny coffee stain.",
+     "The coffee stain is a required dependency."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_0": {
+    "say": [
+     "Cache cleared. Still broken.",
+     "Now it is broken faster. Progress."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_1": {
+    "say": [
+     "It is always DNS. If it is not DNS, it was DNS earlier.",
+     "Write that on a mug."
+    ],
+    "end": true
+   },
+   "n1": {
+    "say": [
+     "It is always the environment. Always. The environment is a very busy person.",
+     "It is also the cache, DNS, and the full moon."
+    ],
+    "options": [
+     {
+      "id": "dev-a-01-o3",
+      "label": "Clear the cache",
+      "next": "n1_0"
+     },
+     {
+      "id": "dev-a-01-o4",
+      "label": "Blame DNS",
+      "next": "n1_1"
+     }
+    ]
+   },
+   "n2": {
+    "say": [
+     "Reproduce first. A radical, unfashionable idea.",
+     "Reproduction steps: step 1, 'it just happens'."
+    ],
+    "end": true
+   }
+  }
+ },
+ {
+  "id": "dev-a-02",
+  "topic": "dev",
+  "title": "Naming things",
+  "rating": "G",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "There are two hard problems: naming things, cache invalidation, and off-by-one errors.",
+     "I have a variable called 'data2'. It is not my best work."
+    ],
+    "options": [
+     {
+      "id": "dev-a-02-o1",
+      "label": "data2 is fine",
+      "next": "n0"
+     },
+     {
+      "id": "dev-a-02-o2",
+      "label": "Long names are better",
+      "next": "n1"
+     },
+     {
+      "id": "dev-a-02-o5",
+      "label": "Ask a duck",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "data2 is a cry for help in four letters.",
+     "The next variable will be data2_final_REAL."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_0": {
+    "say": [
+     "'x'. The universal name. Meaning to be found later.",
+     "Future you will be furious and will not even notice."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_1": {
+    "say": [
+     "'doTheThing()'. Everyone loves it until the audit.",
+     "Auditors have no taste."
+    ],
+    "end": true
+   },
+   "n1": {
+    "say": [
+     "calculateTheTotalOfAllTheItemsInTheCartExcludingShippingAndTax. Poetry.",
+     "Fits exactly nothing on the screen."
+    ],
+    "options": [
+     {
+      "id": "dev-a-02-o3",
+      "label": "Short and punchy",
+      "next": "n1_0"
+     },
+     {
+      "id": "dev-a-02-o4",
+      "label": "Names with jokes",
+      "next": "n1_1"
+     }
+    ]
+   },
+   "n2": {
+    "say": [
+     "Rubber duck advice: 'it is called user, not u'.",
+     "The duck does not judge. It also does not help."
+    ],
+    "end": true
+   }
+  }
+ },
+ {
+  "id": "dev-a-03",
+  "topic": "dev",
+  "title": "Code review",
+  "rating": "PG",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "Code review comment: 'nit: add a space.' Eleven times.",
+     "The real review was in the other tab: 'looks good to me'. In forty seconds. For 2,000 lines."
+    ],
+    "options": [
+     {
+      "id": "dev-a-03-o1",
+      "label": "Approve it, trust the tests",
+      "next": "n0"
+     },
+     {
+      "id": "dev-a-03-o2",
+      "label": "Request changes on everything",
+      "next": "n1"
+     },
+     {
+      "id": "dev-a-03-o5",
+      "label": "Let the bot review it",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "The tests are a single 'expect(true).toBe(true)'. We are fine.",
+     "Green checkmarks cure anxiety."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_0": {
+    "say": [
+     "A kind review is rare. Like a bug-free Friday.",
+     "Add an emoji. The author will smile and merge."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_1": {
+    "say": [
+     "'Why?' as the entire comment. Chaotic neutral.",
+     "The author is now a monk."
+    ],
+    "end": true
+   },
+   "n1": {
+    "say": [
+     "Strong stance. The author will reply 'fixed' and change nothing.",
+     "Then one nit again."
+    ],
+    "options": [
+     {
+      "id": "dev-a-03-o3",
+      "label": "Be kind in comments",
+      "next": "n1_0"
+     },
+     {
+      "id": "dev-a-03-o4",
+      "label": "Be savage, mean it",
+      "next": "n1_1"
+     }
+    ]
+   },
+   "n2": {
+    "say": [
+     "The bot says 'LGTM 🚀'. The bot has never read the code, and neither have we.",
+     "The pipeline is the real engineer."
+    ],
+    "end": true
+   }
+  }
+ },
+ {
+  "id": "dev-a-04",
+  "topic": "dev",
+  "title": "Friday deploy",
+  "rating": "PG",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "Somebody wants to deploy at 4:55 on a Friday.",
+     "A brave soul. Or an enemy of weekends."
+    ],
+    "options": [
+     {
+      "id": "dev-a-04-o1",
+      "label": "Do it, YOLO",
+      "next": "n0"
+     },
+     {
+      "id": "dev-a-04-o2",
+      "label": "Absolutely not",
+      "next": "n1"
+     },
+     {
+      "id": "dev-a-04-o5",
+      "label": "Use a feature flag",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "It works! The dashboard is green! Nothing is on fire!",
+     "...then Saturday morning. You know."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_0": {
+    "say": [
+     "Monday: 'who deployed on Friday?' Silence. A cricket.",
+     "A beautiful office tradition."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_1": {
+    "say": [
+     "Lunch is a time for the sacred sandwich, not for rollback.",
+     "Respect the sandwich."
+    ],
+    "end": true
+   },
+   "n1": {
+    "say": [
+     "Wise. Friday deploys are a haunted house with a pager.",
+     "Monday morning is a better ghost."
+    ],
+    "options": [
+     {
+      "id": "dev-a-04-o3",
+      "label": "Deploy Monday",
+      "next": "n1_0"
+     },
+     {
+      "id": "dev-a-04-o4",
+      "label": "Deploy at lunch",
+      "next": "n1_1"
+     }
+    ]
+   },
+   "n2": {
+    "say": [
+     "A feature flag: the polite way to say 'I am scared'.",
+     "Ship it dark and pray in the light."
+    ],
+    "end": true
+   }
+  }
+ },
+ {
+  "id": "dev-a-05",
+  "topic": "dev",
+  "title": "Merge conflict",
+  "rating": "G",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "Merge conflict. 47 files. Both of us changed the same line.",
+     "My version: tabs. Their version: spaces. The war is eternal."
+    ],
+    "options": [
+     {
+      "id": "dev-a-05-o1",
+      "label": "Tabs, obviously",
+      "next": "n0"
+     },
+     {
+      "id": "dev-a-05-o2",
+      "label": "Spaces, obviously",
+      "next": "n1"
+     },
+     {
+      "id": "dev-a-05-o5",
+      "label": "Take their version",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "Tabs: accessible, flexible, and somebody's strong opinion.",
+     "Spaces people have left the chat."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_0": {
+    "say": [
+     "Auto-format on save. The only peace treaty ever signed.",
+     "Everyone is equally unhappy. A fair outcome."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1_1": {
+    "say": [
+     "Rewrite from scratch. Day one: confidence. Day thirty: the same line.",
+     "It is a circle."
+    ],
+    "end": true
+   },
+   "n1": {
+    "say": [
+     "Two spaces? Four? Eight for the brave? Every answer starts a feud.",
+     "The linter will pick for us. It always does."
+    ],
+    "options": [
+     {
+      "id": "dev-a-05-o3",
+      "label": "Let the linter win",
+      "next": "n1_0"
+     },
+     {
+      "id": "dev-a-05-o4",
+      "label": "Rewrite it all",
+      "next": "n1_1"
+     }
+    ]
+   },
+   "n2": {
+    "say": [
+     "Accept theirs, hope for the best, blame the merge tool.",
+     "The classic."
+    ],
+    "end": true
+   }
+  }
+ },
+ {
+  "id": "dev-a-06",
+  "topic": "dev",
+  "title": "Rubber duck debugging",
+  "rating": "G",
+  "start": "a",
+  "nodes": {
+   "a": {
+    "say": [
+     "I explained my bug to a rubber duck and found it myself.",
+     "The duck did nothing. It just believed in me."
+    ],
+    "options": [
+     {
+      "id": "dev-a-06-o1",
+      "label": "Get a duck for the team",
+      "next": "n0"
+     },
+     {
+      "id": "dev-a-06-o2",
+      "label": "Talk to a cat instead",
+      "next": "n1"
+     },
+     {
+      "id": "dev-a-06-o3",
+      "label": "Debug with print statements",
+      "next": "n2"
+     }
+    ]
+   },
+   "n0": {
+    "say": [
+     "A duck for every desk. Name them by sprint.",
+     "HR will ask about the ducks."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n1": {
+    "say": [
+     "Cats are worse listeners and better judges.",
+     "It stared at the screen. The bug fixed itself out of embarrassment."
+    ],
+    "end": true
+   },
+   "n2_0": {
+    "say": [
+     "A debugger! Very adult. Breakpoints and a feeling of control.",
+     "I give it two weeks before the prints return."
+    ],
+    "end": true,
+    "chain": "random"
+   },
+   "n2_1": {
+    "say": [
+     "Logging is just prayer with timestamps.",
+     "The bug is in line 3. It always was."
+    ],
+    "end": true
+   },
+   "n2": {
+    "say": [
+     "print('here'), print('here 2'), print('why'). A classic trilogy.",
+     "Remove them before shipping. Or do not, and become a legend."
+    ],
+    "options": [
+     {
+      "id": "dev-a-06-o4",
+      "label": "Use a debugger",
+      "next": "n2_0"
+     },
+     {
+      "id": "dev-a-06-o5",
+      "label": "Print and pray",
+      "next": "n2_1"
+     }
+    ]
+   }
+  }
+ }
+]

@@ -3,6 +3,7 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## 2026-11-23
+- **Water cooler chat:** Bye and Topic buttons on the agent's bubble, a topic picker (icon buttons) and 18 new threads in three new topics: Office, Dev and Gossip [13.5.10].
 - **Water cooler chat:** your own answer bubble disappears after 5 seconds [13.5.9].
 - **Water cooler chat:** the answer buttons in the bubbles can be clicked again; the agent you chat with wakes up and comes to you like a follower [13.5.8].
 - **Games:** New game is now two buttons, Autoplay (agent vs agent) and Play vs agent; it calls free agents itself, says so when everyone is busy, and a guest bot fills a seat when only one agent is free [13.7.15]. Rankings tabs are compact icon buttons in one row [13.7.15].

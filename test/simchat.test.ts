@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { validateAll, validateThread, hasBanned, type SimThread } from "../src/simchat/schema";
+import { validateAll, validateThread, hasBanned, TOPICS, TOPIC_INFO, type SimThread } from "../src/simchat/schema";
 import { pickThread, follow, shouldInitiate, chainTarget } from "../src/simchat/engine";
 
 const dir = join(__dirname, "../src/simchat/threads");
@@ -11,6 +11,8 @@ describe("bundled simulated-chat threads", () => {
   it("has 100+ threads covering all four topics", () => {
     expect(threads.length).toBeGreaterThanOrEqual(100);
     for (const t of ["games", "cars", "life", "work"]) expect(threads.filter((x) => x.topic === t).length).toBeGreaterThanOrEqual(20);
+    for (const t of ["office", "dev", "gossip"]) expect(threads.filter((x) => x.topic === t).length).toBeGreaterThanOrEqual(6);
+    for (const t of TOPICS) expect(TOPIC_INFO[t].label.length).toBeGreaterThan(0); // every topic has a button
   });
   it("passes the schema validator (reachability, unique option ids, chains, PG-13 word list)", () => {
     expect(validateAll(threads)).toEqual([]);
