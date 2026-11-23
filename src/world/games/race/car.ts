@@ -16,21 +16,47 @@ export interface CarState {
   boost: number;      // seconds of speed boost left
   slick: number;      // seconds on oil: almost no grip
   cool: number;       // seconds before the next pothole can hurt
+  pitch: number;      // monster truck: nose-up angle while it stands on the back wheels (rad)
+  roll: number;       // monster truck rollover: angle turned so far (rad), 0 when not rolling
+  rollT: number;      // seconds of rollover left (no control while it tumbles)
+  rollDur: number; rollTotal: number; rolls: number; // length and total angle of the current rollover, rollovers so far
 }
 
+/** Nose-up angle of a monster truck on its back wheels (rad). */
+export const WHEELIE = 0.5;
 export const CAR = { DRAG: 0.3, BOOST: 1.3, OFFROAD_SPEED: 0.65 };
 /** How far the car's centre may be from the centre line: the road edge plus two car widths. Beyond it a wall stops you. */
 export const offroadLimit = (track: Track, spec: CarSpec): number => track.halfWidth + 4 * spec.radius;
 const onGrass = (c: CarState, track: Track): boolean => Math.abs(c.lat) > track.halfWidth;
 
-export const newCar = (x: number, z: number, h: number): CarState => ({ x, z, h, vx: 0, vz: 0, drifting: false, seg: -1, s: 0, lat: 0, hits: 0, boost: 0, slick: 0, cool: 0 });
+export const newCar = (x: number, z: number, h: number): CarState => ({ x, z, h, vx: 0, vz: 0, drifting: false, seg: -1, s: 0, lat: 0, hits: 0, boost: 0, slick: 0, cool: 0, pitch: 0, roll: 0, rollT: 0, rollDur: 0, rollTotal: 0, rolls: 0 });
 export const speedOf = (c: CarState): number => Math.hypot(c.vx, c.vz);
 /** Sideways speed relative to the nose (positive = sliding to the right). */
 export const slideOf = (c: CarState): number => c.vx * -Math.sin(c.h) + c.vz * Math.cos(c.h);
 const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
 
 /** Advance one car by dt seconds (dt <= 0.05 keeps it stable). `free` = carmageddon: no road edge, drive anywhere. */
-export function stepCar(c: CarState, inp: CarInput, dt: number, track: Track, spec: CarSpec = CAR_TYPES.race, free = false): void {
+export function stepCar(c: CarState, inp0: CarInput, dt: number, track: Track, spec: CarSpec = CAR_TYPES.race, free = false): void {
+  let inp = inp0;
+  if (spec.stunts) {
+    if (c.rollT > 0) { // tumbling: no control, the speed bleeds off, then it lands on its wheels and drives on
+      c.rollT = Math.max(0, c.rollT - dt);
+      const k = 1 - c.rollT / c.rollDur, ease = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      c.roll = ease * c.rollTotal; c.pitch = 0;
+      if (c.rollT === 0) c.roll = 0;
+      c.vx *= Math.exp(-1.3 * dt); c.vz *= Math.exp(-1.3 * dt);
+      inp = { throttle: 0, steer: 0, drift: false };
+    } else {
+      const vfNow = c.vx * Math.cos(c.h) + c.vz * Math.sin(c.h);
+      const want = inp0.throttle > 0.8 && vfNow > -0.5 && vfNow < spec.maxSpeed * 0.85 ? WHEELIE : 0; // a hard start from low speed rears it up
+      c.pitch += (want - c.pitch) * Math.min(1, 3.2 * dt);
+      if (c.pitch < 0.01 && want === 0) c.pitch = 0;
+      if (inp0.throttle < -0.3 && c.pitch > WHEELIE * 0.45) { // braking on the back wheels: it flips over
+        c.rolls++; c.rollTotal = Math.PI * 2 * (2 + (c.rolls % 2)); c.rollDur = 2.1 + 0.3 * (c.rolls % 2); c.rollT = c.rollDur; c.roll = 0; c.pitch = 0;
+        c.hits++;
+      }
+    }
+  }
   const fx = Math.cos(c.h), fz = Math.sin(c.h), rx = -fz, rz = fx;
   let vf = c.vx * fx + c.vz * fz, vl = c.vx * rx + c.vz * rz;
   const grass = !free && onGrass(c, track); // off the tarmac: slower and loose
@@ -77,4 +103,12 @@ export function stepCar(c: CarState, inp: CarInput, dt: number, track: Track, sp
     if (vn > 0) { c.vx -= nx * vn * 1.2; c.vz -= nz * vn * 1.2; c.vx *= 0.93; c.vz *= 0.93; if (vn > 2) c.hits++; }
     c.lat = sign * lim;
   }
+}
+
+/** Where a car can run an agent over: each wheel and the body, in world x/z with a radius (a monster truck rolls over you with its wheels, not only with the middle). */
+export function hitPoints(spec: CarSpec, c: { x: number; z: number; h: number }): { x: number; z: number; r: number }[] {
+  const fx = Math.cos(c.h), fz = Math.sin(c.h), rx = -fz, rz = fx;
+  const pts = [{ x: c.x, z: c.z, r: Math.max(0.6, spec.radius * 0.9) }]; // the body
+  for (const p of spec.parts) if (p.shape === "cyl" && p.axis === "z") pts.push({ x: c.x + fx * p.at[0] + rx * p.at[2], z: c.z + fz * p.at[0] + rz * p.at[2], r: p.size[0] + 0.3 });
+  return pts;
 }

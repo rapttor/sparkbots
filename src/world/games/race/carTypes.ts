@@ -32,6 +32,8 @@ export interface CarSpec {
   camBack: number; camUp: number; eye: number; // chase camera distance/height, driver's-seat eye height
   /** Driver view (C): the camera sits on the very front of the vehicle, `fpvAhead` m in front of the centre and `fpvUp` m high, so no part of the body is in the way. */
   fpvAhead: number; fpvUp: number;
+  /** Monster truck stunts: a hard start rears it up on the back wheels; braking on the back wheels rolls it over 2-3 times, then it drives on. */
+  stunts?: boolean;
   parts: Part[];
 }
 
@@ -80,7 +82,7 @@ export const CAR_TYPES: Record<CarKind, CarSpec> = {
   },
   monster: {
     kind: "monster", name: "Monster truck", icon: "🛻", maxSpeed: AGENT_SPEED * 2, accel: 8, brake: 16, steer: 1.9, grip: 7, cornerG: 11, radius: 1.2, hitRadius: 2.0,
-    camBack: 10.5, camUp: 5, eye: 2.7, fpvAhead: 2.2, fpvUp: 2.7,
+    camBack: 10.5, camUp: 5, eye: 2.7, fpvAhead: 2.2, fpvUp: 2.7, stunts: true,
     parts: [
       { shape: "box", size: [3.0, 0.35, 1.2], at: [0, 1.0, 0], color: DARK },
       { shape: "box", size: [2.7, 0.8, 1.9], at: [0, 1.6, 0], color: "team" },

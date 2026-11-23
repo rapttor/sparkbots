@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeLayout } from "../src/world/layout";
 import { makeFixtureSnapshot } from "../src/world/fixture";
-import { newCar, offroadLimit, slideOf, speedOf, stepCar } from "../src/world/games/race/car";
+import { hitPoints, newCar, offroadLimit, slideOf, speedOf, stepCar } from "../src/world/games/race/car";
 import { AGENT_SPEED, CAR_TYPES } from "../src/world/games/race/carTypes";
 import { RaceSim } from "../src/world/games/race/sim";
 import { HALF_WIDTH, MAX_TURN, buildTrack, gridSlot, pointAt, project, trackClearance, trackInput, type Rect, type Track } from "../src/world/games/race/track";
@@ -515,5 +515,47 @@ describe("driver view camera", () => {
         if (front > sp.fpvAhead - 1.2) expect(top, `${kind} ${p.shape} near the nose`).toBeLessThanOrEqual(sp.fpvUp + 0.01); // and nothing near the nose is above it
       }
     }
+  });
+});
+
+describe("monster truck stunts", () => {
+  const spec = CAR_TYPES.monster;
+  const drive = (c: ReturnType<typeof newCar>, input: { throttle: number; steer: number; drift: boolean }, secs: number, t: Track) => { for (let i = 0; i < secs * 60; i++) stepCar(c, input, 1 / 60, t, spec, true); };
+  it("a hard start rears it up on the back wheels", () => {
+    const t = oval(), c = newCar(0, 0, 0);
+    drive(c, { throttle: 1, steer: 0, drift: false }, 1.0, t);
+    expect(c.pitch).toBeGreaterThan(0.3);
+    expect(c.rollT).toBe(0);
+    drive(c, { throttle: 0, steer: 0, drift: false }, 2, t);
+    expect(c.pitch).toBeLessThan(0.05);              // it comes back down when you let go
+  });
+  it("braking on the back wheels rolls it over 2-3 times, then it drives on", () => {
+    const t = oval(), c = newCar(0, 0, 0);
+    drive(c, { throttle: 1, steer: 0, drift: false }, 1.0, t);
+    drive(c, { throttle: -1, steer: 0, drift: false }, 0.1, t);
+    expect(c.rollT).toBeGreaterThan(0);
+    expect(c.rollTotal / (Math.PI * 2)).toBeGreaterThanOrEqual(2);
+    expect(c.rollTotal / (Math.PI * 2)).toBeLessThanOrEqual(3);
+    const before = Math.hypot(c.vx, c.vz);
+    drive(c, { throttle: 1, steer: 1, drift: false }, 1, t);   // no control while it tumbles
+    expect(c.roll).toBeGreaterThan(Math.PI);
+    expect(Math.hypot(c.vx, c.vz)).toBeLessThan(before);
+    drive(c, { throttle: 0, steer: 0, drift: false }, 2, t);
+    expect(c.rollT).toBe(0); expect(c.roll).toBe(0);
+    drive(c, { throttle: 1, steer: 0, drift: false }, 3, t);
+    expect(Math.hypot(c.vx, c.vz)).toBeGreaterThan(2);         // and it drives on
+  });
+  it("other cars never rear up or roll", () => {
+    const t = oval(), c = newCar(0, 0, 0);
+    for (let i = 0; i < 180; i++) stepCar(c, { throttle: 1, steer: 0, drift: false }, 1 / 60, t, CAR_TYPES.race, true);
+    expect(c.pitch).toBe(0); expect(c.rollT).toBe(0);
+  });
+  it("runs agents over with its wheels: the hit points are the four wheels and the body", () => {
+    const pts = hitPoints(spec, { x: 10, z: 5, h: 0 });
+    expect(pts).toHaveLength(5);
+    const front = pts.find((p) => Math.abs(p.x - 11.2) < 0.01 && Math.abs(p.z - 6.55) < 0.01);
+    expect(front).toBeTruthy();
+    expect(front!.r).toBeGreaterThan(1);
+    expect(hitPoints(spec, { x: 0, z: 0, h: Math.PI / 2 }).some((p) => Math.abs(p.x + 1.55) < 0.01 && Math.abs(p.z - 1.2) < 0.01)).toBe(true); // turns with the truck
   });
 });

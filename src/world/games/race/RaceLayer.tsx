@@ -9,11 +9,12 @@ import { effectiveState, roams } from "../../roam";
 import { registerMode } from "../../../state/modes";
 import type { Layout } from "../../layout";
 import { CARMA_TIME, ITEM_ICON, MAX_CARS } from "./sim";
-import { slideOf, speedOf } from "./car";
+import { hitPoints, slideOf, speedOf } from "./car";
+import { MonsterFx } from "./MonsterFx";
 import { AGENT_SPEED, CAR_KINDS, CAR_TYPES, type CarKind, type Part } from "./carTypes";
 import { LAPS, RaceHub, type RaceEnv } from "./hub";
 import { raceCam } from "./cam";
-import { playScream, playScreech, playSplat } from "../../sfx";
+import { playCrash, playScream, playScreech, playSplat } from "../../sfx";
 import { useWindshield } from "./glassSplats";
 import { sendView } from "../../viewBus";
 import { buildTrack, pointAt, trackInput, type Track } from "./track";
@@ -136,6 +137,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
   const carParts = useMemo(() => spec.parts.map((p) => ({ p, geo: partGeometry(p), partM: new Matrix4().makeTranslation(p.at[0], p.at[1], p.at[2]) })), [spec]);
   const carMeshes = useRef<(InstancedMesh | null)[]>([]);
   const dummy = useMemo(() => new Object3D(), []);
+  const mA = useMemo(() => new Matrix4(), []), mB = useMemo(() => new Matrix4(), []), eL = useMemo(() => new Euler(0, 0, 0, "XYZ"), []), lastHalf = useRef(new Map<string, number>());
   const base = useMemo(() => new Matrix4(), []), tmp = useMemo(() => new Matrix4(), []), q = useMemo(() => new Quaternion(), []), e = useMemo(() => new Euler(0, 0, 0, "YXZ"), []);
   const colored = useRef(-1);
   const road = useMemo(() => (track ? { asphalt: ribbon(track, -track.halfWidth, track.halfWidth, 0.03), kerbs: kerbs(track) } : null), [track]);
@@ -164,7 +166,8 @@ export function RaceLayer({ layout }: { layout: Layout }) {
       if (!camReady.current) { camYaw.current = car.h; camReady.current = true; }
       camYaw.current += angleDiff(car.h - camYaw.current) * (1 - Math.exp(-(fpv ? 14 : 4) * dt));
       const fx = Math.cos(camYaw.current), fz = Math.sin(camYaw.current);
-      const goal = fpv ? [car.x + fx * sp.fpvAhead, sp.fpvUp, car.z + fz * sp.fpvAhead] : [car.x - fx * sp.camBack, sp.camUp, car.z - fz * sp.camBack];
+      const lift = sp.stunts && fpv ? Math.sin(car.pitch) * (sp.fpvAhead + 1.2) : 0; // on its back wheels the nose (and the camera on it) goes up
+      const goal = fpv ? [car.x + fx * sp.fpvAhead, sp.fpvUp + lift, car.z + fz * sp.fpvAhead] : [car.x - fx * sp.camBack, sp.camUp, car.z - fz * sp.camBack];
       const k = 1 - Math.exp(-(fpv ? 40 : 7) * dt); // the driver view sticks to the nose: a lazy camera would fall back into the body at speed
       camera.position.set(camera.position.x + (goal[0]! - camera.position.x) * k, camera.position.y + (goal[1]! - camera.position.y) * k, camera.position.z + (goal[2]! - camera.position.z) * k);
       camera.lookAt(car.x + fx * (fpv ? 12 : 5), fpv ? sp.fpvUp * 0.8 : sp.eye * 0.5, car.z + fz * (fpv ? 12 : 5));
@@ -177,7 +180,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
       for (const [id, ro] of roams) {
         if (id.startsWith("guest:")) continue; // guest bots are not agents
         if (ro.squash && ro.squash > now) continue;
-        if (Math.hypot(ro.x - me.car.x, ro.z - me.car.z) > hr) continue;
+        if (!hitPoints(sim.spec, me.car).some((hp) => Math.hypot(ro.x - hp.x, ro.z - hp.z) < hp.r + 0.25)) continue; // the wheels and the body, not only the middle
         ro.squash = now + 3500; ro.flee = null; ids.push(id);
         splash(ro.x, ro.z, layoutRef.current.desks.find((d) => d.worker.id === id)?.worker.color ?? "#ffb020");
         raceHub.squash();
@@ -193,6 +196,16 @@ export function RaceLayer({ layout }: { layout: Layout }) {
       e.set(Math.max(-0.25, Math.min(0.25, slideOf(c) * 0.02)), -c.h, 0);
       q.setFromEuler(e);
       base.compose(dummy.position.set(c.x, rc.out ? -50 : c.slick > 0 ? 0.05 : 0, c.z), q, dummy.scale.set(1, 1, 1));
+      if (sim.spec.stunts && (c.pitch > 0.001 || c.rollT > 0)) { // monster truck: rears up on its back wheels, or tumbles over (rolls) and smashes down
+        const rolling = c.rollT > 0, px = rolling ? 0 : -1.2, py = rolling ? 1.3 : 0.85;
+        base.multiply(mA.makeTranslation(px, py, 0)).multiply(mB.makeRotationFromEuler(eL.set(c.roll, 0, c.pitch))).multiply(mA.makeTranslation(-px, -py, 0));
+        if (rolling) base.premultiply(mA.makeTranslation(0, Math.sin(Math.min(1, c.roll / Math.max(0.001, c.rollTotal)) * Math.PI) * 1.2, 0));
+      }
+      if (sim.spec.stunts) { // each half turn of a rollover is a smash
+        const half = c.rollT > 0 ? Math.floor(c.roll / Math.PI) : 0, was = lastHalf.current.get(rc.id) ?? 0;
+        if (half > was && !rc.out) { splash(c.x, c.z, "#9aa0ab"); if (rc.user || Math.hypot(c.x - (me?.car.x ?? 1e9), c.z - (me?.car.z ?? 1e9)) < 40) playCrash(); }
+        lastHalf.current.set(rc.id, half);
+      }
       carParts.forEach((cp, k) => {
         const m = carMeshes.current[k];
         if (!m) return;
@@ -257,6 +270,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
   return (
     <>
       <TyreMarks hub={raceHub} />
+      <MonsterFx hub={raceHub} />
       {sim && (
         <group>
           <mesh geometry={road.asphalt}><meshStandardMaterial color="#58607a" roughness={0.95} polygonOffset polygonOffsetFactor={-2} side={2} /></mesh>

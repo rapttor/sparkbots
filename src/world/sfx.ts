@@ -64,3 +64,16 @@ export function playSplat(): void {
   const g2 = c.createGain(); g2.gain.setValueAtTime(0.25, t); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
   src.connect(low); low.connect(g2); g2.connect(c.destination); src.start(t); src.stop(t + 0.16);
 }
+
+/** Metal crunch: a noise burst through a falling band plus a low thump (a monster truck landing on its roof). */
+export function playCrash(): void {
+  const c = audio(); if (!c || !gate("crash", 200)) return;
+  const t = c.currentTime, src = c.createBufferSource(); src.buffer = noiseBuf(c);
+  const band = c.createBiquadFilter(); band.type = "bandpass"; band.Q.value = 1.4;
+  band.frequency.setValueAtTime(1800, t); band.frequency.exponentialRampToValueAtTime(260, t + 0.35);
+  const g = c.createGain(); g.gain.setValueAtTime(0.4, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+  src.connect(band); band.connect(g); g.connect(c.destination); src.start(t); src.stop(t + 0.45);
+  const osc = c.createOscillator(); osc.type = "sine"; osc.frequency.setValueAtTime(110, t); osc.frequency.exponentialRampToValueAtTime(38, t + 0.3);
+  const g2 = c.createGain(); g2.gain.setValueAtTime(0.45, t); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+  osc.connect(g2); g2.connect(c.destination); osc.start(t); osc.stop(t + 0.35);
+}
