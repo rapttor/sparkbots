@@ -27,6 +27,7 @@ import { ZonesLayer } from "./zonelayer";
 import { lunchAll, followerList, insideRoom, meeting, MAX_SEATS, setFollowers, startErrand, setPois, rebuildRoamGrid } from "./roam";
 import { useShowDesks } from "../state/deskPref";
 import { avatarScreen } from "./occlusion";
+import { INTRO_S, introZoom, wantIntro } from "./intro";
 import { PerformPicker, usePerform } from "./PerformPicker";
 import { Windshield } from "./games/race/Windshield";
 import { managerAt, roams, setLook, clearLook, player as playerState, pushPlayerOut, holdAgent, releaseAgent } from "./roam";
@@ -72,6 +73,7 @@ const WALK_SPEED = 5, SPRINT_SPEED = 11, SPRINT_ACCEL = 1.8; // units per second
 // One continuous camera: zoom in = first-person (behind the character/hand), zoom out = near top-down overview.
 const DIST_IN = 3.2; // camera distance at max zoom in; max zoom out comes from the campus bounds (maxZoomDistance, 13.1.4)
 const PITCH_IN = 0.1, PITCH_OUT = 1.5; // tilt at max zoom in (nearly flat) / max zoom out (near top-down)
+let introPlayed = false; // the opening shot plays once per page load
 const tmpAv = new Vector3(); // scratch for the avatar's screen rectangle
 const DEFAULT_ZOOM_T = 0.32; // the "story" angle: behind you, a bit low
 const startMode = (): "saved" | "plaza" => { try { return localStorage.getItem("ao.startMode") === "plaza" ? "plaza" : "saved"; } catch { return "saved"; } };
@@ -154,6 +156,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   const distOut = useRef(200); distOut.current = maxZoomDistance(layout); // max zoom-out from the campus bounds (13.1.4)
   // One zoom value drives both distance and tilt: 0 = first-person, 1 = near top-down overview.
   const zoomT = useRef((() => { try { const v = Number(localStorage.getItem("ao.camZoom")); return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_ZOOM_T; } catch { return DEFAULT_ZOOM_T; } })());
+  const intro = useRef<{ t: number; to: number } | null>(null); // the opening shot: top view sinking towards the owner
   const [labelsOnly, setLabelsOnly] = useState(() => zoomT.current >= OVERVIEW_ZOOM);
   useEffect(() => { ctl.onOverview(labelsOnly); }, [labelsOnly, ctl.onOverview]);
   // Centre of everything drawn (areas + rooms), so the top view can line the whole office up on screen.
@@ -527,13 +530,16 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     const el = gl.domElement;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      intro.current = null; // you take over from the opening shot
       if (lockedRef.current) return;
       const step = Math.max(-100, Math.min(100, e.deltaY)); // normalize trackpad/mouse
       zoomT.current = Math.min(1, Math.max(0, zoomT.current + step * 0.0015));
       try { localStorage.setItem("ao.camZoom", String(zoomT.current)); } catch { /* private mode */ }
     };
+    const skipIntro = () => { intro.current = null; };
     el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
+    el.addEventListener("pointerdown", skipIntro);
+    return () => { el.removeEventListener("wheel", onWheel); el.removeEventListener("pointerdown", skipIntro); };
   }, [gl]);
 
   // Sleepers and parked robots are skipped by the frame loop; anything that needs them to move (an action, an errand, following) adds them back.
@@ -592,6 +598,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     const down = (e: KeyboardEvent) => {
       if (!activeRef.current || typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
+      if (intro.current && ("wasdqeflmcxuior ".includes(k) || k.startsWith("arrow"))) intro.current = null;
       keys.current.add(k);
       if (e.repeat) return; // holding a key must not fire an action (or a confirmation) over and over
       if (modeRef.current !== "walk") return;
@@ -624,7 +631,19 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       if (Math.abs(yaw.current) < 0.002) { yaw.current = 0; aligning.current = false; }
     }
     ctl.labels.current?.update(camera, gl.domElement.clientWidth, gl.domElement.clientHeight, zoomT.current); // floating titles follow the camera
-    if (!readyOnce.current) { readyOnce.current = true; ctl.onReady(); }
+    if (!readyOnce.current) {
+      readyOnce.current = true; ctl.onReady();
+      if (!introPlayed) {
+        introPlayed = true;
+        let ok = false; try { ok = wantIntro(window.location.search, window.localStorage); } catch { /* private mode */ }
+        if (ok) { intro.current = { t: 0, to: zoomT.current >= OVERVIEW_ZOOM ? DEFAULT_ZOOM_T : zoomT.current }; zoomT.current = 1; }
+      }
+    }
+    if (intro.current) { // sink towards the owner; any scroll, key or click takes over at once
+      const it = intro.current; it.t += Math.min(dt, 0.1);
+      zoomT.current = introZoom(it.t, it.to);
+      if (it.t >= INTRO_S) { zoomT.current = it.to; intro.current = null; }
+    }
     sampleFrame(dt, state.clock.elapsedTime, gl.info);
     nerd.bots = roams.size;
     { // where you are on the screen, so labels behind you do not paint over you (rooms/ui.tsx RoomHtml)

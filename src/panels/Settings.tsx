@@ -315,6 +315,9 @@ export function Settings() {
       body: <select value={ls.get("ao.flySpeed") ?? "normal"} onChange={(e) => { ls.set("ao.flySpeed", e.target.value); bump((n) => n + 1); }}>
         <option value="normal">Normal</option><option value="fast">Fast</option>
       </select> },
+    { id: "no-intro", section: "3D office", label: "Opening shot", words: "intro animation start camera zoom top view skip splash",
+      desc: "When SparkBots opens, the camera starts above the whole campus and sinks slowly towards your character. Any scroll, key or click skips it.",
+      body: <label><input type="checkbox" checked={!flag("ao.noIntro")} onChange={(e) => setFlag("ao.noIntro", !e.target.checked)} /> Play the opening shot</label> },
     { id: "reduced-motion", section: "3D office", label: "Reduced motion", words: "accessibility animation camera flight fade short motion sickness",
       desc: "Use short fades instead of long camera flights, for less motion.",
       body: <label><input type="checkbox" checked={flag("ao.reducedMotion")} onChange={(e) => setFlag("ao.reducedMotion", e.target.checked)} /> Reduce camera motion</label> },
