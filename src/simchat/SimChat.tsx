@@ -16,6 +16,7 @@ import "./simchat.css";
 
 const useSettings = () => useSyncExternalStore(subscribeSettings, getSettings);
 const AGENT_Y = 2.25, ME_Y = 2.2;
+const ME_SHOW_MS = 5000; // your own bubble fades away this long after you said it (the agent's stays until it has more to say)
 
 /** A chat bubble drawn as DOM at a 3D point. Follows `at()` every frame (an agent walks, the hand moves). */
 function Anchored({ at, y, children }: { at: () => { x: number; z: number } | null; y: number; children: React.ReactNode }) {
@@ -106,7 +107,7 @@ function ActiveChat({ id }: { id: string }) {
   return (
     <>
       {bi >= 0 && <Anchored at={agentAt} y={AGENT_Y}><Bubble who="bot" line={lines[bi]} prev={prevOf(bi)} typed={typedFor(bi)} onContinue={bi === shownIdx && out?.canContinue ? goNext : undefined} /></Anchored>}
-      {mi >= 0 && <Anchored at={meAt} y={ME_Y}><Bubble who="me" line={lines[mi]} prev={prevOf(mi)} typed={typedFor(mi)} /></Anchored>}
+      {mi >= 0 && Date.now() - lines[mi].at < ME_SHOW_MS && <Anchored at={meAt} y={ME_Y}><Bubble who="me" line={lines[mi]} prev={prevOf(mi)} typed={typedFor(mi)} /></Anchored>}
       {(out?.showOptions || (out?.done && nextWho === null && options.length === 0)) && (
         <Anchored at={meAt} y={ME_Y - 0.9}>
           <Clickable className="sc-opts3">
