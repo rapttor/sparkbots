@@ -4,6 +4,8 @@ import { hub, setAuto } from "./instance";
 import { USER_SEAT } from "./hub";
 import { RallySim } from "./rally";
 import { RoundSim, RPS_FACES } from "./rounds";
+import { BilliardsSim } from "./billiards";
+import { HoopsSim } from "./hoops";
 import { GAMES, GAME_IDS } from "./registry";
 import type { GameId, RankRow } from "./types";
 import { goTo, spotBehindTable } from "./goto";
@@ -113,7 +115,7 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
             <select aria-label="Game" value={form.game} onChange={(e) => { setForm({ ...form, game: e.target.value as GameId | "race" }); setMsg(""); }}>{GAME_IDS.map((g) => <option key={g} value={g} disabled={!hub.canOpen(g)}>{GAMES[g].icon} {GAMES[g].name}</option>)}<option value="race">🏎 Race</option></select>
             {form.game !== "race" && <>
               <button type="button" onClick={() => quick("auto")} title="Calls two agents that are not working (sleepers are woken) and lets them play">▶ Autoplay · agent vs agent</button>
-              <button type="button" onClick={() => quick("vs")} title="You take a seat against one agent (pong, air hockey, rock-paper-scissors, dice); the other games can only be watched">🎮 Play vs agent</button>
+              <button type="button" onClick={() => quick("vs")} title="You take a seat against one agent (a guest bot if nobody is free) and play yourself">🎮 Play vs agent</button>
             </>}
             {hub.instances.length > 0 && form.game !== "race" && <button type="button" onClick={() => hub.stopAll()}>Stop all</button>}
           </div>
@@ -143,12 +145,17 @@ function PlayHud() {
   const ref = useSwallowEvents();
   useSyncExternalStore((cb) => hub.subscribe(cb), () => hub.version);
   const inst = hub.userInst();
+  const [, tick] = useState(0);
+  useEffect(() => { if (!inst) return; const h = setInterval(() => tick((n) => n + 1), 200); return () => clearInterval(h); }, [!!inst]); // the power dial / meter changes without a hub event
   const turnBased = inst?.phase === "playing" && inst.sim instanceof RoundSim;
-  useNumberKeys(turnBased ? (inst!.game === "rps" ? [0, 1, 2].map((m) => () => hub.throwMove(m)) : [() => hub.throwMove()]) : [], !!turnBased); // 1 2 3 = rock paper scissors, 1 = roll
+  const shooter = inst?.phase === "playing" && (inst.sim instanceof BilliardsSim || inst.sim instanceof HoopsSim);
+  useNumberKeys(turnBased ? (inst!.game === "rps" ? [0, 1, 2].map((m) => () => hub.throwMove(m)) : [() => hub.throwMove()]) : shooter ? [() => hub.shoot()] : [], !!turnBased || !!shooter); // 1 2 3 = rock paper scissors, 1 = roll / shoot / stop
   if (!inst) return null;
   const sim = inst.sim, over = inst.phase === "over", playing = inst.phase === "playing";
   const opp = inst.seats.find((s) => s.agent !== USER_SEAT)?.agent ?? null;
   const hint = sim instanceof RallySim ? (inst.game === "pong" ? "Arrows / WASD: ↑↓ sideways, ←→ back and forth (further back hits harder, reaches less)" : "Arrows / WASD move your mallet and hit the puck into the far goal")
+    : sim instanceof BilliardsSim ? (sim.yourTurn ? `Your shot · ◀ ▶ turn the cue · ▲ ▼ power ${sim.power}/9 · Space shoots` : "Opponent's turn…")
+    : sim instanceof HoopsSim ? (sim.yourTurn ? `Your shot · Space (or Stop) fixes the ${sim.phase === "angle" ? "ANGLE" : "POWER"} meter, then the ball flies` : "Opponent's turn…")
     : inst.phase === "gathering" ? "Waiting for your opponent…" : "";
   return (
     <div className="games-hud" ref={ref} role="group" aria-label="Your game">
@@ -157,6 +164,8 @@ function PlayHud() {
       {playing && sim instanceof RoundSim && (inst.game === "rps"
         ? <div className="row">{RPS_FACES.map((f, i) => <button key={f} className="big" aria-label={["Rock", "Paper", "Scissors"][i]} title={`${i + 1}`} onClick={() => hub.throwMove(i)}>{f}<sup style={{ fontSize: 10, opacity: 0.6 }}>{i + 1}</sup></button>)}</div>
         : <div className="row"><button className="big" onClick={() => hub.throwMove()}>🎲 Roll</button></div>)}
+      {playing && sim instanceof BilliardsSim && sim.yourTurn && <div className="row"><button className="big" onClick={() => hub.shoot()}>🎱 Shoot<sup style={{ fontSize: 10, opacity: 0.6 }}>1</sup></button></div>}
+      {playing && sim instanceof HoopsSim && sim.yourTurn && <div className="row"><button className="big" onClick={() => hub.shoot()}>✋ Stop<sup style={{ fontSize: 10, opacity: 0.6 }}>1</sup></button></div>}
       {over && <div>{inst.winner === null ? "Draw." : inst.seats[inst.winner]?.agent === USER_SEAT ? "🏆 You won!" : "You lost this one."}</div>}
       {hint && <div className="muted">{hint}</div>}
       <div className="row">

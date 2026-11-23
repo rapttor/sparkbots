@@ -1,6 +1,8 @@
 import { GAMES, GAME_IDS, pickGame } from "./registry";
 import { RallySim } from "./rally";
 import { RoundSim } from "./rounds";
+import { BilliardsSim } from "./billiards";
+import { HoopsSim } from "./hoops";
 import { playSpot, seatSpots, type PlacedSlot, type Spot } from "./tables";
 import type { GameId, GameResult, GameSim, Rng } from "./types";
 
@@ -26,7 +28,7 @@ export interface HubEnv {
 export const GUEST_PREFIX = "guest:";
 /** You in a seat: the manager plays (the playable games only). */
 export const USER_SEAT = "user";
-export const PLAYABLE: readonly GameId[] = ["pong", "hockey", "rps", "dice"];
+export const PLAYABLE: readonly GameId[] = ["pong", "hockey", "rps", "dice", "billiards", "hoops"];
 export const isGuest = (a: string | null | undefined): boolean => !!a && a.startsWith(GUEST_PREFIX);
 
 export type Phase = "gathering" | "playing" | "over";
@@ -104,7 +106,9 @@ export class GameHub {
   /** The table you play at, if any. */
   userInst(): Instance | undefined { return this.instances.find((i) => i.seats.some((s) => s.agent === USER_SEAT)); }
   /** What you hold: dx +1 right, dz +1 towards the camera (rally games). */
-  setControl(dx: number, dz: number): void { const s = this.userInst()?.sim; if (s instanceof RallySim) { s.ctl.dx = dx; s.ctl.dz = dz; } }
+  setControl(dx: number, dz: number): void { const s = this.userInst()?.sim; if (s instanceof RallySim || s instanceof BilliardsSim) { s.ctl.dx = dx; s.ctl.dz = dz; } }
+  /** Your shot: billiards strikes the cue ball, basketball stops the meter. */
+  shoot(): void { const i = this.userInst(), s = i?.sim; if (i && i.phase === "playing") { if (s instanceof BilliardsSim) { s.shoot(); this.changed(); } else if (s instanceof HoopsSim) { s.press(); this.changed(); } } }
   /** Your throw (rock-paper-scissors move 0..2) or roll (dice). */
   throwMove(move?: number): void { const i = this.userInst(), s = i?.sim; if (i && i.phase === "playing" && s instanceof RoundSim && !s.over) { s.play(move); this.changed(); } }
   /** Another match at the table you just finished. */

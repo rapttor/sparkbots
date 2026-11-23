@@ -9,6 +9,8 @@ import type { Layout } from "../layout";
 import { USER_SEAT, isGuest, type HubEnv, type Instance } from "./hub";
 import { hub, none } from "./instance";
 import { RallySim, TABLE } from "./rally";
+import { BilliardsSim } from "./billiards";
+import { HoopsSim } from "./hoops";
 import { GAMES } from "./registry";
 import { placeSlots } from "./tables";
 import { GamesOverlay } from "./GamesOverlay";
@@ -74,7 +76,8 @@ export function GamesLayer({ layout }: { layout: Layout }) {
   }, []);
 
   // you at a rally table: the arrows / WASD steer your paddle (captured, so your avatar does not walk off); Esc leaves
-  const playing = hub.userInst()?.sim instanceof RallySim;
+  const mySim = hub.userInst()?.sim;
+  const playing = mySim instanceof RallySim || mySim instanceof BilliardsSim || mySim instanceof HoopsSim;
   useEffect(() => {
     if (!playing) return;
     const held = new Set<string>();
@@ -84,6 +87,7 @@ export function GamesLayer({ layout }: { layout: Layout }) {
       if ((e.target as HTMLElement | null)?.closest?.("input,textarea,select")) return;
       const k = e.key.toLowerCase();
       if (k === "escape") { const i = hub.userInst(); if (i) hub.stop(i.id); return; }
+      if (k === " " || k === "enter") { e.preventDefault(); e.stopImmediatePropagation(); hub.shoot(); return; } // billiards: strike, basketball: stop the meter
       if (!KEYS.has(k)) return;
       e.preventDefault(); e.stopImmediatePropagation(); held.add(k); push();
     };

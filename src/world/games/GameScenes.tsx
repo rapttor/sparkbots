@@ -13,7 +13,7 @@ const ballColor = (id: number): string => (id === 0 ? BALL_COLORS[0]! : id === 8
 /** Billiards table: cloth colour follows the variant; the balls are plain meshes moved once per frame from `sim.balls` (no React state). */
 export function BilliardsView({ inst }: { inst: Instance }) {
   const sim = inst.sim instanceof BilliardsSim ? inst.sim : null;
-  const refs = useRef<(Group | null)[]>([]), stick = useRef<Group>(null);
+  const refs = useRef<(Group | null)[]>([]), stick = useRef<Group>(null), guide = useRef<Mesh>(null);
   const cloth = VARIANTS[sim?.variant ?? "eight"].cloth;
   useFrame(() => {
     if (!sim) return;
@@ -24,6 +24,7 @@ export function BilliardsView({ inst }: { inst: Instance }) {
       s.position.set(cue.x, TOP + BALL_R, cue.z);
       s.rotation.y = -sim.aim.angle;
       s.children[0]?.position.set(-(0.08 + shotSpeed(sim.aim.strength) * 0.045 + 0.55), 0, 0);
+      if (guide.current) guide.current.visible = sim.yourTurn; // your aim line: it shows where the cue ball is going
     }
   });
   const n = sim ? sim.balls.length : 0;
@@ -40,7 +41,7 @@ export function BilliardsView({ inst }: { inst: Instance }) {
           {sim!.balls[i]!.id > 8 && <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[BALL_R * 0.99, BALL_R * 0.28, 6, 14]} /><meshStandardMaterial color="#f5f2e8" /></mesh>}
         </group>
       ))}
-      <group ref={stick} visible={false}><mesh rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.012, 0.02, 1.1, 8]} /><meshStandardMaterial color="#d9b27a" /></mesh></group>
+      <group ref={stick} visible={false}><mesh rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.012, 0.02, 1.1, 8]} /><meshStandardMaterial color="#d9b27a" /></mesh><mesh ref={guide} position={[0.9, 0, 0]} visible={false}><boxGeometry args={[1.8, 0.004, 0.006]} /><meshBasicMaterial color="#ffe66d" transparent opacity={0.8} /></mesh></group>
     </>
   );
 }

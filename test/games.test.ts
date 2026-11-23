@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { AppDb } from "../server/db";
 import { parseGameResult } from "../server/games";
-import { GameHub, GATHER_TIMEOUT, OVER_SHOW, USER_SEAT, isGuest, type HubEnv } from "../src/world/games/hub";
+import { GameHub, GATHER_TIMEOUT, OVER_SHOW, USER_SEAT, PLAYABLE, isGuest, type HubEnv } from "../src/world/games/hub";
 import { RallySim, TABLE } from "../src/world/games/rally";
-import { GAMES, pickGame } from "../src/world/games/registry";
+import { GAMES, GAME_IDS, pickGame } from "../src/world/games/registry";
 import { RoundSim, diceWinner, rpsWinner } from "../src/world/games/rounds";
+import { BilliardsSim } from "../src/world/games/billiards";
+import { HoopsSim } from "../src/world/games/hoops";
 import { SLOTS, placeSlots, seatSpots } from "../src/world/games/tables";
 import { mulberry32, type GameResult } from "../src/world/games/types";
 
@@ -246,17 +248,14 @@ describe("playable games: you take seat 0", () => {
     const w = world(idle);
     return w;
   };
-  it("playVs seats you against an agent, or a guest bot when nobody is free; unplayable games fall back to watching", () => {
+  it("playVs seats you against an agent, or a guest bot when nobody is free", () => {
     const w = mk(["a", "b"]);
     const r = w.hub.playVs("pong");
     expect(r.inst!.seats[0].agent).toBe(USER_SEAT);
     expect(isGuest(r.inst!.seats[1].agent)).toBe(false);
     const w2 = mk([]);
     expect(isGuest(w2.hub.playVs("rps").inst!.seats[1].agent)).toBe(true);
-    const w3 = mk(["a", "b"]);
-    const r3 = w3.hub.playVs("billiards");
-    expect(r3.inst!.seats[0].agent).not.toBe(USER_SEAT);
-    expect(r3.msg).toMatch(/only be watched/);
+    expect(PLAYABLE.slice().sort()).toEqual(GAME_IDS.slice().sort()); // every game can be played by you now
   });
   it("rock-paper-scissors waits for your move and uses it; the score and result record you as 'user'", () => {
     const w = mk(["a"]);
@@ -287,6 +286,54 @@ describe("playable games: you take seat 0", () => {
       const z1 = sim.paddles[0].z;
       for (let i = 0; i < 10; i++) sim.step(0.05);
       expect(sim.paddles[0].z).toBeCloseTo(z1, 5); // it does not chase the ball by itself
+    }
+  });
+});
+
+describe("playable billiards and basketball", () => {
+  it("billiards: the cue waits for you, turns with your keys, and the shot is yours", () => {
+    const sim = new BilliardsSim("quick", mulberry32(4));
+    sim.turn = 0; sim.setUser(0);
+    expect(sim.yourTurn).toBe(true);
+    const a0 = sim.aim.angle;
+    for (let i = 0; i < 40; i++) sim.step(0.05);
+    expect(sim.phase).toBe("aim");                       // two seconds later it still waits
+    sim.ctl.dx = 1; for (let i = 0; i < 20; i++) sim.step(0.05); sim.ctl.dx = 0;
+    expect(sim.aim.angle).toBeGreaterThan(a0 + 0.5);
+    sim.ctl.dz = -1; for (let i = 0; i < 40; i++) sim.step(0.05); sim.ctl.dz = 0;
+    expect(sim.power).toBe(9);                           // up = more power, capped
+    sim.shoot();
+    expect(sim.phase).toBe("roll");
+    expect(sim.balls[0]!.vx !== 0 || sim.balls[0]!.vz !== 0).toBe(true);
+    expect(sim.shots[0]).toBe(1);
+  });
+  it("billiards: the agent's turn is still automatic", () => {
+    const sim = new BilliardsSim("quick", mulberry32(4));
+    sim.turn = 1; sim.setUser(0);
+    expect(sim.yourTurn).toBe(false);
+    for (let i = 0; i < 80; i++) sim.step(0.05);
+    expect(sim.shots[1]).toBeGreaterThan(0);
+  });
+  it("basketball: your meter runs until you press; two presses shoot", () => {
+    const sim = new HoopsSim(mulberry32(9));
+    sim.shooter = 0; sim.setUser(0);
+    expect(sim.yourTurn).toBe(true);
+    for (let i = 0; i < 100; i++) sim.step(0.05);
+    expect(sim.phase).toBe("angle");                     // it does not stop by itself
+    sim.press();
+    expect(sim.phase).toBe("power");
+    for (let i = 0; i < 30; i++) sim.step(0.05);
+    expect(sim.phase).toBe("power");
+    sim.press();
+    expect(sim.phase).toBe("flight");
+    expect(sim.shot).not.toBeNull();
+  });
+  it("playVs now seats you for every game", () => {
+    for (const g of ["billiards", "hoops"] as const) {
+      const w = world(["a", "b"]);
+      const r = w.hub.playVs(g);
+      expect(r.inst!.seats[0].agent).toBe(USER_SEAT);
+      expect(r.msg).not.toMatch(/only be watched/);
     }
   });
 });

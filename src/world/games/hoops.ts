@@ -112,10 +112,22 @@ export class HoopsSim implements GameSim {
     return { z: 0, y: HOOP_Y + 0.55 };
   }
   private fetchFrom = { z: 0, y: 0.1 };
+  /** The seat you play (null = agents only). Your meter runs until you press (Space / the button). */
+  user: 0 | 1 | null = null;
+  setUser(seat: 0 | 1): void { this.user = seat; if (this.shooter === seat && (this.phase === "angle" || this.phase === "power")) this.stopAt = Infinity; }
+  /** It is your shot and the meter waits for you to stop it. */
+  get yourTurn(): boolean { return this.user !== null && this.shooter === this.user && (this.phase === "angle" || this.phase === "power") && !this.over; }
+  /** Stop the meter (first press fixes the angle, the second the power and the ball flies). */
+  press(): void {
+    if (!this.yourTurn) return;
+    const m = meterAt(this.t, this.speed);
+    if (this.phase === "angle") { this.meterA = m; this.aimedA = m; this.phase = "power"; this.t = 0; this.stopAt = Infinity; }
+    else { this.meterP = m; this.release(); }
+  }
 
   private begin(): void {
     this.phase = "angle"; this.t = 0; this.meterA = this.meterP = 0; this.shot = null;
-    this.stopAt = this.planStop(SWEET_ANGLE_METER);
+    this.stopAt = this.user === this.shooter ? Infinity : this.planStop(SWEET_ANGLE_METER);
     this.aimedA = 0;
   }
 
@@ -133,7 +145,7 @@ export class HoopsSim implements GameSim {
     if (this.phase === "angle" || this.phase === "power") {
       if (this.t >= this.stopAt) {
         const m = meterAt(this.stopAt, this.speed);
-        if (this.phase === "angle") { this.meterA = m; this.aimedA = m; this.phase = "power"; this.t = 0; this.stopAt = this.planStop(SWEET_POWER_METER); }
+        if (this.phase === "angle") { this.meterA = m; this.aimedA = m; this.phase = "power"; this.t = 0; this.stopAt = this.user === this.shooter ? Infinity : this.planStop(SWEET_POWER_METER); }
         else { this.meterP = m; this.release(); }
       }
     } else if (this.phase === "flight") {

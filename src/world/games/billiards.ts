@@ -234,6 +234,10 @@ export class BilliardsSim implements GameSim {
   shots: [number, number] = [0, 0];
   note = "";
   readonly skill: [number, number];
+  /** The seat you play (null = agents only), the keys you hold (dx +1 turns the cue right, dz +1 = less power) and your strength dial (1-9). */
+  user: 0 | 1 | null = null;
+  ctl = { dx: 0, dz: 0 };
+  private dial = 5;
   private think = 1.2;
   private report: ShotReport = { potted: [], firstHit: null };
   private down = new Set<number>();
@@ -259,15 +263,37 @@ export class BilliardsSim implements GameSim {
     return kindOf(id) === g || (id === 8 && ownLeft(g, this.down) === 0);
   };
 
+  setUser(seat: 0 | 1): void { this.user = seat; if (this.phase === "aim" && this.turn === seat) this.plan(); }
+  /** It is your shot and the cue waits for you. */
+  get yourTurn(): boolean { return this.user !== null && this.turn === this.user && this.phase === "aim" && !this.over; }
+  /** Your power dial, 1-9. */
+  get power(): number { return Math.round(this.dial); }
+
   private plan(): void {
-    this.aim = planShot(this.balls, this.legal, this.skill[this.turn], this.rng);
-    this.think = 0.9 + this.rng() * 1.1;
+    const mine = this.user === this.turn;
+    this.aim = planShot(this.balls, this.legal, mine ? 1 : this.skill[this.turn], this.rng); // for you it is only a first suggestion: turn the cue as you like
+    if (mine) { this.dial = this.aim.strength; this.think = Infinity; } else this.think = 0.9 + this.rng() * 1.1;
     this.phase = "aim";
+  }
+
+  /** You take the shot (Space / the button). */
+  shoot(): void {
+    if (!this.yourTurn) return;
+    this.report = { potted: [], firstHit: null };
+    strike(this.balls, this.aim.angle, this.power);
+    this.shots[this.turn]++;
+    this.phase = "roll";
   }
 
   step(dt: number): void {
     if (this.over) return;
     if (this.phase === "aim") {
+      if (this.yourTurn) { // you: left/right turn the cue, up/down set the power
+        this.aim = { angle: this.aim.angle + this.ctl.dx * 1.1 * dt, strength: this.dial };
+        this.dial = Math.max(1, Math.min(MAX_STRENGTH, this.dial - this.ctl.dz * 3.5 * dt));
+        this.aim.strength = this.power;
+        return;
+      }
       this.think -= dt;
       if (this.think <= 0) {
         this.report = { potted: [], firstHit: null };
