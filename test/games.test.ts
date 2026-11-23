@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AppDb } from "../server/db";
 import { parseGameResult } from "../server/games";
-import { GameHub, GATHER_TIMEOUT, OVER_SHOW, type HubEnv } from "../src/world/games/hub";
+import { GameHub, GATHER_TIMEOUT, OVER_SHOW, isGuest, type HubEnv } from "../src/world/games/hub";
 import { RallySim, TABLE } from "../src/world/games/rally";
 import { GAMES, pickGame } from "../src/world/games/registry";
 import { RoundSim, diceWinner, rpsWinner } from "../src/world/games/rounds";
@@ -214,15 +214,29 @@ describe("game rankings in SQLite", () => {
   });
 });
 
-describe("game hub: starting a game when nobody is idle", () => {
-  it("picks a random sleeper when no agent is idle, an idle one when there is one", () => {
-    const sleepers = ["s1", "s2", "s3"];
-    const env: HubEnv = { rng: mulberry32(3), idle: () => [], sleeping: () => sleepers, free: () => true, alive: () => true, send: () => {}, arrived: () => false, name: (a) => a, record: () => {} };
-    const hub = new GameHub(env);
-    expect(sleepers).toContain(hub.anyAgent()!);
-    env.idle = () => ["i1"];
-    expect(hub.anyAgent()).toBe("i1");
-    env.idle = () => []; env.sleeping = () => [];
-    expect(hub.anyAgent()).toBeNull();
+describe("game hub: the two start buttons", () => {
+  const mk = (idle: string[], sleeping: string[]) => {
+    const env: HubEnv = { rng: mulberry32(3), idle: () => idle, sleeping: () => sleeping, free: () => true, alive: () => true, send: () => {}, arrived: () => false, name: (a) => a, record: () => {} };
+    const hub = new GameHub(env); hub.setSlots(placeSlots(0, 0)); return hub;
+  };
+  it("says nobody is available when everyone is busy, and starts nothing", () => {
+    const h = mk([], []);
+    const r = h.quick("pong", "auto");
+    expect(r.inst).toBeNull(); expect(r.msg).toMatch(/busy working/);
+  });
+  it("autoplay calls two agents, idle ones first, then sleepers", () => {
+    const r = mk(["i1"], ["s1", "s2"]).quick("pong", "auto");
+    expect(r.inst!.seats.map((s) => s.agent)).toContain("i1");
+    expect(r.inst!.seats.every((s) => s.agent && !isGuest(s.agent))).toBe(true);
+  });
+  it("play vs agent calls one agent and a guest bot takes the other seat", () => {
+    const r = mk(["i1", "i2"], []).quick("pong", "vs");
+    const ids = r.inst!.seats.map((s) => s.agent!);
+    expect(ids.filter(isGuest)).toHaveLength(1);
+    expect(r.msg).toMatch(/guest/i);
+  });
+  it("autoplay with a single free agent gets a guest opponent", () => {
+    const r = mk([], ["s1"]).quick("pong", "auto");
+    expect(r.inst!.seats.map((s) => s.agent!).filter(isGuest)).toHaveLength(1);
   });
 });

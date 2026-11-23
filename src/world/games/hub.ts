@@ -21,6 +21,10 @@ export interface HubEnv {
   record(r: GameResult): void;
 }
 
+/** Guest bots are not sessions: they sit in the second seat when only one agent is free. */
+export const GUEST_PREFIX = "guest:";
+export const isGuest = (a: string | null | undefined): boolean => !!a && a.startsWith(GUEST_PREFIX);
+
 export type Phase = "gathering" | "playing" | "over";
 export interface Seat { agent: string | null; arrived: boolean }
 export interface Instance {
@@ -67,11 +71,22 @@ export class GameHub {
   version = 0;
   /** Idle agents that could join a game right now (for the "start a game" form). */
   candidates(): string[] { return this.env.idle().filter((a) => !this.inGame(a)); }
-  /** An agent for a game you start without picking anyone: a random idle one, else a random sleeper (it is woken). Null when nobody is free. */
-  anyAgent(): string | null {
-    const pool = this.candidates().length ? this.candidates() : (this.env.sleeping?.() ?? []).filter((a) => !this.inGame(a));
-    return pool.length ? pool[Math.floor(this.env.rng() * pool.length)]! : null;
+  /**
+   * The two start buttons. "vs" calls ONE agent (idle first, else a sleeper, which is woken); "auto" calls TWO. Everyone busy working = nothing
+   * starts. With only one agent for a two-seat table a guest bot (not a session, drawn by the game layer) plays the other seat.
+   */
+  quick(game: GameId, mode: "vs" | "auto"): { inst: Instance | null; msg: string } {
+    const shuffle = (xs: string[]) => xs.map((x) => [this.env.rng(), x] as const).sort((p, q) => p[0] - q[0]).map((p) => p[1]);
+    const idle = shuffle(this.candidates()), asleep = shuffle((this.env.sleeping?.() ?? []).filter((a) => !this.inGame(a)));
+    const agents = [...idle, ...asleep].slice(0, mode === "auto" ? 2 : 1);
+    if (!agents.length) return { inst: null, msg: "No agent is available: everyone is busy working." };
+    const guest = agents.length < 2;
+    const inst = this.open(game, guest ? [agents[0]!, this.newGuest()] : agents, true);
+    if (!inst) return { inst: null, msg: "No free table for that game right now." };
+    return { inst, msg: guest ? `A guest bot joined to play against ${this.env.name(agents[0]!)}.` : "" };
   }
+  private guests = 0;
+  newGuest(): string { return `${GUEST_PREFIX}${++this.guests}`; }
   nameOf(agent: string): string { return this.env.name(agent); }
   private changed(): void { this.version++; for (const l of this.listeners) l(); }
 

@@ -4,9 +4,9 @@ import { useFrame } from "@react-three/fiber";
 import type { Group } from "three";
 import { call } from "../../api";
 import { displayName } from "../../util";
-import { effectiveState, isHeld, releaseVisit, roams } from "../roam";
+import { effectiveState, isHeld, releaseVisit, roams, type Roam } from "../roam";
 import type { Layout } from "../layout";
-import type { HubEnv, Instance } from "./hub";
+import { isGuest, type HubEnv, type Instance } from "./hub";
 import { hub, none } from "./instance";
 import { RallySim, TABLE } from "./rally";
 import { GAMES } from "./registry";
@@ -35,6 +35,7 @@ export function GamesLayer({ layout }: { layout: Layout }) {
   useEffect(() => {
     const desk = (id: string) => layoutRef.current.desks.find((d) => d.worker.id === id);
     const free = (a: string): boolean => {
+      if (isGuest(a)) return true;
       const d = desk(a), r = roams.get(a);
       if (!d || !r || r.visit || r.errand || r.game || isHeld(a)) return false;
       const st = effectiveState(a, d.worker.state);
@@ -45,10 +46,15 @@ export function GamesLayer({ layout }: { layout: Layout }) {
       idle: () => layoutRef.current.desks.map((d) => d.worker.id).filter((a) => free(a) && effectiveState(a, desk(a)!.worker.state) === "idle"),
       sleeping: () => layoutRef.current.desks.map((d) => d.worker.id).filter((a) => free(a) && effectiveState(a, desk(a)!.worker.state) === "asleep"),
       free,
-      alive: (a, inst) => !!desk(a) && roams.get(a)?.game?.instance === inst,
+      alive: (a, inst) => (isGuest(a) || !!desk(a)) && roams.get(a)?.game?.instance === inst,
       send: (a, spot, inst) => {
+        if (isGuest(a) && spot && !roams.has(a)) { // a guest bot walks in through the game room's door
+          const rm = layoutRef.current.zones.find((z) => z.zone.id === "game-room"), x = rm ? rm.x : 0, z = rm ? rm.z + rm.d / 2 + 1 : 0;
+          roams.set(a, { x, z, tx: x, tz: z, wait: 0, ry: 0, lying: false, moving: true, mode: "wander", awakeUntil: 0, flash: false, angle: 0, clip: null, icon: "", errand: null, visit: null } satisfies Roam);
+        }
         const r = roams.get(a);
         if (!r) return;
+        if (isGuest(a) && !spot) { roams.delete(a); return; } // the guest leaves when the game ends
         if (!spot) {
           if (r.game?.instance === inst) { r.game = null; r.tx = r.x; r.tz = r.z; r.wait = 0; }
           return;
@@ -59,20 +65,31 @@ export function GamesLayer({ layout }: { layout: Layout }) {
         r.game = { instance: inst, x: spot.x, z: spot.z, face: spot.face, arrived: !!was?.arrived && Math.hypot(r.x - spot.x, r.z - spot.z) < 0.25 };
       },
       arrived: (a) => roams.get(a)?.game?.arrived === true,
-      name: (a) => { const d = desk(a); return short(d ? displayName(d.worker) : a); },
-      record: (r: GameResult) => { void call("POST", "/api/games/result", r).catch(() => { /* the match was only for show; losing its score is harmless */ }); },
+      name: (a) => { const d = desk(a); return isGuest(a) ? "Guest bot" : short(d ? displayName(d.worker) : a); },
+      record: (r: GameResult) => { if (isGuest(r.a) || isGuest(r.b)) return; /* a guest bot is not ranked */ void call("POST", "/api/games/result", r).catch(() => { /* the match was only for show; losing its score is harmless */ }); },
     };
     hub.setEnv(env);
     return () => { hub.stopAll(); hub.setEnv(none); };
   }, []);
 
-  useFrame((_, dt) => { if (room) hub.tick(Math.min(dt, 0.1)); });
+  useFrame((_, dt) => {
+    if (room) hub.tick(Math.min(dt, 0.1));
+    // guest bots walk to their seat (real agents are moved by bots.ts)
+    for (const [id, r] of roams) {
+      if (!isGuest(id) || !r.game) continue;
+      const dx = r.game.x - r.x, dz = r.game.z - r.z, d = Math.hypot(dx, dz), step = Math.min(d, 2.6 * Math.min(dt, 0.1));
+      r.moving = d > 0.15;
+      if (d > 0.15) { r.x += (dx / d) * step; r.z += (dz / d) * step; r.ry = Math.atan2(dx, dz); } else { r.game.arrived = true; r.ry = r.game.face; }
+    }
+  });
 
-  const nameOf = (id: string | null) => { const d = layout.desks.find((x) => x.worker.id === id); return d ? short(displayName(d.worker)) : "?"; };
-  const colorOf = (id: string | null) => layout.desks.find((x) => x.worker.id === id)?.worker.color ?? "#ffb020";
+  const nameOf = (id: string | null) => { if (isGuest(id)) return "Guest bot"; return nameOf0(id); };
+  const nameOf0 = (id: string | null) => { const d = layout.desks.find((x) => x.worker.id === id); return d ? short(displayName(d.worker)) : "?"; };
+  const colorOf = (id: string | null) => isGuest(id) ? "#94a3b8" : layout.desks.find((x) => x.worker.id === id)?.worker.color ?? "#ffb020";
   void ver;
   return (
     <>
+      <GuestBots />
       {hub.instances.map((i) => <Table key={i.id} inst={i} nameOf={nameOf} colorOf={colorOf} />)}
     </>
   );
@@ -136,6 +153,31 @@ function Table({ inst, nameOf, colorOf }: { inst: Instance; nameOf: (id: string 
 /** The header chips / rankings popover. Plain DOM next to the canvas (not a drei `Html fullscreen`, which drifted off screen with the camera). */
 export function GamesHud({ layout }: { layout: Layout }) {
   if (!layout.zones.some((z) => z.zone.id === "game-room")) return null;
-  const nameOf = (id: string | null) => { const d = layout.desks.find((x) => x.worker.id === id); return d ? short(displayName(d.worker)) : "?"; };
+  const nameOf = (id: string | null) => { if (isGuest(id)) return "Guest bot"; const d = layout.desks.find((x) => x.worker.id === id); return d ? short(displayName(d.worker)) : "?"; };
   return <GamesOverlay nameOf={nameOf} />;
+}
+
+/** The guest bots (a simple grey robot, up to two): one group per guest, placed from its roam each frame. */
+function GuestBots() {
+  const groups = useRef<(Group | null)[]>([]);
+  useFrame(() => {
+    const ids = [...roams.keys()].filter(isGuest);
+    groups.current.forEach((g, i) => {
+      if (!g) return;
+      const r = ids[i] ? roams.get(ids[i]!) : undefined;
+      g.visible = !!r;
+      if (r) { g.position.set(r.x, 0.3 + (r.moving ? Math.abs(Math.sin(performance.now() / 110)) * 0.06 : 0), r.z); g.rotation.y = r.ry; }
+    });
+  });
+  return (
+    <>
+      {[0, 1].map((i) => (
+        <group key={i} ref={(g) => { groups.current[i] = g; }} visible={false}>
+          <mesh position={[0, 0.3, 0]}><boxGeometry args={[0.5, 0.55, 0.4]} /><meshStandardMaterial color="#94a3b8" /></mesh>
+          <mesh position={[0, 0.7, 0.12]}><boxGeometry args={[0.4, 0.07, 0.06]} /><meshBasicMaterial color="#7dd3fc" toneMapped={false} /></mesh>
+          {[-0.14, 0.14].map((x) => <mesh key={x} position={[x, -0.05, 0]}><boxGeometry args={[0.14, 0.3, 0.14]} /><meshStandardMaterial color="#475569" /></mesh>)}
+        </group>
+      ))}
+    </>
+  );
 }

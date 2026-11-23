@@ -171,6 +171,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
     if (me && sim.carmageddon && speedOf(me.car) > 2.5) {
       const ids: string[] = [], now = performance.now(), hr = sim.spec.hitRadius;
       for (const [id, ro] of roams) {
+        if (id.startsWith("guest:")) continue; // guest bots are not agents
         if (ro.squash && ro.squash > now) continue;
         if (Math.hypot(ro.x - me.car.x, ro.z - me.car.z) > hr) continue;
         ro.squash = now + 3500; ro.flee = null; ids.push(id);

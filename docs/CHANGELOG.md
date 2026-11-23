@@ -3,6 +3,7 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## 2026-11-23
+- **Games:** New game is now two buttons, Autoplay (agent vs agent) and Play vs agent; it calls free agents itself, says so when everyone is busy, and a guest bot fills a seat when only one agent is free [13.7.15]. Rankings tabs are compact icon buttons in one row [13.7.15].
 - **Games:** starting a game with no idle agent now wakes a random sleeping one instead of saying nobody is free [13.7.14].
 - **Coffee:** the drone brings your cup to wherever you are (also in hand mode); the caffeine level rises when the cup lands and the meter in the agent menu animates up to it [13.1.44].
 

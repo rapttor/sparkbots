@@ -4,6 +4,7 @@ import { hub, setAuto } from "./instance";
 import { GAMES, GAME_IDS } from "./registry";
 import type { GameId, RankRow } from "./types";
 import { goTo, spotBehindTable } from "./goto";
+import type { PlacedSlot } from "./tables";
 import { RaceSetup } from "./race/RaceSetup";
 import { useSwallowEvents } from "./swallow";
 
@@ -13,9 +14,12 @@ const CSS = `
 .games-chip{display:flex;gap:6px;align-items:center;padding:3px 8px;background:#151b27ee;border:1px solid #3a4558;border-radius:999px;font-size:12px;color:#e7ecf5}
 .games-chip button{border:0;background:#0000;color:#e7ecf5;cursor:pointer;padding:0 2px;font-size:12px}
 .games-chip select{font-size:11px;max-width:120px}
-.games-pop{position:absolute;z-index:7;top:44px;left:50%;transform:translateX(-50%);width:min(440px,92vw);max-height:70vh;overflow:auto;padding:10px;background:#151b27;border:1px solid #3a4558;border-radius:8px;box-shadow:0 8px 24px #0009;color:#e7ecf5;font-size:12px;pointer-events:auto}
+.games-pop{position:absolute;z-index:7;top:44px;left:50%;transform:translateX(-50%);width:min(560px,94vw);max-height:70vh;overflow:auto;padding:10px;background:#151b27;border:1px solid #3a4558;border-radius:8px;box-shadow:0 8px 24px #0009;color:#e7ecf5;font-size:12px;pointer-events:auto}
 .games-pop table{width:100%;border-collapse:collapse}.games-pop th,.games-pop td{padding:2px 6px;text-align:right}.games-pop th:first-child,.games-pop td:first-child{text-align:left}
 .games-pop .tabs{display:flex;gap:4px;margin:6px 0;flex-wrap:wrap}.games-pop .tabs button.on{outline:1px solid #4fd1c5}
+.games-pop .tabs.rank{display:grid;grid-template-columns:repeat(auto-fit,minmax(58px,1fr));gap:4px}
+.games-pop .gtab{display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 2px;line-height:1}
+.games-pop .gtab-i{font-size:20px}.games-pop .gtab-t{font-size:9px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .games-pop form{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
 .game-score{padding:3px 8px;background:#10151fdd;border:1px solid #3a4558;border-radius:6px;color:#e7ecf5;font-size:12px;white-space:nowrap;text-align:center}
 .game-score-detail{font-size:15px}.game-score-status{color:#ffd166}
@@ -39,13 +43,20 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
     return () => clearTimeout(h);
   }, [open, tab, hub.version]);
 
-  const start = () => {
+  const go = (inst: { slot: PlacedSlot } | null | undefined) => { if (inst) { const p = spotBehindTable(inst.slot); goTo(p.x, p.z); setOpen(false); } }; // you start a game: go and watch it from beside the table
+  const start = () => { // the "Choose players" form
     if (form.game === "race") return;
-    const ids = [form.a || hub.anyAgent(), form.b].filter((x): x is string => !!x);
+    const ids = [form.a || cand[0], form.b].filter((x): x is string => !!x);
     if (!ids.length) { setMsg("No idle agent is free right now."); return; }
     const inst = hub.open(form.game, ids, true);
     setMsg(inst ? "" : "No free table for that game (or an agent is busy).");
-    if (inst) { const p = spotBehindTable(inst.slot); goTo(p.x, p.z); setOpen(false); } // you start a game: go and watch it from beside the table
+    go(inst);
+  };
+  const quick = (mode: "vs" | "auto") => {
+    if (form.game === "race") return;
+    const r = hub.quick(form.game, mode);
+    setMsg(r.msg);
+    if (r.inst) go(r.inst);
   };
   const options = (skip = "") => cand.filter((c) => c !== skip).map((c) => <option key={c} value={c}>{hub.nameOf(c)}</option>);
 
@@ -74,8 +85,12 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
             <span style={{ flex: 1 }} /><button aria-label="Close" onClick={() => setOpen(false)}>×</button>
           </div>
           {page === "rank" && <>
-          <div className="tabs">
-            {(["all", ...GAME_IDS, "race"] as const).map((g) => <button key={g} className={tab === g ? "on" : ""} onClick={() => setTab(g)}>{g === "all" ? "All" : g === "race" ? "🏎 Race" : `${GAMES[g].icon} ${GAMES[g].name}`}</button>)}
+          <div className="tabs rank">
+            {(["all", ...GAME_IDS, "race"] as const).map((g) => (
+              <button key={g} className={`gtab ${tab === g ? "on" : ""}`} title={g === "all" ? "All games" : g === "race" ? "Race" : GAMES[g].name} onClick={() => setTab(g)}>
+                <span className="gtab-i">{g === "all" ? "🏆" : g === "race" ? "🏎" : GAMES[g].icon}</span><span className="gtab-t">{g === "all" ? "All" : g === "race" ? "Race" : GAMES[g].name}</span>
+              </button>
+            ))}
           </div>
           {rows.length === 0 ? <p className="muted">No finished matches yet.</p> : (
             <table>
@@ -85,18 +100,27 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
           )}
           </>}
           {page === "new" && <>
-          <form onSubmit={(e) => { e.preventDefault(); start(); }}>
-            <select aria-label="Game" value={form.game} onChange={(e) => setForm({ ...form, game: e.target.value as GameId | "race" })}>{GAME_IDS.map((g) => <option key={g} value={g} disabled={!hub.canOpen(g)}>{GAMES[g].icon} {GAMES[g].name}</option>)}<option value="race">🏎 Race</option></select>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 4 }}>
+            <select aria-label="Game" value={form.game} onChange={(e) => { setForm({ ...form, game: e.target.value as GameId | "race" }); setMsg(""); }}>{GAME_IDS.map((g) => <option key={g} value={g} disabled={!hub.canOpen(g)}>{GAMES[g].icon} {GAMES[g].name}</option>)}<option value="race">🏎 Race</option></select>
             {form.game !== "race" && <>
-            <select aria-label="Player one" value={form.a} onChange={(e) => setForm({ ...form, a: e.target.value })}><option value="">first idle agent</option>{options(form.b)}</select>
-            <select aria-label="Player two" value={form.b} onChange={(e) => setForm({ ...form, b: e.target.value })}><option value="">opponent: invite later</option>{options(form.a)}</select>
-            <button type="submit">Start</button>
-            {hub.instances.length > 0 && <button type="button" onClick={() => hub.stopAll()}>Stop all</button>}
+              <button type="button" onClick={() => quick("auto")} title="Calls two agents that are not working (sleepers are woken) and lets them play">▶ Autoplay · agent vs agent</button>
+              <button type="button" onClick={() => quick("vs")} title="Calls one agent; a guest bot plays against it">🎮 Play vs agent</button>
             </>}
-          </form>
-          {form.game === "race" && <RaceSetup onStarted={() => setOpen(false)} />}
+            {hub.instances.length > 0 && form.game !== "race" && <button type="button" onClick={() => hub.stopAll()}>Stop all</button>}
+          </div>
           {msg && <p role="alert">{msg}</p>}
-          {form.game !== "race" && <label><input type="checkbox" checked={hub.auto} onChange={(e) => { setAuto(e.target.checked); setMsg(""); }} /> Idle agents play on their own</label>}
+          {form.game === "race" && <RaceSetup onStarted={() => setOpen(false)} />}
+          {form.game !== "race" && <>
+            <details style={{ marginTop: 8 }}>
+              <summary className="muted">Choose the players myself…</summary>
+              <form onSubmit={(e) => { e.preventDefault(); start(); }}>
+                <select aria-label="Player one" value={form.a} onChange={(e) => setForm({ ...form, a: e.target.value })}><option value="">first idle agent</option>{options(form.b)}</select>
+                <select aria-label="Player two" value={form.b} onChange={(e) => setForm({ ...form, b: e.target.value })}><option value="">opponent: invite later</option>{options(form.a)}</select>
+                <button type="submit">Start</button>
+              </form>
+            </details>
+            <label><input type="checkbox" checked={hub.auto} onChange={(e) => { setAuto(e.target.checked); setMsg(""); }} /> Idle agents play on their own</label>
+          </>}
           </>}
           <p className="muted">Games are for show: they never stop an agent from working, and nothing leaves your machine.</p>
         </div>
