@@ -16,6 +16,13 @@ import { placeSlots } from "./tables";
 import { GamesOverlay } from "./GamesOverlay";
 import { BilliardsView, HoopsView } from "./GameScenes";
 import { mulberry32, type GameResult } from "./types";
+import { carryAt, droneSeconds, pickRide, type P2 } from "./transport";
+import { playBeam } from "../teleport";
+
+/** Agents being carried to a table by a drone (id -> ride). Their position is written here every frame while the ride lasts. */
+const carries = new Map<string, { from: P2; to: P2; t: number; dur: number }>();
+/** Who is being carried right now (for tests and the console). */
+export const carriedIds = (): string[] => [...carries.keys()];
 
 const TOP = 0.76;           // table top height
 /** Agent names can be a whole prompt; keep them short above tables, in the chips and in the rankings. */
@@ -57,6 +64,7 @@ export function GamesLayer({ layout }: { layout: Layout }) {
         }
         const r = roams.get(a);
         if (!r) return;
+        if (!spot) carries.delete(a);
         if (isGuest(a) && !spot) { roams.delete(a); return; } // the guest leaves when the game ends
         if (!spot) {
           if (r.game?.instance === inst) { r.game = null; r.tx = r.x; r.tz = r.z; r.wait = 0; }
@@ -65,6 +73,11 @@ export function GamesLayer({ layout }: { layout: Layout }) {
         if (r.visit) { releaseVisit(a, r.visit.poi, r.visit.slot); r.visit = null; r.clip = null; }
         r.awakeUntil = performance.now() + 10 * 60_000; // a sleeper stays up while it plays (refreshed on every call; real work still wins)
         const was = r.game?.instance === inst ? r.game : null;
+        if (!was && !isGuest(a)) { // first call for this table: a far-away agent is beamed up or flown in instead of walking for minutes
+          const dist = Math.hypot(r.x - spot.x, r.z - spot.z), ride = pickRide(dist, Math.random());
+          if (ride === "beam") { playBeam(r.x, r.z, "out"); r.x = r.tx = spot.x; r.z = r.tz = spot.z; playBeam(spot.x, spot.z, "in"); }
+          else if (ride === "drone") carries.set(a, { from: { x: r.x, z: r.z }, to: { x: spot.x, z: spot.z }, t: 0, dur: droneSeconds(dist) });
+        }
         r.game = { instance: inst, x: spot.x, z: spot.z, face: spot.face, arrived: !!was?.arrived && Math.hypot(r.x - spot.x, r.z - spot.z) < 0.25 };
       },
       arrived: (a) => a === USER_SEAT || roams.get(a)?.game?.arrived === true,
@@ -99,6 +112,14 @@ export function GamesLayer({ layout }: { layout: Layout }) {
 
   useFrame((_, dt) => {
     if (room) hub.tick(Math.min(dt, 0.1));
+    for (const [id, c] of carries) { // a drone carries the agent to the table
+      const r = roams.get(id);
+      if (!r || !r.game) { carries.delete(id); continue; }
+      c.t += Math.min(dt, 0.1);
+      const p = carryAt(c.from, c.to, c.t / c.dur);
+      r.x = r.tx = p.x; r.z = r.tz = p.z; r.moving = true;
+      if (c.t >= c.dur) { r.x = r.tx = c.to.x; r.z = r.tz = c.to.z; carries.delete(id); }
+    }
     // guest bots walk to their seat (real agents are moved by bots.ts)
     for (const [id, r] of roams) {
       if (!isGuest(id) || !r.game) continue;
@@ -115,6 +136,7 @@ export function GamesLayer({ layout }: { layout: Layout }) {
   return (
     <>
       <GuestBots />
+      <CarryDrones />
       {hub.instances.map((i) => <Table key={i.id} inst={i} nameOf={nameOf} colorOf={colorOf} />)}
     </>
   );
@@ -201,6 +223,35 @@ function GuestBots() {
           <mesh position={[0, 0.3, 0]}><boxGeometry args={[0.5, 0.55, 0.4]} /><meshStandardMaterial color="#94a3b8" /></mesh>
           <mesh position={[0, 0.7, 0.12]}><boxGeometry args={[0.4, 0.07, 0.06]} /><meshBasicMaterial color="#7dd3fc" toneMapped={false} /></mesh>
           {[-0.14, 0.14].map((x) => <mesh key={x} position={[x, -0.05, 0]}><boxGeometry args={[0.14, 0.3, 0.14]} /><meshStandardMaterial color="#475569" /></mesh>)}
+        </group>
+      ))}
+    </>
+  );
+}
+
+/** The drones carrying agents (up to four at once): a small drone with a spinning rotor above the agent it holds, with a rope. */
+function CarryDrones() {
+  const groups = useRef<(Group | null)[]>([]), rotors = useRef<(Group | null)[]>([]);
+  useFrame((state) => {
+    const list = [...carries.entries()];
+    groups.current.forEach((g, i) => {
+      if (!g) return;
+      const e = list[i], r = e ? roams.get(e[0]) : undefined;
+      g.visible = !!r;
+      if (e && r) { const p = carryAt(e[1].from, e[1].to, e[1].t / e[1].dur); g.position.set(r.x, 1.6 + p.y, r.z); }
+      const rot = rotors.current[i]; if (rot) rot.rotation.y = state.clock.elapsedTime * 30;
+    });
+  });
+  return (
+    <>
+      {[0, 1, 2, 3].map((i) => (
+        <group key={i} ref={(g) => { groups.current[i] = g; }} visible={false}>
+          <mesh><boxGeometry args={[0.7, 0.14, 0.7]} /><meshStandardMaterial color="#38bdf8" /></mesh>
+          <group ref={(g) => { rotors.current[i] = g; }} position={[0, 0.12, 0]}>
+            <mesh><boxGeometry args={[1.3, 0.03, 0.12]} /><meshStandardMaterial color="#e2e8f0" /></mesh>
+            <mesh rotation={[0, Math.PI / 2, 0]}><boxGeometry args={[1.3, 0.03, 0.12]} /><meshStandardMaterial color="#e2e8f0" /></mesh>
+          </group>
+          <mesh position={[0, -0.55, 0]}><cylinderGeometry args={[0.015, 0.015, 1.0, 5]} /><meshStandardMaterial color="#334155" /></mesh>
         </group>
       ))}
     </>

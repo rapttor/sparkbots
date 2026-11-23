@@ -3,6 +3,7 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## 2026-11-23
+- **Games:** agents far from a table are beamed there or carried by a drone instead of walking for minutes [13.7.24].
 - **rapttor:** the header starts with the rapttor raptor logo and opens an About page (no icon on the right); a "made by" mark in the footer; the logo and logotype on the sponsor room wall [13.9.8].
 - **Keymap:** keys with alternatives are stacked one below the other [13.1.51].
 - **Keymap:** tabs for Basics, Games, Race and Popups (numbers explained); the keymap shows during the opening shot [13.1.50].
