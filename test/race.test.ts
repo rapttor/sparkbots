@@ -532,14 +532,18 @@ describe("monster truck stunts", () => {
   it("braking on the back wheels rolls it over 2-3 times, then it drives on", () => {
     const t = oval(), c = newCar(0, 0, 0);
     drive(c, { throttle: 1, steer: 0, drift: false }, 1.0, t);
+    const pre = Math.hypot(c.vx, c.vz);
     drive(c, { throttle: -1, steer: 0, drift: false }, 0.1, t);
     expect(c.rollT).toBeGreaterThan(0);
     expect(c.rollTotal / (Math.PI * 2)).toBeGreaterThanOrEqual(2);
     expect(c.rollTotal / (Math.PI * 2)).toBeLessThanOrEqual(3);
-    const before = Math.hypot(c.vx, c.vz);
+    const before = pre;
+    const x0 = c.x, h0 = c.h;
     drive(c, { throttle: 1, steer: 1, drift: false }, 1, t);   // no control while it tumbles
     expect(c.roll).toBeGreaterThan(Math.PI);
-    expect(Math.hypot(c.vx, c.vz)).toBeLessThan(before);
+    expect(c.h).toBeCloseTo(h0, 5);                            // it does not steer
+    expect(Math.hypot(c.vx, c.vz)).toBeGreaterThan(before * 1.8); // the trick: the somersault carries it forward at double speed
+    expect(c.x - x0).toBeGreaterThan(before * 1.3);
     drive(c, { throttle: 0, steer: 0, drift: false }, 2, t);
     expect(c.rollT).toBe(0); expect(c.roll).toBe(0);
     drive(c, { throttle: 1, steer: 0, drift: false }, 3, t);

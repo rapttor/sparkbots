@@ -3,6 +3,7 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## 2026-11-23
+- **Monster truck:** the somersault now moves it forward at double speed [13.7.22].
 - **Race:** nitro for every car (charges in 9 s, Shift = 3x speed for a moment; the monster truck rears up on it); the monster truck's crash is now a forward somersault [13.7.21].
 - **Monster truck:** wheelies on a hard start, rolls over 2-3 times if you brake on its back wheels, smoke from the chimneys, fire from the back, and its wheels run agents over [13.7.20].
 - **Race:** running over agents now screams, thumps and screeches, and splashes green coolant on the windshield; tyres screech in drifts; sound can be switched off in Settings [13.7.19].

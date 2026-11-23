@@ -20,6 +20,7 @@ export interface CarState {
   roll: number;       // monster truck rollover: angle turned so far (rad), 0 when not rolling
   rollT: number;      // seconds of rollover left (no control while it tumbles)
   rollDur: number; rollTotal: number; rolls: number; // length and total angle of the current rollover, rollovers so far
+  rollSpeed: number;  // speed it travels at while it somersaults (double what it had)
   nitro: number;      // charge of the nitro powerup 0..1 (fills by itself, Shift fires it when full)
   nitroT: number;     // seconds of nitro left (3x top speed)
 }
@@ -33,7 +34,7 @@ export const CAR = { DRAG: 0.3, BOOST: 1.3, OFFROAD_SPEED: 0.65 };
 export const offroadLimit = (track: Track, spec: CarSpec): number => track.halfWidth + 4 * spec.radius;
 const onGrass = (c: CarState, track: Track): boolean => Math.abs(c.lat) > track.halfWidth;
 
-export const newCar = (x: number, z: number, h: number): CarState => ({ x, z, h, vx: 0, vz: 0, drifting: false, seg: -1, s: 0, lat: 0, hits: 0, boost: 0, slick: 0, cool: 0, pitch: 0, roll: 0, rollT: 0, rollDur: 0, rollTotal: 0, rolls: 0, nitro: 0, nitroT: 0 });
+export const newCar = (x: number, z: number, h: number): CarState => ({ x, z, h, vx: 0, vz: 0, drifting: false, seg: -1, s: 0, lat: 0, hits: 0, boost: 0, slick: 0, cool: 0, pitch: 0, roll: 0, rollT: 0, rollDur: 0, rollTotal: 0, rolls: 0, rollSpeed: 0, nitro: 0, nitroT: 0 });
 export const speedOf = (c: CarState): number => Math.hypot(c.vx, c.vz);
 /** Sideways speed relative to the nose (positive = sliding to the right). */
 export const slideOf = (c: CarState): number => c.vx * -Math.sin(c.h) + c.vz * Math.cos(c.h);
@@ -49,7 +50,9 @@ export function stepCar(c: CarState, inp0: CarInput, dt: number, track: Track, s
       const k = 1 - c.rollT / c.rollDur, ease = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
       c.roll = ease * c.rollTotal; c.pitch = 0;
       if (c.rollT === 0) c.roll = 0;
-      c.vx *= Math.exp(-1.3 * dt); c.vz *= Math.exp(-1.3 * dt);
+      // the trick: the somersault carries the truck forward at DOUBLE speed (it rolls like a ball), easing back to normal for the landing
+      const sp = c.rollSpeed * (k < 0.75 ? 1 : 1 - (k - 0.75) / 0.25 * 0.5);
+      c.vx = Math.cos(c.h) * sp; c.vz = Math.sin(c.h) * sp;
       inp = { throttle: 0, steer: 0, drift: false };
     } else {
       const vfNow = c.vx * Math.cos(c.h) + c.vz * Math.sin(c.h);
@@ -57,6 +60,7 @@ export function stepCar(c: CarState, inp0: CarInput, dt: number, track: Track, s
       c.pitch += (want - c.pitch) * Math.min(1, 3.2 * dt);
       if (c.pitch < 0.01 && want === 0) c.pitch = 0;
       if (inp0.throttle < -0.3 && c.pitch > WHEELIE * 0.45) { // braking on the back wheels: it flips over
+        c.rollSpeed = Math.min(spec.maxSpeed * 4, Math.max(vfNow, spec.maxSpeed * 0.5) * 2); // double the speed it had (at least double half of top speed)
         c.nitroT = 0; c.rolls++; c.rollTotal = Math.PI * 2 * (2 + (c.rolls % 2)); c.rollDur = 2.1 + 0.3 * (c.rolls % 2); c.rollT = c.rollDur; c.roll = 0; c.pitch = 0;
         c.hits++;
       }
