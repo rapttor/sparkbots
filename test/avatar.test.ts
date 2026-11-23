@@ -91,3 +91,15 @@ describe("owner avatars (13.1.1)", () => {
     expect(Math.abs(sprint.legL?.rx ?? 0)).toBeGreaterThan(Math.abs(walk.legL?.rx ?? 0));
   });
 });
+
+describe("the owner's default outfit", () => {
+  it("is a white t-shirt with a dino, and blue denim jeans", async () => {
+    expect(DEFAULT_DEV_LOOK.top).toBe("tshirt");
+    expect(DEFAULT_DEV_LOOK.topColor.toLowerCase()).toBe("#f4f6fa");
+    expect(DEFAULT_DEV_LOOK.logo).toBe("🦖");
+    const { DEFAULT_JEANS } = await import("../src/world/devLook");
+    expect(DEFAULT_JEANS).toMatch(/^#[0-9a-f]{6}$/i);
+    const r = parseInt(DEFAULT_JEANS.slice(1, 3), 16), b = parseInt(DEFAULT_JEANS.slice(5, 7), 16);
+    expect(b).toBeGreaterThan(r + 30); // blue
+  });
+});

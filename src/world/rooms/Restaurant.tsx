@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import type { Group, Mesh, MeshBasicMaterial } from "three";
 import type { Layout } from "../layout";
@@ -10,7 +9,7 @@ import { Glass } from "./Glass";
 import { CHEF_LOOKS, MENU, chefLook, dishById, newOrder, place, tick, type ChefLookId, type Order } from "./menu";
 import { FIRE_FLAG, initFire, loadFlag, tickFire, type FireState } from "./fire";
 import { FOOD_CHANCE, MAX_FLIGHTS, FLIGHT_S, emitFoodDelivered, flight } from "./drones";
-import { bubble, btn, panel, pointer, Stop } from "./ui";
+import { bubble, btn, panel, pointer, Stop, RoomHtml } from "./ui";
 
 /** Ingredient colours flying over the pan, per cuisine. */
 const FOOD_COLORS: Record<ChefLookId, [string, string]> = { plain: ["#22c55e", "#ef4444"], italian: ["#ef4444", "#fde68a"], chinese: ["#fb7185", "#f8fafc"], american: ["#92400e", "#facc15"], mexican: ["#facc15", "#16a34a"] };
@@ -179,23 +178,23 @@ export function Restaurant({ layout }: { layout: Layout }) {
         {[0, 1, 2].map((i) => <mesh key={`f${i}`} ref={(m) => { food.current[i] = m; }} visible={false}><boxGeometry args={[0.07, 0.07, 0.07]} /><meshStandardMaterial color="#ef4444" /></mesh>)}
         {[0, 1, 2, 3].map((i) => <mesh key={`s${i}`} ref={(m) => { steam.current[i] = m; }} visible={false}><sphereGeometry args={[1, 6, 4]} /><meshBasicMaterial color="#ffffff" transparent opacity={0.4} depthWrite={false} /></mesh>)}
         {menu && order.state === "idle" && (
-          <Html position={[0, 2.2, 0]} center zIndexRange={[30, 0]}>
+          <RoomHtml position={[0, 2.2, 0]} center zIndexRange={[30, 0]}>
             <Stop><div style={panel}>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>🍽 Menu</div>
               {MENU.map((d) => (
                 <button key={d.id} style={btn} title={d.blurb} onClick={() => { const n = place(orderRef.current, d.id, Date.now()); orderRef.current = n; setOrder(n); setMenu(false); setToast(CHEF_LOOKS[d.cuisine].quip); }}>{d.icon} {d.name}</button>
               ))}
             </div></Stop>
-          </Html>
+          </RoomHtml>
         )}
         {(order.state !== "idle" || toast) && (
-          <Html position={[0, 2.2, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
+          <RoomHtml position={[0, 2.2, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
             <div style={bubble}>
               {order.state === "preparing" ? `${dish?.icon} Cooking… ${look.quip}` : order.state === "ready" ? `${dish?.icon} Order up! Enjoy` : toast}
             </div>
-          </Html>
+          </RoomHtml>
         )}
-        {burning && <Html position={[-2.6, 2.6, 0]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>🔥 Fire in the kitchen!</div></Html>}
+        {burning && <RoomHtml position={[-2.6, 2.6, 0]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>🔥 Fire in the kitchen!</div></RoomHtml>}
       </group>
       {/* fire on the stove + firefighter drones */}
       <group position={[rz.x, 0, rz.z]}>
@@ -216,7 +215,7 @@ export function Restaurant({ layout }: { layout: Layout }) {
         <group key={i} ref={(g) => { fGroups.current[i] = g; }} visible={false}>
           <mesh><boxGeometry args={[0.5, 0.1, 0.5]} /><meshStandardMaterial color="#f59e0b" /></mesh>
           <mesh ref={(m) => { fBox.current[i] = m; }} position={[0, -0.25, 0]}><boxGeometry args={[0.25, 0.2, 0.25]} /><meshStandardMaterial color="#fde68a" /></mesh>
-          <Html position={[0, -0.55, 0]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><span ref={(el) => { fEmoji.current[i] = el; }} style={{ fontSize: 26, textShadow: "0 1px 4px #000" }} /></Html>
+          <RoomHtml position={[0, -0.55, 0]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><span ref={(el) => { fEmoji.current[i] = el; }} style={{ fontSize: 26, textShadow: "0 1px 4px #000" }} /></RoomHtml>
         </group>
       ))}
     </>

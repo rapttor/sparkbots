@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { BoxGeometry, Color, InstancedMesh, Object3D, Plane, Raycaster, Vector2, Vector3, type Group } from "three";
 import type { Layout } from "../layout";
@@ -9,7 +8,7 @@ import { DEBRIS_CAP, DebrisPool, HIT_AT, KIND_SHAPE, PLAYER_SWING_K, WEAPONS, WE
 import { ItemModel } from "./AngerItems";
 import { WeaponModel } from "./AngerWeapon";
 import { smashCtl } from "./smashControl";
-import { bubble, btn, panel, pointer, Stop } from "./ui";
+import { bubble, btn, panel, pointer, Stop, RoomHtml } from "./ui";
 import { useNumberKeys } from "../numberKeys";
 
 const o = new Object3D(), col = new Color();
@@ -219,9 +218,9 @@ export function AngerRoom({ layout }: { layout: Layout }) {
       <mesh position={[3.0, 0.5, 2.3]} onClick={(e) => { e.stopPropagation(); reception(); }} {...pointer}>
         <boxGeometry args={[2.2, 1.2, 1.0]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-      <Html position={[3.0, 1.9, 2.3]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
+      <RoomHtml position={[3.0, 1.9, 2.3]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
         <div style={bubble}>🛎 Reception · {running ? "Smashing… click for the menu" : "Click to start smashing"}</div>
-      </Html>
+      </RoomHtml>
       <mesh position={[-3.7, 0.9, 2.3]} onClick={(e) => { e.stopPropagation(); if (!sess) setPick(true); }} {...pointer}>
         <boxGeometry args={[1.5, 1.8, 0.8]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
@@ -252,25 +251,25 @@ export function AngerRoom({ layout }: { layout: Layout }) {
         <meshStandardMaterial roughness={0.8} />
       </instancedMesh>
       {menu && running && (
-        <Html position={[3.0, 2.5, 2.3]} center zIndexRange={[40, 0]}>
+        <RoomHtml position={[3.0, 2.5, 2.3]} center zIndexRange={[40, 0]}>
           <Stop><div style={panel}>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>💢 {sess!.points} pts · best combo {sess!.best}</div>
             <button style={btn} onClick={() => setMenu(false)}>1. Keep smashing</button>
             <button style={btn} onClick={exit}>2. Exit the game</button>
           </div></Stop>
-        </Html>
+        </RoomHtml>
       )}
       {pick && (
-        <Html position={[-3.7, 2.4, 2.3]} center zIndexRange={[30, 0]}>
+        <RoomHtml position={[-3.7, 2.4, 2.3]} center zIndexRange={[30, 0]}>
           <Stop><div style={panel}>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>💢 Pick a weapon</div>
             {WEAPONS.map((x, i) => <button key={x.id} style={btn} onClick={() => choose(x.id)}>{i + 1}. {x.icon} {x.name} · {x.power} dmg</button>)}
             <button style={btn} onClick={() => setPick(false)}>{WEAPONS.length + 1}. Not today</button>
           </div></Stop>
-        </Html>
+        </RoomHtml>
       )}
-      {sess && <Html position={[0, 2.6, -2.5]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>{w?.icon} {left >= 0 ? `${left}s` : "wrecking"} · {sess.points} pts{hud ? ` · ${hud}` : ""}</div></Html>}
-      {!sess && total > 0 && <Html position={[0, 2.6, -2.5]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>Feeling better? {total} pts of frustration released</div></Html>}
+      {sess && <RoomHtml position={[0, 2.6, -2.5]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>{w?.icon} {left >= 0 ? `${left}s` : "wrecking"} · {sess.points} pts{hud ? ` · ${hud}` : ""}</div></RoomHtml>}
+      {!sess && total > 0 && <RoomHtml position={[0, 2.6, -2.5]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>Feeling better? {total} pts of frustration released</div></RoomHtml>}
     </group>
   );
 }

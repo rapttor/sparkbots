@@ -20,7 +20,9 @@ export const TOP_STYLES: { id: TopStyle; name: string }[] = [
 
 export const LOGO_EMOJIS = ["", "🦖", "🤖", "👾", "🚀", "🔥", "⚡", "🧠", "💾", "🎮", "☕", "🍕", "🐱", "🐶", "🦄", "👑", "🌈", "💡"];
 
-export const DEFAULT_DEV_LOOK: DevLook = { top: "turtleneck", topColor: "#1c1c20", logo: "", glasses: true, beard: true, overweight: true };
+/** The owner's default outfit (rapttor): a white t-shirt with a dino, glasses, beard. The jeans are the manager colour (default denim blue, see `DEFAULT_JEANS`). */
+export const DEFAULT_DEV_LOOK: DevLook = { top: "tshirt", topColor: "#f4f6fa", logo: "🦖", glasses: true, beard: true, overweight: true };
+export const DEFAULT_JEANS = "#3b5b92";
 
 const KEY = "ao.devLook";
 

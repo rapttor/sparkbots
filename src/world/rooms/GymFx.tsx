@@ -1,11 +1,10 @@
 import { useRef, useState } from "react";
-import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import type { Mesh } from "three";
 import type { Layout } from "../layout";
 import { roams } from "../roam";
 import { BLOW_S, PUMP_LIMIT_S, boredLine, pumpPhase, pumpScale } from "./gymLogic";
-import { bubble } from "./ui";
+import { bubble, RoomHtml } from "./ui";
 
 /** Gym extras: a gleam sweeping across the mirror wall, a balloon-style over-pump effect around anyone who lifts too long (then they are back to normal), and boredom thoughts on the treadmill. Cosmetic only; no agent state is touched. */
 export function GymFx({ layout }: { layout: Layout }) {
@@ -62,8 +61,8 @@ export function GymFx({ layout }: { layout: Layout }) {
         </mesh>
       </group>
       <mesh ref={balloon} visible={false}><boxGeometry args={[1, 1, 1]} /><meshStandardMaterial color="#fca5a5" transparent opacity={0.55} /></mesh>
-      {thought && tm && <Html position={[tm.x, 2.2, tm.z]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>💭 {thought}</div></Html>}
-      {pop && bn && <Html position={[bn.x, 2.0, bn.z]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>💥 POP! …just kidding, re-forming</div></Html>}
+      {thought && tm && <RoomHtml position={[tm.x, 2.2, tm.z]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>💭 {thought}</div></RoomHtml>}
+      {pop && bn && <RoomHtml position={[bn.x, 2.0, bn.z]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>💥 POP! …just kidding, re-forming</div></RoomHtml>}
     </>
   );
 }

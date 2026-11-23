@@ -7,7 +7,7 @@ import { countMessage, nerd } from "./nerd";
 import { ClientState, type ServerMsg, type Slice } from "../shared/sync";
 
 import { activeChatId, closeTab, loadDock, openChatTab, openPanel, saveDock, setActive, setWidth, type DockState, type PanelId, type TabKey } from "./dock";
-import { loadDevLook, saveDevLook, type DevLook } from "../world/devLook";
+import { DEFAULT_JEANS, loadDevLook, saveDevLook, type DevLook } from "../world/devLook";
 export type { PanelId } from "./dock";
 
 /** Ask another part of the UI to bring something into view: the 3D camera flies to an agent / project, the Teams list scrolls to a project. */
@@ -99,7 +99,7 @@ export const useStore = create<OfficeState>((set) => ({
   setViewInfo: (v) => set((s) => ({ viewInfo: { ...s.viewInfo, ...v } })),
   showKeymap: (() => { try { return localStorage.getItem("ao.keymap") !== "0"; } catch { return true; } })(),
   setShowKeymap: (showKeymap) => { try { localStorage.setItem("ao.keymap", showKeymap ? "1" : "0"); } catch { /* private mode */ } set({ showKeymap }); },
-  managerColor: (() => { try { return localStorage.getItem("ao.managerColor") || "#d97757"; } catch { return "#d97757"; } })(),
+  managerColor: (() => { try { return localStorage.getItem("ao.managerColor") || DEFAULT_JEANS; } catch { return DEFAULT_JEANS; } })(),
   avatar: (() => { try { return localStorage.getItem("ao.avatar") || "developer"; } catch { return "developer"; } })(),
   devLook: loadDevLook(),
   controller: (() => { try { return localStorage.getItem("ao.controller") === "hand" ? "hand" : "avatar"; } catch { return "avatar"; } })(),

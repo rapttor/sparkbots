@@ -3,6 +3,9 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## 2026-11-23
+- **Support:** the support card closes (× and Esc) and the Ethereum card shows a QR code [13.9.7].
+- **Labels:** room bubbles no longer cover your character [13.1.47].
+- **Owner:** the default outfit is a white t-shirt with a dino and blue denim jeans [13.1.48].
 - **Camera:** starting a race from the top view no longer leaves the screen black; going to a game table or any spot from the top view dives back into the office [13.7.23].
 - **Monster truck:** the somersault now moves it forward at double speed [13.7.22].
 - **Race:** nitro for every car (charges in 9 s, Shift = 3x speed for a moment; the monster truck rears up on it); the monster truck's crash is now a forward somersault [13.7.21].

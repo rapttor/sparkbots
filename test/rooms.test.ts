@@ -262,3 +262,18 @@ describe("restaurant kitchen floor", () => {
     expect(floor!.at[1]).toBeLessThan(counter.at[1]);
   });
 });
+
+describe("ethereum QR code", () => {
+  it("is a 29x29 QR with the three finder patterns, and the SVG path draws exactly the rows", async () => {
+    const { ETH_QR, ETH_QR_ROWS } = await import("../src/shared/sponsorQr");
+    expect(ETH_QR.size).toBe(29);
+    expect(ETH_QR_ROWS).toHaveLength(29);
+    for (const r of ETH_QR_ROWS) expect(r).toMatch(/^[01]{29}$/);
+    const finder = ["1111111", "1000001", "1011101", "1011101", "1011101", "1000001", "1111111"];
+    const at = (x0: number, y0: number) => finder.every((row, dy) => ETH_QR_ROWS[y0 + dy]!.slice(x0, x0 + 7) === row);
+    expect(at(0, 0) && at(22, 0) && at(0, 22)).toBe(true); // top left, top right, bottom left
+    const m = ETH_QR_ROWS.map((r) => r.split("").map(() => "0"));
+    for (const [, x, y, w] of ETH_QR.path.matchAll(/M(\d+) (\d+)h(\d+)v1h-\d+z/g)) for (let i = 0; i < Number(w); i++) m[Number(y)]![Number(x) + i] = "1";
+    expect(m.map((r) => r.join(""))).toEqual([...ETH_QR_ROWS]);
+  });
+});

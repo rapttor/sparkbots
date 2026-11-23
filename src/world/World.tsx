@@ -26,6 +26,7 @@ import { nav, Flow, buildNav } from "./nav";
 import { ZonesLayer } from "./zonelayer";
 import { lunchAll, followerList, insideRoom, meeting, MAX_SEATS, setFollowers, startErrand, setPois, rebuildRoamGrid } from "./roam";
 import { useShowDesks } from "../state/deskPref";
+import { avatarScreen } from "./occlusion";
 import { PerformPicker, usePerform } from "./PerformPicker";
 import { Windshield } from "./games/race/Windshield";
 import { managerAt, roams, setLook, clearLook, player as playerState, pushPlayerOut, holdAgent, releaseAgent } from "./roam";
@@ -71,6 +72,7 @@ const WALK_SPEED = 5, SPRINT_SPEED = 11, SPRINT_ACCEL = 1.8; // units per second
 // One continuous camera: zoom in = first-person (behind the character/hand), zoom out = near top-down overview.
 const DIST_IN = 3.2; // camera distance at max zoom in; max zoom out comes from the campus bounds (maxZoomDistance, 13.1.4)
 const PITCH_IN = 0.1, PITCH_OUT = 1.5; // tilt at max zoom in (nearly flat) / max zoom out (near top-down)
+const tmpAv = new Vector3(); // scratch for the avatar's screen rectangle
 const DEFAULT_ZOOM_T = 0.32; // the "story" angle: behind you, a bit low
 const startMode = (): "saved" | "plaza" => { try { return localStorage.getItem("ao.startMode") === "plaza" ? "plaza" : "saved"; } catch { return "saved"; } };
 const CALL_RADIUS = 2.5;  // an agent farther than this from its desk is "away": clicking the desk calls it
@@ -625,6 +627,17 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     if (!readyOnce.current) { readyOnce.current = true; ctl.onReady(); }
     sampleFrame(dt, state.clock.elapsedTime, gl.info);
     nerd.bots = roams.size;
+    { // where you are on the screen, so labels behind you do not paint over you (rooms/ui.tsx RoomHtml)
+      const av = avatarScreen;
+      if (modeRef.current === "walk" && !labelsOnly && playerState.on) {
+        const x = pos.current.x, z = pos.current.z;
+        tmpAv.set(x, 0, z).project(camera); const bx = tmpAv.x, by = tmpAv.y;
+        tmpAv.set(x, 2.1, z).project(camera);
+        const h = Math.abs(tmpAv.y - by), halfW = Math.max(0.03, (0.4 * h) / Math.max(0.3, (camera as { aspect?: number }).aspect ?? 1)) * 1.2;
+        av.on = true; av.x0 = bx - halfW; av.x1 = bx + halfW; av.y0 = Math.min(by, tmpAv.y) - 0.03; av.y1 = Math.max(by, tmpAv.y) + 0.03;
+        av.dist = camera.position.distanceTo(tmpAv.set(x, 1, z));
+      } else av.on = false;
+    }
     ctl.view.current.mode = modeRef.current;
     const mvx = pos.current.x - playerState.x, mvz = pos.current.z - playerState.z, mv = Math.hypot(mvx, mvz);
     if (mv > 0.002) { playerState.hx = mvx / mv; playerState.hz = mvz / mv; playerState.still = 0; } else playerState.still += dt; // followers trail, then huddle

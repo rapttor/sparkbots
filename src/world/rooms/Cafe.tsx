@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import type { Group, Mesh, MeshBasicMaterial } from "three";
 import type { Layout } from "../layout";
@@ -8,7 +7,7 @@ import { FLIGHT_S, OUT_S, flight } from "./drones";
 import { MANAGER_ID, setCafeOrderHandler } from "../servicebots";
 import { managerAt } from "../roam";
 import { bumpCaffeine } from "../caffeine";
-import { bubble, pointer } from "./ui";
+import { bubble, pointer, RoomHtml } from "./ui";
 
 const BREW_S = 2.5, READY_S = 2.5, EVERY_S = 14;   // brewing time (fast), how long an ambient cup waits, pause between ambient coffees
 const MAX_DRONES = 3;
@@ -115,7 +114,7 @@ export function Cafe({ layout }: { layout: Layout }) {
         <mesh ref={fill} position={[0, 0.03, 0]} scale={[1, 0.01, 1]}><boxGeometry args={[0.13, 0.1, 0.13]} /><meshBasicMaterial color="#5b3a1e" /></mesh>
       </group>
       {[0, 1, 2, 3].map((i) => <mesh key={i} ref={(m) => { steam.current[i] = m; }} visible={false}><sphereGeometry args={[1, 6, 4]} /><meshBasicMaterial color="#ffffff" transparent opacity={0.4} depthWrite={false} /></mesh>)}
-      {msg && <Html position={[BAR.x, 2.9, BAR.z]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>{msg}</div></Html>}
+      {msg && <RoomHtml position={[BAR.x, 2.9, BAR.z]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>{msg}</div></RoomHtml>}
     </group>
     {/* coffee drones (world coordinates): body, spinning rotor, and the cup they carry */}
     {Array.from({ length: MAX_DRONES }, (_, i) => (
