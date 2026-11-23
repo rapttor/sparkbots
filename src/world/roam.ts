@@ -41,6 +41,8 @@ export function effectiveState<S extends string>(id: string, real: S): S | Look[
   if (l.until <= performance.now()) { looks.delete(id); return real; }
   return l.state;
 }
+/** Where "you" are right now in any mode: your avatar when walking, the hand when in hand mode, the camera focus otherwise. Drones and service robots bring things here. */
+export const managerAt = { x: 0, z: 0 };
 /** The manager's position in walk mode (null in overview): bots step out of the way. */
 export const player: { x: number; z: number; on: boolean; hx: number; hz: number; still: number; fast: boolean } = { x: 0, z: 0, on: false, hx: 0, hz: -1, still: 0, fast: false };
 

@@ -21,14 +21,27 @@ import { RewardsSection } from "./rewards/RewardsSection";
 import { bumpCaffeine, caffeineBand, caffeineLevel, refreshCaffeine } from "./caffeine";
 
 /** Caffeine meter (cosmetic: wired agents twitch, sleepy ones yawn). A snack bumps it a little. */
+/** The caffeine meter: re-reads the level twice a second (a coffee lands while the menu is open) and eases the shown number up or down to it. */
 function CaffeineRow({ id }: { id: string }) {
-  const [, tick] = useState(0);
-  useEffect(() => { void refreshCaffeine().then(() => tick((n) => n + 1)); }, [id]);
-  const v = Math.round(caffeineLevel(id)), b = caffeineBand(id);
+  const [shown, setShown] = useState(() => caffeineLevel(id));
+  const [target, setTarget] = useState(() => caffeineLevel(id));
+  useEffect(() => { void refreshCaffeine().then(() => setTarget(caffeineLevel(id))); }, [id]);
+  useEffect(() => { const h = setInterval(() => setTarget(caffeineLevel(id)), 500); return () => clearInterval(h); }, [id]);
+  useEffect(() => { // ease toward the target, about 1.2 s for the whole scale
+    let raf = 0, last = performance.now();
+    const step = (now: number) => {
+      const dt = Math.min(0.1, (now - last) / 1000); last = now;
+      setShown((v) => { const d = target - v; return Math.abs(d) < 0.15 ? target : v + Math.sign(d) * Math.min(Math.abs(d), Math.max(12 * dt * 8, Math.abs(d) * 6 * dt)); });
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target]);
+  const v = Math.round(shown), b = caffeineBand(id), rising = target - shown > 0.5;
   return (
     <div className="am-row small" title="Caffeine level. Coffee and snacks raise it, it fades over hours. Only changes how the robot twitches or yawns.">
-      <span>☕ Caffeine</span> <meter min={0} max={100} value={v} style={{ width: 90 }} /> <b>{v}</b> <span className="muted">{b === "wired" ? "wired" : b === "sleepy" ? "sleepy" : "fine"}</span>{" "}
-      <button onClick={() => { bumpCaffeine(id, "food"); setTimeout(() => tick((n) => n + 1), 300); }}>🍪 Snack</button>
+      <span>☕ Caffeine</span> <meter min={0} max={100} value={v} style={{ width: 90 }} /> <b style={rising ? { color: "#f59e0b" } : undefined}>{v}</b> <span className="muted">{b === "wired" ? "wired" : b === "sleepy" ? "sleepy" : "fine"}</span>{" "}
+      <button onClick={() => { bumpCaffeine(id, "food"); }}>🍪 Snack</button>
     </div>
   );
 }

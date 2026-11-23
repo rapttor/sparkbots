@@ -26,7 +26,7 @@ import { nav, Flow, buildNav } from "./nav";
 import { ZonesLayer } from "./zonelayer";
 import { lunchAll, followerList, insideRoom, meeting, MAX_SEATS, setFollowers, startErrand, setPois, rebuildRoamGrid } from "./roam";
 import { useShowDesks } from "../state/deskPref";
-import { roams, setLook, clearLook, player as playerState, pushPlayerOut, holdAgent, releaseAgent } from "./roam";
+import { managerAt, roams, setLook, clearLook, player as playerState, pushPlayerOut, holdAgent, releaseAgent } from "./roam";
 import { tarsParts } from "./tars";
 import { ACTIONS } from "./actions";
 import { Minibots } from "./minibots";
@@ -624,6 +624,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     ctl.view.current.mode = modeRef.current;
     const mvx = pos.current.x - playerState.x, mvz = pos.current.z - playerState.z, mv = Math.hypot(mvx, mvz);
     if (mv > 0.002) { playerState.hx = mvx / mv; playerState.hz = mvz / mv; playerState.still = 0; } else playerState.still += dt; // followers trail, then huddle
+    managerAt.x = controllerRef.current === "hand" ? handPos.current.x : pos.current.x; managerAt.z = controllerRef.current === "hand" ? handPos.current.z : pos.current.z;
     playerState.on = modeRef.current === "walk"; playerState.x = pos.current.x; playerState.z = pos.current.z; playerState.fast = false;
     if (modeRef.current === "walk" && !labelsOnly && !frozen.current) {
       bossTimer.current -= dt;

@@ -4,14 +4,15 @@ import { useFrame } from "@react-three/fiber";
 import type { Group, Mesh, MeshBasicMaterial } from "three";
 import type { Layout } from "../layout";
 import { Glass } from "./Glass";
-import { FLIGHT_S, flight } from "./drones";
+import { FLIGHT_S, OUT_S, flight } from "./drones";
 import { MANAGER_ID, setCafeOrderHandler } from "../servicebots";
-import { player } from "../roam";
+import { managerAt } from "../roam";
+import { bumpCaffeine } from "../caffeine";
 import { bubble, pointer } from "./ui";
 
 const BREW_S = 2.5, READY_S = 2.5, EVERY_S = 14;   // brewing time (fast), how long an ambient cup waits, pause between ambient coffees
 const MAX_DRONES = 3;
-interface Flight { id: string; t: number; from: { x: number; z: number }; home: { x: number; z: number } }
+interface Flight { id: string; t: number; bumped?: boolean; from: { x: number; z: number }; home: { x: number; z: number } }
 const MACHINE = { x: -1.5, z: -2.2 }, CUP_Z = -1.95, BAR = { x: -0.9, z: -2.95 };
 
 /**
@@ -45,12 +46,12 @@ export function Cafe({ layout }: { layout: Layout }) {
 
   useFrame((state, delta) => {
     const t = state.clock.elapsedTime, p = phase.current;
-    if (p.state === "idle" && (orders.current.length || t >= p.next)) { current.current = orders.current.shift() ?? null; p.state = "brewing"; p.t0 = t; setMsg("☕ Brewing…"); }
+    if (p.state === "idle" && ((orders.current.length > 0 && flights.current.length < MAX_DRONES) || (orders.current.length === 0 && t >= p.next))) { current.current = orders.current.shift() ?? null; p.state = "brewing"; p.t0 = t; setMsg("☕ Brewing…"); }
     if (p.state === "brewing" && t - p.t0 > BREW_S) {
       const id = current.current;
       if (id && cz && flights.current.length < MAX_DRONES) { // an ordered cup: a drone takes it to whoever asked
         flights.current.push({ id, t: 0, from: { x: cz.x + MACHINE.x + 0.5, z: cz.z - 1.6 }, home: { x: cz.x + MACHINE.x + 0.5, z: cz.z - 1.6 } });
-        p.state = "idle"; p.next = t + 1; setMsg("🚁 Your coffee is on its way");
+        p.state = "idle"; p.next = t + 7; setMsg("🚁 Your coffee is on its way");
       } else { p.state = "ready"; p.t0 = t; setMsg("☕ Coffee's ready!"); }
       current.current = null;
     }
@@ -63,8 +64,9 @@ export function Cafe({ layout }: { layout: Layout }) {
       if (!g) continue;
       if (!fl) { g.visible = false; continue; }
       const d = fl.id === MANAGER_ID ? null : lay.current.desks.find((x) => x.worker.id === fl.id);
-      const to = fl.id === MANAGER_ID ? (player.on ? { x: player.x, z: player.z } : { x: fl.home.x, z: fl.home.z + 2.5 }) : d ? { x: d.x, z: d.z + 0.8 } : { x: fl.home.x, z: fl.home.z + 2.5 };
+      const to = fl.id === MANAGER_ID ? { x: managerAt.x, z: managerAt.z } : d ? { x: d.x, z: d.z + 0.8 } : { x: fl.home.x, z: fl.home.z + 2.5 };
       const f = flight(fl.home, to, fl.t);
+      if (!fl.bumped && fl.t >= OUT_S && fl.id !== MANAGER_ID) { fl.bumped = true; bumpCaffeine(fl.id, "coffee"); } // the level rises when the cup lands, not when it was ordered
       g.visible = true; g.position.set(f.x, f.y, f.z); g.rotation.y = Math.atan2(to.x - fl.home.x, to.z - fl.home.z);
       const c = dCup.current[i]; if (c) c.visible = f.carrying;
       const r = dRotor.current[i]; if (r) r.rotation.y = t * 30;

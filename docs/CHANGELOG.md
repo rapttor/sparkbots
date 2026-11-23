@@ -2,6 +2,9 @@
 
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
+## 2026-11-23
+- **Coffee:** the drone brings your cup to wherever you are (also in hand mode); the caffeine level rises when the cup lands and the meter in the agent menu animates up to it [13.1.44].
+
 ## 2026-11-22
 - **Adapters:** one registry of agent sources (Claude, Codex, OpenCode) drives discovery, liveness, parsing, tool activity and chat history; no more per-source branches in the model [12.1].
 - **Desks:** new Settings switch "Desks", off by default: agents sit in a cubicle with a floating laptop instead of a desk [13.1.43].

@@ -4,7 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import type { Group, Mesh, MeshBasicMaterial } from "three";
 import type { Layout } from "../layout";
 import { newlyWorking } from "../servicebots";
-import { player } from "../roam";
+import { managerAt } from "../roam";
 import { KITCHEN_SETS } from "./kitchenSets";
 import { Glass } from "./Glass";
 import { CHEF_LOOKS, MENU, chefLook, dishById, newOrder, place, tick, type ChefLookId, type Order } from "./menu";
@@ -79,7 +79,7 @@ export function Restaurant({ layout }: { layout: Layout }) {
       const g = fGroups.current[i], fl = flights.current[i];
       if (!g) continue;
       if (!fl) { g.visible = false; const em0 = fEmoji.current[i]; if (em0) em0.textContent = ""; continue; }
-      const to = fl.id === "manager" && player.on ? { x: player.x, z: player.z } : fl.to; // your meal flies to wherever you are now
+      const to = fl.id === "manager" ? { x: managerAt.x, z: managerAt.z } : fl.to; // your meal flies to wherever you are now
       const p = flight(fl.from, to, fl.t);
       const em = fEmoji.current[i]; if (em) em.textContent = fl.carry && p.carrying ? fl.emoji : "";
       g.visible = true; g.position.set(p.x, p.y, p.z); g.rotation.y = Math.atan2(to.x - fl.from.x, to.z - fl.from.z);

@@ -5,7 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import { BoxGeometry, InstancedMesh, Object3D, type Group, type Mesh } from "three";
 import type { Layout } from "./layout";
 import { nav } from "./nav";
-import { player, roams } from "./roam";
+import { managerAt, roams } from "./roam";
 
 const POOL = 3;          // service robots out at once
 const MAX_QUEUE = 4;     // deliveries waiting for a free robot
@@ -46,7 +46,7 @@ const pending: string[] = [];
 let cafeOrders: ((id: string) => boolean) | null = null;
 export const setCafeOrderHandler = (f: ((id: string) => boolean) | null): void => { cafeOrders = f; };
 export function requestCoffee(id: string): boolean {
-  if (cafeOrders?.(id)) { if (id !== MANAGER_ID) bumpCaffeine(id, "coffee"); return true; }
+  if (cafeOrders?.(id)) return true; // the cafe raises the caffeine level when its drone lands
   if (pending.length >= 8 || pending.includes(id)) return false;
   pending.push(id);
   if (id !== MANAGER_ID) bumpCaffeine(id, "coffee"); // cosmetic caffeine level (13.4.5)
@@ -105,7 +105,7 @@ export function ServiceBots({ layout }: { layout: Layout }) {
         if (bot.wait >= WAIT_S) bot.stage = "back";
       } else {
         const r = roams.get(bot.id);
-        const target = bot.stage === "out" ? (isMgr ? { x: player.x, z: player.z } : r ? { x: r.x, z: r.z } : { x: desk!.x, z: desk!.z + 0.95 }) : home;
+        const target = bot.stage === "out" ? (isMgr ? { x: managerAt.x, z: managerAt.z } : r ? { x: r.x, z: r.z } : { x: desk!.x, z: desk!.z + 0.95 }) : home;
         const f = nav.flow;
         const dir = f ? f.dir(bot.x, bot.z, f.field(target.x, target.z)) : null;
         const s = stepToward(bot, target, SPEED, dt, dir);
