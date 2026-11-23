@@ -3,6 +3,8 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## 2026-11-23
+- **rapttor:** the header starts with the rapttor raptor logo and opens an About page (no icon on the right); a "made by" mark in the footer; the logo and logotype on the sponsor room wall [13.9.8].
+- **Keymap:** keys with alternatives are stacked one below the other [13.1.51].
 - **Keymap:** tabs for Basics, Games, Race and Popups (numbers explained); the keymap shows during the opening shot [13.1.50].
 - **Intro:** the camera opens on the top view and sinks slowly to your character; skip it with a scroll, key or click, or switch it off in Settings [13.1.49].
 - **Support:** the support card closes (× and Esc) and the Ethereum card shows a QR code [13.9.7].

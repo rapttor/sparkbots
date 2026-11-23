@@ -67,3 +67,6 @@ export const KEYMAP: KeyDef[] = [
   { id: "p-anger", tab: "popups", keys: "1 - n", label: "Anger room: on entering, pick a weapon (the last number is \"Not today\"). At the reception during a run: 1 keep smashing, 2 exit", actionable: false },
   { id: "p-games", tab: "popups", keys: "1 2 3", label: "Game panel: rock-paper-scissors, 1 rolls the dice, shoots or stops the meter", actionable: false },
 ];
+
+/** The key caps of an entry: alternatives written with " / " are shown one below the other ("Space / Enter / 1" = three caps); a group such as "↑ ↓ ← →" stays on one cap. */
+export const keyCaps = (keys: string): string[] => keys.split(" / ").map((k) => k.trim()).filter(Boolean);

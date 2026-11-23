@@ -13,10 +13,11 @@ import { DataRoom } from "../panels/DataRoom";
 import { Services } from "../panels/Services";
 import { ServerRoom } from "../panels/ServerRoom";
 import { Settings } from "../panels/Settings";
+import { About } from "../panels/About";
 import { PANEL_TITLES, type PanelId } from "../state/dock";
 
 const VIEWS: Partial<Record<PanelId, () => JSX.Element>> = {
-  chats: ChatsPanel, view: ViewPanel, projects: ProjectsPanel, map: MapPanel, teams: Teams, control: ControlRoom, stats: Stats, board: Board, notes: Notes, data: DataRoom, services: Services, server: ServerRoom, settings: Settings,
+  about: About, chats: ChatsPanel, view: ViewPanel, projects: ProjectsPanel, map: MapPanel, teams: Teams, control: ControlRoom, stats: Stats, board: Board, notes: Notes, data: DataRoom, services: Services, server: ServerRoom, settings: Settings,
 };
 
 /** One panel, wrapped so a crash in it shows a message instead of taking the dock down. */

@@ -5,7 +5,10 @@ import { PanelMenu } from "./dock/PanelMenu";
 import { Dock } from "./dock/Dock";
 import { Dialog } from "./dock/Dialog";
 import { useNarrow } from "./dock/useLayout";
-import { dockVisible } from "./state/dock";
+import { dockVisible, panelShowing } from "./state/dock";
+import logo from "./assets/rapttor/rapttor_logo-green.png";
+import logotype from "./assets/rapttor/rapttor_logo-text-green.png";
+import { OWNER } from "./shared/owner";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { FilterBar } from "./panels/FilterBar";
 import { StopModes } from "./dock/StopModes";
@@ -22,6 +25,7 @@ const dockInset = (dock: { side: "left" | "right"; width: number } & Parameters<
 
 export function App() {
   const { connected, snapshot, dock } = useStore();
+  const setPanel = useStore((s) => s.setPanel);
   const narrow = useNarrow();
   useEffect(() => {
     // ?fixture=N renders N fake workers (3D performance check) instead of live data
@@ -37,7 +41,9 @@ export function App() {
   return (
     <div className="shell">
       <header className="topbar">
-        <strong>{BRAND.name}</strong>
+        <button className={`brand-btn ${panelShowing(dock, "about") ? "on" : ""}`} title={`About ${OWNER.name}, the maker of ${BRAND.name}`} aria-label={`About ${OWNER.name}`} onClick={() => setPanel("about")}>
+          <img src={logo} alt="" width={26} height={22} /><strong>{BRAND.name}</strong>
+        </button>
         <FilterBar />
         <div id="topbar-slot" className="topbar-slot" />
         <StopModes />
@@ -54,6 +60,7 @@ export function App() {
         <span className={connected ? "dot ok" : "dot bad"} />
         {connected ? "Connected" : "Reconnecting…"}
         <span className="spacer" />
+        <button className="made-by" title={`About ${OWNER.name}`} onClick={() => setPanel("about")}>made by <img src={logotype} alt={OWNER.name} height={9} /></button>
         Skipped lines: {snapshot?.skippedLines ?? 0}
       </footer>
       <Dialog />

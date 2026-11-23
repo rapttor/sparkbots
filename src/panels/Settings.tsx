@@ -6,7 +6,7 @@ import { runProblem } from "../world/runStatus";
 import { rateLimitedAt } from "../world/rateLimit";
 import { DOCK_COLOR_LABELS, dockColor, resetDockColors, setDockColor, useDockColorVersion } from "../state/dockColors";
 import { useStore } from "../state/store";
-import { KEYMAP, KEY_TABS } from "../world/keymap";
+import { KEYMAP, KEY_TABS, keyCaps } from "../world/keymap";
 import { listAvatars } from "../world/avatar";
 import { LOGO_EMOJIS, TOP_STYLES, type TopStyle } from "../world/devLook";
 import { DEFAULT_FILTERS } from "./teamFilters";
@@ -341,7 +341,7 @@ export function Settings() {
       body: <label><input type="checkbox" checked={showKeymap} onChange={(e) => setShowKeymap(e.target.checked)} /> Show keymap</label> },
     { id: "keymap-list", section: "Keymap", wide: true, label: "All keys and mouse actions", words: "keys shortcuts hotkeys zap walk talk minimap zoom reset escape bindings",
       desc: "To run one, open the 3D office and click it in the keymap there (it is greyed when it cannot be done at that moment).",
-      body: <div>{KEY_TABS.map((t) => <div key={t.id}><h5 style={{ margin: "10px 0 4px" }}>{t.icon} {t.label}</h5>{KEYMAP.filter((k) => (k.tab ?? "basics") === t.id).map((k) => <div key={k.id} className="kmap-row"><span className="kmap-key">{k.keys}</span><span>{k.label}</span></div>)}</div>)}</div> },
+      body: <div>{KEY_TABS.map((t) => <div key={t.id}><h5 style={{ margin: "10px 0 4px" }}>{t.icon} {t.label}</h5>{KEYMAP.filter((k) => (k.tab ?? "basics") === t.id).map((k) => <div key={k.id} className="kmap-row"><span className="kmap-keys">{keyCaps(k.keys).map((c) => <span key={c} className="kmap-key">{c}</span>)}</span><span>{k.label}</span></div>)}</div>)}</div> },
     { id: "run-model", section: "Claude runs", label: "Model for runs", words: "claude model opus sonnet haiku default alias --model",
       desc: "The model used when you message an agent from SparkBots. Leave empty to use Claude Code's default. You can also choose a model per message in the chat.",
       body: cfg && <><input placeholder="(default)" value={cfg.runModel} maxLength={80} onChange={(e) => setCfg({ ...cfg, runModel: e.target.value.trim() })} onBlur={() => void saveCfg(cfg)} /> {cfgSaved}</> },

@@ -254,7 +254,7 @@ th,td{text-align:left;padding:5px 10px;border-bottom:1px solid var(--line)}th{co
 .am-grid{display:grid;grid-template-columns:auto 1fr;gap:2px 10px}
 .am-said{margin:8px 0 0;padding:6px 8px;max-height:9em;overflow:auto;border-left:3px solid var(--accent);background:#141b2e;white-space:pre-wrap;font-size:12px}
 /* clickable key legend */
-.keymap{position:absolute;left:10px;bottom:10px;z-index:4;width:260px;max-height:55%;overflow:auto;padding:6px 8px;background:rgba(10,12,20,.82);color:#dfe6ff;border-radius:8px;font-size:12px}
+.keymap{position:absolute;left:10px;bottom:10px;z-index:30;width:260px;max-height:55%;overflow:auto;padding:6px 8px;background:rgba(10,12,20,.82);color:#dfe6ff;border-radius:8px;font-size:12px}
 .keymap h4{margin:0 0 4px;font-size:12px;display:flex;justify-content:space-between;align-items:center}
 .kmap-row{display:flex;gap:8px;align-items:baseline;width:100%;text-align:left;background:none;border:0;border-radius:4px;padding:2px 4px;color:inherit}
 button.kmap-row{cursor:pointer}
@@ -615,3 +615,26 @@ button.project-link:hover{background:#ffffff10}
 .kmap-tabs button:hover{background:rgba(255,255,255,.08)}
 .kmap-tabs button.on{border-color:#60a5fa;color:#fff;background:rgba(96,165,250,.14)}
 .keymap .kmap-key{white-space:nowrap}
+
+/* rapttor: header logo (opens the About panel), About panel, footer mark */
+.brand-btn{display:flex;align-items:center;gap:8px;background:none;border:1px solid transparent;border-radius:8px;padding:2px 8px 2px 4px;color:inherit;cursor:pointer;flex:none}
+.brand-btn:hover,.brand-btn.on{border-color:var(--line);background:rgba(200,255,0,.07)}
+.brand-btn img{display:block;filter:drop-shadow(0 0 6px rgba(200,255,0,.25))}
+.made-by{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:inherit;opacity:.55;cursor:pointer;font-size:11px;padding:0 6px}
+.made-by:hover{opacity:1}
+.made-by img{display:block}
+.about{display:flex;flex-direction:column;gap:10px;padding:4px 2px}
+.about-hero{display:flex;flex-direction:column;align-items:center;gap:12px;padding:14px 0 6px}
+.about-logo{filter:drop-shadow(0 0 14px rgba(200,255,0,.3))}
+.about-type{width:min(260px,70%);height:auto}
+.about-links{display:flex;gap:12px;flex-wrap:wrap}
+.about-links a{color:#c8ff00;text-decoration:none;border-bottom:1px dotted #c8ff0088}
+.about-support{display:flex;gap:6px;flex-wrap:wrap}
+.about-btn{padding:5px 10px;border:1px solid var(--line);border-radius:8px;background:#0e1424;color:inherit;text-decoration:none;cursor:pointer;font:inherit;font-size:12px}
+.about-btn:hover:not(.off){border-color:#c8ff00}
+.about-btn.off{opacity:.45;cursor:default}
+.about-eth{display:flex;gap:10px;align-items:center}
+
+.kmap-keys{flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:2.6em}
+.kmap-row{align-items:flex-start}
+.kmap-row .kmap-key{min-width:0}

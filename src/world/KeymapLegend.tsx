@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { KEY_TABS, type KeyDef, type KeyTab } from "./keymap";
+import { KEY_TABS, keyCaps, type KeyDef, type KeyTab } from "./keymap";
 
 export interface KeyEntry { def: KeyDef; run?: () => void; why?: string | null }
 
@@ -19,10 +19,10 @@ export function KeymapLegend({ entries, onHide }: { entries: KeyEntry[]; onHide:
       {entries.filter((e) => (e.def.tab ?? "basics") === tab).map(({ def, run, why }) =>
         def.actionable && run ? (
           <button key={def.id} className="kmap-row" disabled={!!why} title={why ?? "Run it"} onClick={run}>
-            <span className="kmap-key">{def.keys}</span><span>{def.label}</span>{why && <span className="kmap-why">{why}</span>}
+            <span className="kmap-keys">{keyCaps(def.keys).map((c) => <span key={c} className="kmap-key">{c}</span>)}</span><span>{def.label}</span>{why && <span className="kmap-why">{why}</span>}
           </button>
         ) : (
-          <div key={def.id} className="kmap-row muted"><span className="kmap-key">{def.keys}</span><span>{def.label}</span></div>
+          <div key={def.id} className="kmap-row muted"><span className="kmap-keys">{keyCaps(def.keys).map((c) => <span key={c} className="kmap-key">{c}</span>)}</span><span>{def.label}</span></div>
         ))}
     </div>
   );

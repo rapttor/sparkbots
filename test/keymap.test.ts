@@ -18,3 +18,13 @@ describe("keymap tabs", () => {
     for (const k of KEYMAP.filter((x) => x.tab && x.tab !== "basics")) expect(k.actionable, k.id).toBe(false);
   });
 });
+
+describe("key caps", () => {
+  it("shows alternatives one below the other and keeps a group together", async () => {
+    const { keyCaps } = await import("../src/world/keymap");
+    expect(keyCaps("Space / Enter / 1")).toEqual(["Space", "Enter", "1"]);
+    expect(keyCaps("↑ ↓ ← → / WASD")).toEqual(["↑ ↓ ← →", "WASD"]);
+    expect(keyCaps("1 2 3")).toEqual(["1 2 3"]);
+    expect(keyCaps("C")).toEqual(["C"]);
+  });
+});

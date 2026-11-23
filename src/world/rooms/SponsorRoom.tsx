@@ -1,9 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { Layout } from "../layout";
 import { roams } from "../roam";
 import { SPONSOR_LINES, SPONSOR_LINKS, filledLinks, isFilled, isUsable, type SponsorLink } from "../../shared/sponsor";
-import { ETH_QR } from "../../shared/sponsorQr";
+import { EthQr } from "../../shared/EthQr";
+import { useLoader } from "@react-three/fiber";
+import { TextureLoader } from "three";
+import rapttorLogo from "../../assets/rapttor/rapttor_logo-green.png";
+import rapttorType from "../../assets/rapttor/rapttor_logo-text-green.png";
 import { SPONSOR_BUBBLE_FLAG, mayShow, type SponsorBubbleState } from "./sponsorBubbles";
 import { loadFlag } from "./fire";
 import { bubble, btn, btnOff, panel, pointer, Stop, RoomHtml } from "./ui";
@@ -14,16 +18,6 @@ export function openSponsor(l: SponsorLink): boolean {
   if (!isFilled(l.href)) return false;
   window.open(l.href, "_blank", "noopener,noreferrer");
   return true;
-}
-
-/** The QR code of the Ethereum address (drawn from `sponsorQr.ts`, white square with a quiet zone so wallets can scan it from the screen). */
-export function EthQr({ size = 132 }: { size?: number }) {
-  const q = 4, n = ETH_QR.size;
-  return (
-    <svg role="img" aria-label="QR code of the Ethereum address" width={size} height={size} viewBox={`${-q} ${-q} ${n + 2 * q} ${n + 2 * q}`} shapeRendering="crispEdges" style={{ background: "#fff", borderRadius: 6, display: "block" }}>
-      <path d={ETH_QR.path} fill="#000" />
-    </svg>
-  );
 }
 
 function Cards({ onClose }: { onClose: () => void }) {
@@ -47,6 +41,17 @@ function Cards({ onClose }: { onClose: () => void }) {
 }
 
 /** The sponsor room (one card per link) and the rare idle sponsor bubble (opt-in, frequency-capped; click opens the cards, never a link). */
+/** The maker's sign on the back wall of the sponsor room: the origami raptor and the logotype (a quiet decoration, no click). */
+function MakerSign({ x, z }: { x: number; z: number }) {
+  const [logo, type] = useLoader(TextureLoader, [rapttorLogo, rapttorType]);
+  return (
+    <group position={[x, 0, z - 2.62]}>
+      <mesh position={[0, 2.15, 0]} raycast={() => null}><planeGeometry args={[1.25, 1.06]} /><meshBasicMaterial map={logo} transparent toneMapped={false} /></mesh>
+      <mesh position={[0, 1.42, 0]} raycast={() => null}><planeGeometry args={[2.2, 0.39]} /><meshBasicMaterial map={type} transparent toneMapped={false} /></mesh>
+    </group>
+  );
+}
+
 export function SponsorRoom({ layout }: { layout: Layout }) {
   const sz = layout.zones.find((z) => z.zone.id === "sponsor-room");
   const [open, setOpen] = useState(false);
@@ -79,6 +84,7 @@ export function SponsorRoom({ layout }: { layout: Layout }) {
   if (!sz) return null;
   return (
     <>
+      <Suspense fallback={null}><MakerSign x={sz.x} z={sz.z} /></Suspense>
       {SPONSOR_LINKS.map((l, i) => {
         const ok = isUsable(l);
         return (
