@@ -3,6 +3,9 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## 2026-11-23
+- **Games you can play:** Play vs agent seats you at the table for pong, air hockey, rock-paper-scissors and dice, with your own controls and results saved as "You" [13.7.16].
+- **Keys:** Z near an agent opens a numbered Perform picker; popups (weapon pick, reception menu, games) answer to number keys; the weapon pick closes when you leave the anger room [13.1.46].
+- **Water cooler chat:** earlier lines float above the newest bubble like a stack of balloons [13.5.12].
 - **Bubbles:** the coffee bubble disappears after a few seconds, and room bubbles no longer float above the sidebar or dialogs [13.4.9].
 - **Support links:** Patreon and Buy me a coffee are live in the sponsor room, the landing page, the README and the press kit; the repository gets a Sponsor button via `.github/FUNDING.yml` [13.9.5].
 - **Water cooler chat:** choosing it from an agent's menu beams the agent and takes you to the water cooler, instead of flying you to his empty desk [13.5.11].
