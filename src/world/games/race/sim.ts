@@ -1,4 +1,4 @@
-import { newCar, offroadLimit, speedOf, stepCar, type CarInput, type CarState } from "./car";
+import { NITRO_TIME, newCar, offroadLimit, speedOf, stepCar, type CarInput, type CarState } from "./car";
 import { fireMissile, MAX_MISSILES, missileStep, type Missile } from "./missiles";
 import { CAR_TYPES, type CarKind, type CarSpec } from "./carTypes";
 import { genDecor, makeCrossers, stepCrossers, type Crosser, type Decor } from "./hazards";
@@ -85,6 +85,7 @@ export class RaceSim {
     const ahead = this.racers.some((o) => { if (o === r || o.out) return false; const dx = o.car.x - r.car.x, dz = o.car.z - r.car.z, along = dx * fx + dz * fz; return along > 5 && along < 60 && Math.abs(dx * -fz + dz * fx) < 1.6; }); // straight shots only
     const behind = this.racers.some((o) => o !== r && !o.out && r.prog - o.prog > 3 && r.prog - o.prog < 18);
     if (r.item === "boost" ? bend < 0.25 : r.item === "missile" ? ahead : behind) this.useItem(r.id);
+    if (r.car.nitro >= 1 && bend < 0.12 && this.rng() < 0.02) this.useNitro(r.id); // the AI fires its nitro on a long straight
     else if (r.itemWait < -12) this.useItem(r.id);
   }
 
@@ -172,6 +173,14 @@ export class RaceSim {
       r.itemWait = 0.8 + this.rng() * 2.2;
       return;
     }
+  }
+
+  /** Shift: fire the nitro (3x top speed for a moment). Only when it is fully charged. */
+  useNitro(id: string): boolean {
+    const r = this.get(id);
+    if (!r || r.out || this.phase !== "racing" || r.car.nitro < 1 || r.car.nitroT > 0 || r.car.rollT > 0) return false;
+    r.car.nitro = 0; r.car.nitroT = NITRO_TIME;
+    return true;
   }
 
   /** The action key: boost, shoot a missile (it flies straight ahead) or drop an oil slick behind you. */

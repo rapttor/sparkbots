@@ -20,16 +20,20 @@ export interface CarState {
   roll: number;       // monster truck rollover: angle turned so far (rad), 0 when not rolling
   rollT: number;      // seconds of rollover left (no control while it tumbles)
   rollDur: number; rollTotal: number; rolls: number; // length and total angle of the current rollover, rollovers so far
+  nitro: number;      // charge of the nitro powerup 0..1 (fills by itself, Shift fires it when full)
+  nitroT: number;     // seconds of nitro left (3x top speed)
 }
 
 /** Nose-up angle of a monster truck on its back wheels (rad). */
 export const WHEELIE = 0.5;
+/** Nitro: a powerup that charges for NITRO_CHARGE seconds, then (Shift) gives NITRO_TIME seconds of 3x top speed. */
+export const NITRO_CHARGE = 9, NITRO_TIME = 1.5, NITRO_MULT = 3;
 export const CAR = { DRAG: 0.3, BOOST: 1.3, OFFROAD_SPEED: 0.65 };
 /** How far the car's centre may be from the centre line: the road edge plus two car widths. Beyond it a wall stops you. */
 export const offroadLimit = (track: Track, spec: CarSpec): number => track.halfWidth + 4 * spec.radius;
 const onGrass = (c: CarState, track: Track): boolean => Math.abs(c.lat) > track.halfWidth;
 
-export const newCar = (x: number, z: number, h: number): CarState => ({ x, z, h, vx: 0, vz: 0, drifting: false, seg: -1, s: 0, lat: 0, hits: 0, boost: 0, slick: 0, cool: 0, pitch: 0, roll: 0, rollT: 0, rollDur: 0, rollTotal: 0, rolls: 0 });
+export const newCar = (x: number, z: number, h: number): CarState => ({ x, z, h, vx: 0, vz: 0, drifting: false, seg: -1, s: 0, lat: 0, hits: 0, boost: 0, slick: 0, cool: 0, pitch: 0, roll: 0, rollT: 0, rollDur: 0, rollTotal: 0, rolls: 0, nitro: 0, nitroT: 0 });
 export const speedOf = (c: CarState): number => Math.hypot(c.vx, c.vz);
 /** Sideways speed relative to the nose (positive = sliding to the right). */
 export const slideOf = (c: CarState): number => c.vx * -Math.sin(c.h) + c.vz * Math.cos(c.h);
@@ -38,6 +42,7 @@ const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(
 /** Advance one car by dt seconds (dt <= 0.05 keeps it stable). `free` = carmageddon: no road edge, drive anywhere. */
 export function stepCar(c: CarState, inp0: CarInput, dt: number, track: Track, spec: CarSpec = CAR_TYPES.race, free = false): void {
   let inp = inp0;
+  if (c.nitroT > 0) c.nitroT = Math.max(0, c.nitroT - dt); else if (c.nitro < 1) c.nitro = Math.min(1, c.nitro + dt / NITRO_CHARGE);
   if (spec.stunts) {
     if (c.rollT > 0) { // tumbling: no control, the speed bleeds off, then it lands on its wheels and drives on
       c.rollT = Math.max(0, c.rollT - dt);
@@ -48,11 +53,11 @@ export function stepCar(c: CarState, inp0: CarInput, dt: number, track: Track, s
       inp = { throttle: 0, steer: 0, drift: false };
     } else {
       const vfNow = c.vx * Math.cos(c.h) + c.vz * Math.sin(c.h);
-      const want = inp0.throttle > 0.8 && vfNow > -0.5 && vfNow < spec.maxSpeed * 0.85 ? WHEELIE : 0; // a hard start from low speed rears it up
+      const want = c.nitroT > 0 || (inp0.throttle > 0.8 && vfNow > -0.5 && vfNow < spec.maxSpeed * 0.85) ? WHEELIE : 0; // a hard start from low speed, or the nitro, rears it up
       c.pitch += (want - c.pitch) * Math.min(1, 3.2 * dt);
       if (c.pitch < 0.01 && want === 0) c.pitch = 0;
       if (inp0.throttle < -0.3 && c.pitch > WHEELIE * 0.45) { // braking on the back wheels: it flips over
-        c.rolls++; c.rollTotal = Math.PI * 2 * (2 + (c.rolls % 2)); c.rollDur = 2.1 + 0.3 * (c.rolls % 2); c.rollT = c.rollDur; c.roll = 0; c.pitch = 0;
+        c.nitroT = 0; c.rolls++; c.rollTotal = Math.PI * 2 * (2 + (c.rolls % 2)); c.rollDur = 2.1 + 0.3 * (c.rolls % 2); c.rollT = c.rollDur; c.roll = 0; c.pitch = 0;
         c.hits++;
       }
     }
@@ -60,9 +65,10 @@ export function stepCar(c: CarState, inp0: CarInput, dt: number, track: Track, s
   const fx = Math.cos(c.h), fz = Math.sin(c.h), rx = -fz, rz = fx;
   let vf = c.vx * fx + c.vz * fz, vl = c.vx * rx + c.vz * rz;
   const grass = !free && onGrass(c, track); // off the tarmac: slower and loose
-  const max = spec.maxSpeed * (c.boost > 0 ? CAR.BOOST : 1) * (grass ? CAR.OFFROAD_SPEED : 1);
-  const th = clamp(inp.throttle, -1, 1);
-  if (th > 0) vf += spec.accel * th * Math.max(0, 1 - vf / max) * dt + (c.boost > 0 ? 6 * dt : 0);
+  const max = spec.maxSpeed * (c.nitroT > 0 ? NITRO_MULT : c.boost > 0 ? CAR.BOOST : 1) * (grass ? CAR.OFFROAD_SPEED : 1);
+  let th = clamp(inp.throttle, -1, 1);
+  if (c.nitroT > 0 && th >= 0) th = 1;           // the nitro pushes whether you hold the throttle or not; the brake still works
+  if (th > 0) vf += spec.accel * th * Math.max(0, 1 - vf / max) * dt + (c.boost > 0 ? 6 * dt : 0) + (c.nitroT > 0 ? spec.accel * 1.6 * dt : 0);
   else if (th < 0) vf += (vf > 0.5 ? -spec.brake : -spec.accel * 0.6) * -th * dt;
   if (th <= 0.05) vf -= vf * CAR.DRAG * dt; // coasting slows you; with the throttle down the top speed is the spec
   if (vf < -spec.maxSpeed * 0.3) vf = -spec.maxSpeed * 0.3;

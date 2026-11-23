@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeLayout } from "../src/world/layout";
 import { makeFixtureSnapshot } from "../src/world/fixture";
-import { hitPoints, newCar, offroadLimit, slideOf, speedOf, stepCar } from "../src/world/games/race/car";
+import { NITRO_CHARGE, NITRO_MULT, NITRO_TIME, hitPoints, newCar, offroadLimit, slideOf, speedOf, stepCar } from "../src/world/games/race/car";
 import { AGENT_SPEED, CAR_TYPES } from "../src/world/games/race/carTypes";
 import { RaceSim } from "../src/world/games/race/sim";
 import { HALF_WIDTH, MAX_TURN, buildTrack, gridSlot, pointAt, project, trackClearance, trackInput, type Rect, type Track } from "../src/world/games/race/track";
@@ -557,5 +557,38 @@ describe("monster truck stunts", () => {
     expect(front).toBeTruthy();
     expect(front!.r).toBeGreaterThan(1);
     expect(hitPoints(spec, { x: 0, z: 0, h: Math.PI / 2 }).some((p) => Math.abs(p.x + 1.55) < 0.01 && Math.abs(p.z - 1.2) < 0.01)).toBe(true); // turns with the truck
+  });
+});
+
+describe("nitro powerup", () => {
+  const go = (c: ReturnType<typeof newCar>, input: { throttle: number; steer: number; drift: boolean }, secs: number, t: Track, spec = CAR_TYPES.race) => { for (let i = 0; i < secs * 60; i++) stepCar(c, input, 1 / 60, t, spec, true); };
+  it("charges by itself and is full after NITRO_CHARGE seconds", () => {
+    const t = oval(), c = newCar(0, 0, 0);
+    go(c, { throttle: 0, steer: 0, drift: false }, NITRO_CHARGE / 2, t);
+    expect(c.nitro).toBeGreaterThan(0.4); expect(c.nitro).toBeLessThan(0.6);
+    go(c, { throttle: 0, steer: 0, drift: false }, NITRO_CHARGE, t);
+    expect(c.nitro).toBe(1);
+  });
+  it("fired, it lifts the top speed to 3x for a moment, then the car settles back", () => {
+    const t = oval(), c = newCar(0, 0, 0), spec = CAR_TYPES.race;
+    go(c, { throttle: 1, steer: 0, drift: false }, 6, t);
+    const normal = speedOf(c);
+    c.nitroT = NITRO_TIME; c.nitro = 0;
+    go(c, { throttle: 1, steer: 0, drift: false }, NITRO_TIME, t);
+    expect(speedOf(c)).toBeGreaterThan(normal * 1.6);
+    expect(speedOf(c)).toBeLessThanOrEqual(spec.maxSpeed * NITRO_MULT + 0.5);
+    go(c, { throttle: 1, steer: 0, drift: false }, 6, t);
+    expect(speedOf(c)).toBeLessThan(normal * 1.1);        // back to the normal top speed
+  });
+  it("the monster truck goes up on its back wheels with the nitro, and braking then rolls it over", () => {
+    const t = oval(), c = newCar(0, 0, 0), spec = CAR_TYPES.monster;
+    go(c, { throttle: 1, steer: 0, drift: false }, 6, t, spec);   // top speed: no wheelie any more
+    expect(c.pitch).toBeLessThan(0.1);
+    c.nitroT = NITRO_TIME; c.nitro = 0;
+    go(c, { throttle: 1, steer: 0, drift: false }, 0.9, t, spec);
+    expect(c.pitch).toBeGreaterThan(0.3);
+    go(c, { throttle: -1, steer: 0, drift: false }, 0.1, t, spec);
+    expect(c.rollT).toBeGreaterThan(0);
+    expect(c.nitroT).toBe(0);
   });
 });

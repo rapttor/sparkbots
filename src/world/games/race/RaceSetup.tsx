@@ -53,7 +53,7 @@ export function RaceSetup({ onStarted }: { onStarted: () => void }) {
         {!raceHub.carmageddon && <button type="button" onClick={() => { if (raceHub.start(false)) { toStart(); onStarted(); setMsg(""); } else setMsg("Needs at least two idle agents."); }}>Watch (agents only)</button>}
       </div>
       <label><input type="checkbox" checked={raceHub.auto} onChange={(e) => { raceHub.auto = e.target.checked; try { localStorage.setItem(RACE_AUTO_KEY, e.target.checked ? "1" : "0"); } catch { /* ignore */ } again(); }} /> Idle agents race on their own</label>
-      <p className="muted">Arrows/WASD drive, Space drifts, E uses an item, C changes the camera, Esc stops.</p>
+      <p className="muted">Arrows/WASD drive, Space drifts, E uses an item, Shift fires the nitro when it is charged, C changes the camera, Esc stops.</p>
       {msg && <p role="alert">{msg}</p>}
     </div>
   );

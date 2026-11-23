@@ -37,8 +37,8 @@ export function MonsterFx({ hub }: { hub: RaceHub }) {
           // chimneys: always puffing, harder with the throttle; a thick cloud while it rolls
           for (const side of [-0.8, 0.8]) if (Math.random() < 0.35 + 0.5 * th + (rolling ? 0.6 : 0)) spawn(-1.2, 3.0, side, 0, c.vx * 0.5 + (Math.random() - 0.5) * 0.6, 1.8 + Math.random() * 1.2, c.vz * 0.5 + (Math.random() - 0.5) * 0.6, 1.4 + Math.random() * 0.8);
           // fire from the back: when you accelerate, bigger on the back wheels
-          if (!rolling && th > 0.4 && Math.random() < 0.9) {
-            const big = 1 + c.pitch * 3;
+          if (!rolling && (th > 0.4 || c.nitroT > 0) && Math.random() < 0.9) {
+            const big = 1 + c.pitch * 3 + (c.nitroT > 0 ? 3 : 0);
             spawn(-1.75, 1.0 + Math.random() * 0.3, (Math.random() - 0.5) * 0.7, 1, c.vx * 0.3 - fx * (4 + Math.random() * 3) * big, 0.3 + Math.random() * 0.8, c.vz * 0.3 - fz * (4 + Math.random() * 3) * big, 0.28 + Math.random() * 0.2);
           }
           void speedOf; // (kept for later tuning: speed-based flame length)

@@ -126,7 +126,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
     raceCam.active = true; camReady.current = false;
     sendView({ t: "mode", mode: "walk" }); // the 3D scene (not the label map) must be showing
     const typing = (e: KeyboardEvent) => { const el = e.target as HTMLElement | null; return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable); };
-    const down = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (!DRIVE_KEYS.has(k) || typing(e) || e.metaKey || e.ctrlKey || e.altKey) return; e.preventDefault(); e.stopImmediatePropagation(); if (k === "c") { if (!e.repeat) fpv = !fpv; raceCam.fpv = fpv; return; } if (k === "escape") { raceHub.stop(); return; } if (k === "e" || k === "shift") { if (!e.repeat && raceHub.userId) raceHub.sim?.useItem(raceHub.userId); return; } keys.current.add(k); };
+    const down = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (!DRIVE_KEYS.has(k) || typing(e) || e.metaKey || e.ctrlKey || e.altKey) return; e.preventDefault(); e.stopImmediatePropagation(); if (k === "c") { if (!e.repeat) fpv = !fpv; raceCam.fpv = fpv; return; } if (k === "escape") { raceHub.stop(); return; } if (k === "e") { if (!e.repeat && raceHub.userId) raceHub.sim?.useItem(raceHub.userId); return; } if (k === "shift") { if (!e.repeat && raceHub.userId && raceHub.sim?.useNitro(raceHub.userId)) playScreech(1); return; } keys.current.add(k); };
     const up = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (DRIVE_KEYS.has(k)) { keys.current.delete(k); } };
     const clear = () => keys.current.clear();
     window.addEventListener("keydown", down, true); window.addEventListener("keyup", up, true); window.addEventListener("blur", clear);
@@ -197,8 +197,8 @@ export function RaceLayer({ layout }: { layout: Layout }) {
       q.setFromEuler(e);
       base.compose(dummy.position.set(c.x, rc.out ? -50 : c.slick > 0 ? 0.05 : 0, c.z), q, dummy.scale.set(1, 1, 1));
       if (sim.spec.stunts && (c.pitch > 0.001 || c.rollT > 0)) { // monster truck: rears up on its back wheels, or tumbles over (rolls) and smashes down
-        const rolling = c.rollT > 0, px = rolling ? 0 : -1.2, py = rolling ? 1.3 : 0.85;
-        base.multiply(mA.makeTranslation(px, py, 0)).multiply(mB.makeRotationFromEuler(eL.set(c.roll, 0, c.pitch))).multiply(mA.makeTranslation(-px, -py, 0));
+        const rolling = c.rollT > 0, px = rolling ? 0 : -1.2, py = rolling ? 1.3 : 0.85; // a rollover is a forward somersault, like Sonic seen from behind
+        base.multiply(mA.makeTranslation(px, py, 0)).multiply(mB.makeRotationFromEuler(eL.set(0, 0, c.pitch - c.roll))).multiply(mA.makeTranslation(-px, -py, 0));
         if (rolling) base.premultiply(mA.makeTranslation(0, Math.sin(Math.min(1, c.roll / Math.max(0.001, c.rollTotal)) * Math.PI) * 1.2, 0));
       }
       if (sim.spec.stunts) { // each half turn of a rollover is a smash
@@ -210,7 +210,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
         const m = carMeshes.current[k];
         if (!m) return;
         if (cp.p.flame) {
-          const sc = (0.25 + Math.max(0, rc.input.throttle) * 0.9 + (speedOf(c) / sim.spec.maxSpeed) * 0.4) * flick, dir = cp.p.tip === -1 ? -1 : 1;
+          const sc = (0.25 + Math.max(0, rc.input.throttle) * 0.9 + (speedOf(c) / sim.spec.maxSpeed) * 0.4 + (c.nitroT > 0 ? 1.6 : 0)) * flick, dir = cp.p.tip === -1 ? -1 : 1;
           tmp.compose(dummy.position.set(cp.p.at[0] - dir * (cp.p.size[1] * (sc - 1)) / 2 * -1, cp.p.at[1], cp.p.at[2]), q.identity(), dummy.scale.set(sc, 1, 1));
           tmp.premultiply(base);
           q.setFromEuler(e);
@@ -344,6 +344,7 @@ function RaceHud() {
           <div>Last {t(me.lastLap)} · best {t(me.bestLap)}</div>
         </>
       )}
+      <div>Nitro <b>{me.car.nitroT > 0 ? "🔥 GO!" : me.car.nitro >= 1 ? "⚡ ready · press Shift" : `${"▮".repeat(Math.floor(me.car.nitro * 10))}${"▯".repeat(10 - Math.floor(me.car.nitro * 10))}`}</b></div>
       <div>Item <b>{me.item ? `${ITEM_ICON[me.item]} ${me.item}` : "–"}</b>{me.item ? " · press E" : ""}</div>
       <div>Speed <b>{Math.round(sp * 3.6)}</b> km/h · {(sp / AGENT_SPEED).toFixed(1)}x agent</div>
       <div>Time {Math.max(0, sim.time).toFixed(1)}s · knocks {me.bumps} · walls {me.car.hits}</div>
