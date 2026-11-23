@@ -109,8 +109,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
   const [open, setOpen] = useState<"" | "look" | "idle" | "go" | "cards">("");
   const [cards, setCards] = useState<Card[]>([]);
   useEffect(() => { if (open === "cards") api.board().then((c) => setCards(c.filter((x) => x.team === w.team && (x.column === "backlog" || x.column === "ready")))).catch(() => {}); }, [open, w.team]);
-  const [detail, setDetail] = useState(false);
-  const [tab, setTab] = useState<"actions" | "chat">("actions");
+  const [tab, setTab] = useState<"actions" | "chat" | "status">("actions");
   const [perfInfo, setPerfInfo] = useState(false);
   const [note, setNote] = useState("");
   const [runs, setRuns] = useState<RunRecord[]>([]);
@@ -131,6 +130,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
     };
   }, [onClose]);
 
+  const allRooms = poiChoices(), gameRoom = allRooms.find((c) => c.id.startsWith("game-room")), rooms = allRooms.filter((c) => c !== gameRoom);
   const running = runs.find((r) => r.session === w.id && r.status === "running");
   const busy = w.state === "working" || w.state === "waiting";
   const whyContinue = w.liveInTerminal ? "Live in a terminal: use Fork in the chat" : busy ? "Already working" : "";
@@ -161,16 +161,32 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
       <div className="am-tabs" role="tablist" aria-label="Agent">
         <button role="tab" aria-selected={tab === "actions"} className={tab === "actions" ? "on" : ""} onClick={() => setTab("actions")}>⚡ Actions</button>
         <button role="tab" aria-selected={tab === "chat"} className={tab === "chat" ? "on" : ""} onClick={() => setTab("chat")}>💬 Chat &amp; history</button>
+        <button role="tab" aria-selected={tab === "status"} className={tab === "status" ? "on" : ""} onClick={() => setTab("status")}>📊 Status</button>
       </div>
       <div className={`am-body ${tab}`}>
-      {tab === "chat" ? <WorkerChat workerId={w.id} onClose={() => setTab("actions")} dock="right" /> : <>
+      {tab === "chat" ? <WorkerChat workerId={w.id} onClose={() => setTab("actions")} dock="right" /> : tab === "status" ? <>
+      <Detail w={w} />
       <CaffeineRow id={w.id} />
       <RewardsSection id={w.id} />
+      {item(`🎭 Show as… ${open === "look" || open === "idle" ? "▾" : "▸"}`, () => setOpen(open === "look" || open === "idle" ? "" : "look"))}
+      {(open === "look" || open === "idle") && (
+        <div className="am-sub">
+          <p className="muted small">Only how the robot acts for 30 s. The real status does not change.</p>
+          {item(`Idle ${open === "idle" ? "▾" : "▸"}`, () => setOpen(open === "idle" ? "look" : "idle"))}
+          {open === "idle" && <div className="am-sub">
+            {item("Wander around", () => { scene.look(w.id, "idle", false); onClose(); })}
+            {item("Sit at the desk", () => { scene.look(w.id, "idle", true); onClose(); })}
+          </div>}
+          {LOOKS.map((l) => item(l.label, () => { scene.look(w.id, l.state); onClose(); }))}
+          {item("Back to the real status", () => { scene.look(w.id, null); onClose(); })}
+        </div>
+      )}
+      </> : <>
       {item("💬 Talk", () => { openChat(w.id); onClose(); }, "E")}
       {getSettings().enabled && <button className="am-item" onClick={() => { useSimChat.getState().open(w.id); useStore.getState().focusAgent(w.id); onClose(); }}><span>🫧 Water cooler chat<SimChatUnread id={w.id} /></span></button>}
       {item("☕ Bring a coffee", () => { requestCoffee(w.id); onClose(); })}
       {item(followers.includes(w.id) ? "👥 Stop following" : "👥 Follow me", () => { toggleFollower(w.id); onClose(); }, "F")}
-      {ACTIONS.filter((a) => a.kind === "real").map((a) => item(`${a.label} …`, () => { scene.act(a.key, w.id); onClose(); }, a.key.toUpperCase(), a.can?.(w) ?? undefined))}
+      {ACTIONS.filter((a) => a.kind === "real" && a.key !== "y").map((a) => item(`${a.label} …`, () => { scene.act(a.key, w.id); onClose(); }, a.key.toUpperCase(), a.can?.(w) ?? undefined))}
       {(() => { // Play while limited (13.4.8): only while the service is rate limited
         const limited = rateLimitedAt(useStore.getState().snapshot?.rateLimitedUntil);
         const picks = playChoices(gameHub, w.id, limited);
@@ -197,23 +213,17 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
         </div>
       </div>
       {w.state !== "asleep" && item("🪑 Call to the desk", () => { scene.look(w.id, "idle", true, 5 * 60_000); onClose(); }, undefined, undefined)}
-      {item(`🎭 Show as… ${open === "look" || open === "idle" ? "▾" : "▸"}`, () => setOpen(open === "look" || open === "idle" ? "" : "look"))}
-      {(open === "look" || open === "idle") && (
-        <div className="am-sub">
-          <p className="muted small">Only how the robot acts for 30 s. The real status does not change.</p>
-          {item(`Idle ${open === "idle" ? "▾" : "▸"}`, () => setOpen(open === "idle" ? "look" : "idle"))}
-          {open === "idle" && <div className="am-sub">
-            {item("Wander around", () => { scene.look(w.id, "idle", false); onClose(); })}
-            {item("Sit at the desk", () => { scene.look(w.id, "idle", true); onClose(); })}
-          </div>}
-          {LOOKS.map((l) => item(l.label, () => { scene.look(w.id, l.state); onClose(); }))}
-          {item("Back to the real status", () => { scene.look(w.id, null); onClose(); })}
-        </div>
-      )}
       {item(`📍 Send to… ${open === "go" ? "▾" : "▸"}`, () => setOpen(open === "go" ? "" : "go"))}
-      {open === "go" && <div className="am-sub am-scroll">{poiChoices().map((c) => item(c.label, () => { scene.sendTo(w.id, c.id); onClose(); }))}{poiChoices().length === 0 && <p className="muted small">No rooms yet.</p>}</div>}
-      {item(`📋 Give a card… ${open === "cards" ? "▾" : "▸"}`, () => setOpen(open === "cards" ? "" : "cards"), undefined, w.source === "opencode" ? "OpenCode card assignment is not wired yet; message the agent instead" : undefined)}
+      {open === "go" && <div className="am-sub am-scroll">
+        {item("🏠 Home: its desk", () => { scene.look(w.id, "idle", true, 5 * 60_000); onClose(); })}
+        {gameRoom && item("🎮 Game room", () => { scene.sendTo(w.id, gameRoom.id); onClose(); })}
+        {item("🚶 Out of my sight: wander around", () => { scene.look(w.id, "idle", false, 5 * 60_000); onClose(); })}
+        {rooms.length > 0 && <div className="muted small" style={{ margin: "4px 0 0" }}>Other rooms</div>}
+        {rooms.map((c) => item(c.label, () => { scene.sendTo(w.id, c.id); onClose(); }))}
+      </div>}
+      {item(`📋 Give a board task… ${open === "cards" ? "▾" : "▸"}`, () => setOpen(open === "cards" ? "" : "cards"), undefined, w.source === "opencode" ? "OpenCode card assignment is not wired yet; message the agent instead" : undefined)}
       {open === "cards" && <div className="am-sub am-scroll">
+        <p className="muted small">Hands one of this project's board cards (Backlog or Ready) to this agent as its next task. The card moves to In progress.</p>
         {cards.length === 0 && <p className="muted small">No Backlog or Ready cards for this project.</p>}
         {cards.slice(0, 12).map((c) => item(c.title.slice(0, 40), () => {
           const fork = w.liveInTerminal;
@@ -224,10 +234,8 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
       <div className="am-quick">
         <button disabled={!!whyContinue} title={whyContinue || `Send “${CONTINUE}”`} onClick={doContinue}>▶ Continue</button>
         <button disabled={!running} title={running ? "Stop the run started from SparkBots" : "No run started from SparkBots"} onClick={doPause}>⏸ Pause</button>
-        <button className={detail ? "on" : ""} onClick={() => setDetail(!detail)}>ⓘ Status</button>
       </div>
       {note && <p className="small am-note">{note}</p>}
-      {detail && <Detail w={w} />}
       </>}
       </div>
       </div>
