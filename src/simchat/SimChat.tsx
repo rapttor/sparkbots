@@ -62,6 +62,13 @@ function ActiveChat({ id }: { id: string }) {
 
   useEffect(() => { const h = setInterval(() => setNow(performance.now()), 50); return () => clearInterval(h); }, []);
   useEffect(() => { if (out?.advance) goNext(); }); // eslint-disable-line react-hooks/exhaustive-deps
+  // the agent you talk to comes to you like a follower (it wakes up if it slept) and goes back to what it did when the chat ends
+  useEffect(() => {
+    const st = useStore.getState();
+    if (st.followers.includes(id)) return;
+    st.toggleFollower(id);
+    return () => { const s2 = useStore.getState(); if (s2.followers.includes(id)) s2.toggleFollower(id); };
+  }, [id]);
   // the agent started real work, or went away: the chat ends by itself
   useEffect(() => { if (worker && (worker.state === "working" || worker.state === "waiting")) close(); }, [worker?.state]); // eslint-disable-line react-hooks/exhaustive-deps
   // walking away from the agent ends the chat (with hysteresis)
