@@ -263,8 +263,8 @@ export function AngerRoom({ layout }: { layout: Layout }) {
           </div></Stop>
         </Html>
       )}
-      {sess && <Html position={[0, 2.6, -2.5]} center style={{ pointerEvents: "none" }}><div style={bubble}>{w?.icon} {left >= 0 ? `${left}s` : "wrecking"} · {sess.points} pts{hud ? ` · ${hud}` : ""}</div></Html>}
-      {!sess && total > 0 && <Html position={[0, 2.6, -2.5]} center style={{ pointerEvents: "none" }}><div style={bubble}>Feeling better? {total} pts of frustration released</div></Html>}
+      {sess && <Html position={[0, 2.6, -2.5]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>{w?.icon} {left >= 0 ? `${left}s` : "wrecking"} · {sess.points} pts{hud ? ` · ${hud}` : ""}</div></Html>}
+      {!sess && total > 0 && <Html position={[0, 2.6, -2.5]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>Feeling better? {total} pts of frustration released</div></Html>}
     </group>
   );
 }

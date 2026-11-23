@@ -62,8 +62,8 @@ export function GymFx({ layout }: { layout: Layout }) {
         </mesh>
       </group>
       <mesh ref={balloon} visible={false}><boxGeometry args={[1, 1, 1]} /><meshStandardMaterial color="#fca5a5" transparent opacity={0.55} /></mesh>
-      {thought && tm && <Html position={[tm.x, 2.2, tm.z]} center style={{ pointerEvents: "none" }}><div style={bubble}>💭 {thought}</div></Html>}
-      {pop && bn && <Html position={[bn.x, 2.0, bn.z]} center style={{ pointerEvents: "none" }}><div style={bubble}>💥 POP! …just kidding, re-forming</div></Html>}
+      {thought && tm && <Html position={[tm.x, 2.2, tm.z]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>💭 {thought}</div></Html>}
+      {pop && bn && <Html position={[bn.x, 2.0, bn.z]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>💥 POP! …just kidding, re-forming</div></Html>}
     </>
   );
 }

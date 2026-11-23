@@ -36,6 +36,8 @@ export function Cafe({ layout }: { layout: Layout }) {
   const dCup = useRef<(Mesh | null)[]>([]);
   const dRotor = useRef<(Mesh | null)[]>([]);
   const lay = useRef(layout); lay.current = layout;
+  // a bubble goes away by itself after a few seconds; a timer, not the frame loop, because the scene stops rendering while a panel covers it
+  useEffect(() => { if (!msg) return; const h = setTimeout(() => setMsg(""), 5000); return () => clearTimeout(h); }, [msg]);
   useEffect(() => { // the coffee ordering entry point (O key, agent menu, the barista at the coffee factory)
     setCafeOrderHandler((id) => {
       if (!lay.current.zones.some((z) => z.zone.id === "cafe") || orders.current.length >= 6 || orders.current.includes(id)) return false;
@@ -113,7 +115,7 @@ export function Cafe({ layout }: { layout: Layout }) {
         <mesh ref={fill} position={[0, 0.03, 0]} scale={[1, 0.01, 1]}><boxGeometry args={[0.13, 0.1, 0.13]} /><meshBasicMaterial color="#5b3a1e" /></mesh>
       </group>
       {[0, 1, 2, 3].map((i) => <mesh key={i} ref={(m) => { steam.current[i] = m; }} visible={false}><sphereGeometry args={[1, 6, 4]} /><meshBasicMaterial color="#ffffff" transparent opacity={0.4} depthWrite={false} /></mesh>)}
-      {msg && <Html position={[BAR.x, 2.9, BAR.z]} center style={{ pointerEvents: "none" }}><div style={bubble}>{msg}</div></Html>}
+      {msg && <Html position={[BAR.x, 2.9, BAR.z]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>{msg}</div></Html>}
     </group>
     {/* coffee drones (world coordinates): body, spinning rotor, and the cup they carry */}
     {Array.from({ length: MAX_DRONES }, (_, i) => (

@@ -195,7 +195,7 @@ export function Restaurant({ layout }: { layout: Layout }) {
             </div>
           </Html>
         )}
-        {burning && <Html position={[-2.6, 2.6, 0]} center style={{ pointerEvents: "none" }}><div style={bubble}>🔥 Fire in the kitchen!</div></Html>}
+        {burning && <Html position={[-2.6, 2.6, 0]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={bubble}>🔥 Fire in the kitchen!</div></Html>}
       </group>
       {/* fire on the stove + firefighter drones */}
       <group position={[rz.x, 0, rz.z]}>
@@ -216,7 +216,7 @@ export function Restaurant({ layout }: { layout: Layout }) {
         <group key={i} ref={(g) => { fGroups.current[i] = g; }} visible={false}>
           <mesh><boxGeometry args={[0.5, 0.1, 0.5]} /><meshStandardMaterial color="#f59e0b" /></mesh>
           <mesh ref={(m) => { fBox.current[i] = m; }} position={[0, -0.25, 0]}><boxGeometry args={[0.25, 0.2, 0.25]} /><meshStandardMaterial color="#fde68a" /></mesh>
-          <Html position={[0, -0.55, 0]} center style={{ pointerEvents: "none" }}><span ref={(el) => { fEmoji.current[i] = el; }} style={{ fontSize: 26, textShadow: "0 1px 4px #000" }} /></Html>
+          <Html position={[0, -0.55, 0]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><span ref={(el) => { fEmoji.current[i] = el; }} style={{ fontSize: 26, textShadow: "0 1px 4px #000" }} /></Html>
         </group>
       ))}
     </>
