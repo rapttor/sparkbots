@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AppDb } from "../server/db";
 import { parseGameResult } from "../server/games";
-import { GameHub, GATHER_TIMEOUT, OVER_SHOW, isGuest, type HubEnv } from "../src/world/games/hub";
+import { GameHub, GATHER_TIMEOUT, OVER_SHOW, USER_SEAT, isGuest, type HubEnv } from "../src/world/games/hub";
 import { RallySim, TABLE } from "../src/world/games/rally";
 import { GAMES, pickGame } from "../src/world/games/registry";
 import { RoundSim, diceWinner, rpsWinner } from "../src/world/games/rounds";
@@ -89,9 +89,9 @@ function world(ids: string[], walk = 1) {
     rng: mulberry32(11),
     idle: () => ids.filter((a) => !busy.has(a) && !at.has(a)),
     free: (a) => !busy.has(a) && !at.has(a),
-    alive: (a, i) => !busy.has(a) && at.get(a)?.inst === i,
+    alive: (a, i) => a === USER_SEAT || (!busy.has(a) && at.get(a)?.inst === i),
     send: (a, spot, i) => { if (spot) { if (!at.has(a)) at.set(a, { inst: i, since: clock }); } else at.delete(a); },
-    arrived: (a) => clock - (at.get(a)?.since ?? Infinity) >= walk,
+    arrived: (a) => a === USER_SEAT || clock - (at.get(a)?.since ?? Infinity) >= walk,
     name: (a) => `Bot ${a}`,
     record: (r) => recs.push(r),
   };
@@ -238,5 +238,55 @@ describe("game hub: the two start buttons", () => {
   it("autoplay with a single free agent gets a guest opponent", () => {
     const r = mk([], ["s1"]).quick("pong", "auto");
     expect(r.inst!.seats.map((s) => s.agent!).filter(isGuest)).toHaveLength(1);
+  });
+});
+
+describe("playable games: you take seat 0", () => {
+  const mk = (idle: string[]) => {
+    const w = world(idle);
+    return w;
+  };
+  it("playVs seats you against an agent, or a guest bot when nobody is free; unplayable games fall back to watching", () => {
+    const w = mk(["a", "b"]);
+    const r = w.hub.playVs("pong");
+    expect(r.inst!.seats[0].agent).toBe(USER_SEAT);
+    expect(isGuest(r.inst!.seats[1].agent)).toBe(false);
+    const w2 = mk([]);
+    expect(isGuest(w2.hub.playVs("rps").inst!.seats[1].agent)).toBe(true);
+    const w3 = mk(["a", "b"]);
+    const r3 = w3.hub.playVs("billiards");
+    expect(r3.inst!.seats[0].agent).not.toBe(USER_SEAT);
+    expect(r3.msg).toMatch(/only be watched/);
+  });
+  it("rock-paper-scissors waits for your move and uses it; the score and result record you as 'user'", () => {
+    const w = mk(["a"]);
+    const inst = w.hub.playVs("rps").inst!;
+    w.tick(5);                                   // the agent arrives, the match starts
+    expect(inst.phase).toBe("playing");
+    const sim = inst.sim as RoundSim;
+    w.tick(10);
+    expect(sim.rounds).toBe(0);                  // nothing is thrown without you
+    for (let i = 0; i < 60 && !sim.over; i++) w.hub.throwMove(1);
+    expect(sim.over).toBe(true);
+    w.tick(0.1);
+    expect(w.recs.length).toBe(1);
+    expect(w.recs[0]!.a).toBe(USER_SEAT);
+  });
+  it("your keys steer your paddle in pong and in hockey; the agent's side stays automatic", () => {
+    for (const game of ["pong", "hockey"] as const) {
+      const w = mk(["a"]);
+      const inst = w.hub.playVs(game).inst!;
+      w.tick(5);
+      const sim = inst.sim as RallySim;
+      expect(sim.user).toBe(0);
+      const z0 = sim.paddles[0].z;
+      w.hub.setControl(0, 1);
+      for (let i = 0; i < 20; i++) sim.step(0.05);
+      expect(sim.paddles[0].z).toBeGreaterThan(z0 + 0.3);
+      w.hub.setControl(0, 0);
+      const z1 = sim.paddles[0].z;
+      for (let i = 0; i < 10; i++) sim.step(0.05);
+      expect(sim.paddles[0].z).toBeCloseTo(z1, 5); // it does not chase the ball by itself
+    }
   });
 });

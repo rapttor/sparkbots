@@ -23,28 +23,33 @@ export class RoundSim implements GameSim {
   winner: 0 | 1 | null = null;
   last: Reveal | null = null;
   rounds = 0;
+  /** The seat you play: rounds then wait for you (a move for rock-paper-scissors, a roll for dice) instead of running on a timer. */
+  user: 0 | 1 | null = null;
   private t = 0;
 
   constructor(readonly kind: "rps" | "dice", private rng: Rng, readonly target = 3, readonly interval = 1.8) {}
 
   line(): string { return `${this.score[0]} : ${this.score[1]}`; }
 
+  setUser(seat: 0 | 1): void { this.user = seat; }
+
   step(dt: number): void {
-    if (this.over) return;
+    if (this.over || this.user !== null) return;
     this.t += dt;
     if (this.t < this.interval) return;
     this.t = 0;
     this.play();
   }
 
-  detail(): string { return this.last ? `${this.last.a}  vs  ${this.last.b}` : ""; }
+  detail(): string { return this.last ? `${this.last.a}  vs  ${this.last.b}` : this.user !== null ? (this.kind === "rps" ? "Pick your move" : "Roll the dice") : ""; }
 
-  /** One round right now. */
-  play(): Reveal {
+  /** One round right now. `move` (0 rock, 1 paper, 2 scissors) is yours when you play rock-paper-scissors. */
+  play(move?: number): Reveal {
     this.rounds++;
     let a: string, b: string, w: 0 | 1 | null;
     if (this.kind === "rps") {
-      const x = Math.floor(this.rng() * 3), y = Math.floor(this.rng() * 3);
+      let x = Math.floor(this.rng() * 3), y = Math.floor(this.rng() * 3);
+      if (this.user === 0 && move !== undefined) x = move; else if (this.user === 1 && move !== undefined) y = move;
       a = RPS_FACES[x]!; b = RPS_FACES[y]!; w = rpsWinner(x, y);
     } else {
       const d = () => 1 + Math.floor(this.rng() * 6);

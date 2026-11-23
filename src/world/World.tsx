@@ -26,6 +26,7 @@ import { nav, Flow, buildNav } from "./nav";
 import { ZonesLayer } from "./zonelayer";
 import { lunchAll, followerList, insideRoom, meeting, MAX_SEATS, setFollowers, startErrand, setPois, rebuildRoamGrid } from "./roam";
 import { useShowDesks } from "../state/deskPref";
+import { PerformPicker, usePerform } from "./PerformPicker";
 import { managerAt, roams, setLook, clearLook, player as playerState, pushPlayerOut, holdAgent, releaseAgent } from "./roam";
 import { tarsParts } from "./tars";
 import { ACTIONS } from "./actions";
@@ -591,7 +592,8 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       if (e.repeat) return; // holding a key must not fire an action (or a confirmation) over and over
       if (modeRef.current !== "walk") return;
       if (k === "e") ctl.api.current?.talk();
-      else if (ACTIONS.some((a) => a.key === k && (a.kind === "real" || a.key === "f"))) ctl.api.current?.act(k); // cosmetic actions are menu-only
+      else if (k === "z") { const b = nearestBot(layoutRef.current, pos.current); if (b) usePerform.getState().open(b.worker.id); } // Z: the numbered Perform picker for the nearest agent
+      else if (ACTIONS.some((a) => a.key === k && (a.kind === "real" || a.key === "f"))) ctl.api.current?.act(k); // other cosmetic actions are picker / menu only
     };
     const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
     const clear = () => keys.current.clear();
@@ -1236,9 +1238,10 @@ export default function World({ active = true }: { active?: boolean }) {
       {menu && menuWorker && (
         <AgentMenu worker={menuWorker} scene={sceneApi.current ?? { talk() {}, act() {}, look() {}, sendTo() {}, archive: (_id, done) => done() }} onClose={() => setMenu(null)} />
       )}
+      <PerformPicker act={(key, id) => sceneApi.current?.act(key, id)} />
       {nearby && (
         <div style={{ ...box, left: "50%", bottom: 24, transform: "translateX(-50%)", fontSize: 14 }}>
-          Press <b>E</b> to talk to {nearby.title} · <b>Z</b> zap
+          Press <b>E</b> to talk to {nearby.title} · <b>Z</b> perform
         </div>
       )}
     </div>

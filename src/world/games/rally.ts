@@ -27,6 +27,9 @@ export class RallySim implements GameSim {
   /** Counts up on every hit, for the visuals (flash) and tests. */
   hits = 0;
   lastHit: 0 | 1 | null = null;
+  /** The seat you play (null = agents only) and the keys you hold: dx +1 = right, dz +1 = towards the camera (south). */
+  user: 0 | 1 | null = null;
+  ctl = { dx: 0, dz: 0 };
   private server: 0 | 1 = 0;
   private cool = 0;
 
@@ -43,6 +46,8 @@ export class RallySim implements GameSim {
   line(): string { return `${this.score[0]} : ${this.score[1]}`; }
 
   detail(): string { return ""; }
+
+  setUser(seat: 0 | 1): void { this.user = seat; this.paddles[seat].skill = 0.9; this.paddles[seat].depth = this.paddles[seat].targetDepth = 0.5; }
 
   private serve(): void {
     const dir = this.server === 0 ? 1 : -1;
@@ -77,6 +82,12 @@ export class RallySim implements GameSim {
     // every player follows the ball sideways (limited speed) and moves tactically forward/back
     for (const side of [0, 1] as const) {
       const p = this.paddles[side];
+      if (this.user === side) { // you: sideways with up/down, back and forth with left/right (further back = harder hit, smaller reach)
+        p.z = Math.max(-TABLE.W / 2, Math.min(TABLE.W / 2, p.z + this.ctl.dz * 1.9 * dt));
+        p.depth = Math.max(0, Math.min(DEPTH_MAX, p.depth + (side === 0 ? -1 : 1) * this.ctl.dx * 0.7 * dt));
+        p.swing = Math.max(0, p.swing - dt * 4);
+        continue;
+      }
       const toward = side === 0 ? b.vx < 0 : b.vx > 0;
       const speed = 0.9 + p.skill * 1.3;
       const want = toward ? b.z + p.err : b.z * 0.3; // the error is how well this player read the shot
@@ -101,7 +112,7 @@ export class RallySim implements GameSim {
     b.vx = dir * speed; b.vz = (this.rng() - 0.5) * speed * 0.9 + err;
     b.x = dir * -(TABLE.L / 2 - 0.06);
     p.swing = 1; this.hits++; this.lastHit = side; this.cool = 0.15;
-    p.targetDepth = this.rng() * DEPTH_MAX;
+    if (this.user !== side) p.targetDepth = this.rng() * DEPTH_MAX;
     // the other side has to read a harder, more wildly aimed shot: worse for weaker players
     const o = this.paddles[side === 0 ? 1 : 0], hard = Math.min(1, (speed - 1.7) / 1.6 + Math.abs(b.vz) / 3);
     o.err = (this.rng() * 2 - 1) * (0.25 + 0.6 * hard) * (1.3 - o.skill);                                // new tactic: come close or back off
@@ -124,10 +135,14 @@ export class RallySim implements GameSim {
       const p = this.paddles[side], dir = side === 0 ? -1 : 1;
       const inOwnHalf = b.x * dir > -0.1;
       const speed = 1.1 + p.skill * 1.5;
+      if (this.user === side) { // you steer the mallet with the arrows / WASD
+        p.x += this.ctl.dx * 2.0 * dt; p.z += this.ctl.dz * 2.0 * dt;
+      } else {
       // attack when the puck is on our side, otherwise guard the goal
       const tx = inOwnHalf ? b.x : dir * (hl - 0.35), tz = inOwnHalf ? b.z : b.z * 0.4;
       const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz) || 1, step = Math.min(d, speed * dt);
       p.x += (dx / d) * step; p.z += (dz / d) * step;
+      }
       p.x = dir > 0 ? Math.max(0.05, Math.min(hl - 0.2, p.x)) : Math.min(-0.05, Math.max(-(hl - 0.2), p.x));
       p.z = Math.max(-hw + 0.05, Math.min(hw - 0.05, p.z));
       p.swing = Math.max(0, p.swing - dt * 4);

@@ -1,5 +1,6 @@
 import { GAMES, GAME_IDS, pickGame } from "./registry";
 import { RallySim } from "./rally";
+import { RoundSim } from "./rounds";
 import { playSpot, seatSpots, type PlacedSlot, type Spot } from "./tables";
 import type { GameId, GameResult, GameSim, Rng } from "./types";
 
@@ -23,6 +24,9 @@ export interface HubEnv {
 
 /** Guest bots are not sessions: they sit in the second seat when only one agent is free. */
 export const GUEST_PREFIX = "guest:";
+/** You in a seat: the manager plays (the playable games only). */
+export const USER_SEAT = "user";
+export const PLAYABLE: readonly GameId[] = ["pong", "hockey", "rps", "dice"];
 export const isGuest = (a: string | null | undefined): boolean => !!a && a.startsWith(GUEST_PREFIX);
 
 export type Phase = "gathering" | "playing" | "over";
@@ -85,6 +89,26 @@ export class GameHub {
     if (!inst) return { inst: null, msg: "No free table for that game right now." };
     return { inst, msg: guest ? `A guest bot joined to play against ${this.env.name(agents[0]!)}.` : "" };
   }
+  /**
+   * You take seat 0 against one agent (idle first, else a sleeper; a guest bot when no agent is free). Pong, air hockey, rock-paper-scissors and dice
+   * are playable; for the others it falls back to watching (an agent against a guest bot).
+   */
+  playVs(game: GameId): { inst: Instance | null; msg: string } {
+    if (!PLAYABLE.includes(game)) { const r = this.quick(game, "vs"); return { inst: r.inst, msg: `${GAMES[game].name} can only be watched for now. ${r.msg}`.trim() }; }
+    const shuffle = (xs: string[]) => xs.map((x) => [this.env.rng(), x] as const).sort((p, q) => p[0] - q[0]).map((p) => p[1]);
+    const agent = [...shuffle(this.candidates()), ...shuffle((this.env.sleeping?.() ?? []).filter((a) => !this.inGame(a)))][0];
+    const inst = this.open(game, [USER_SEAT, agent ?? this.newGuest()], true);
+    if (!inst) return { inst: null, msg: this.inGame(USER_SEAT) ? "You are already in a game." : "No free table for that game right now." };
+    return { inst, msg: agent ? "" : "No agent is free, so a guest bot plays against you." };
+  }
+  /** The table you play at, if any. */
+  userInst(): Instance | undefined { return this.instances.find((i) => i.seats.some((s) => s.agent === USER_SEAT)); }
+  /** What you hold: dx +1 right, dz +1 towards the camera (rally games). */
+  setControl(dx: number, dz: number): void { const s = this.userInst()?.sim; if (s instanceof RallySim) { s.ctl.dx = dx; s.ctl.dz = dz; } }
+  /** Your throw (rock-paper-scissors move 0..2) or roll (dice). */
+  throwMove(move?: number): void { const i = this.userInst(), s = i?.sim; if (i && i.phase === "playing" && s instanceof RoundSim && !s.over) { s.play(move); this.changed(); } }
+  /** Another match at the table you just finished. */
+  again(): void { const i = this.userInst(); if (i && i.phase === "over") { i.rematches = 0; this.begin(i); } }
   private guests = 0;
   newGuest(): string { return `${GUEST_PREFIX}${++this.guests}`; }
   nameOf(agent: string): string { return this.env.name(agent); }
@@ -132,7 +156,7 @@ export class GameHub {
 
   private seat(inst: Instance, i: 0 | 1, agent: string): void {
     inst.seats[i] = { agent, arrived: false };
-    this.env.send(agent, seatSpots(GAMES[inst.game].size, inst.slot.x, inst.slot.z)[i], inst.id);
+    if (agent !== USER_SEAT) this.env.send(agent, seatSpots(GAMES[inst.game].size, inst.slot.x, inst.slot.z)[i], inst.id);
   }
 
   /** Exit a game at any time (the ✕ in the header): nothing is recorded and the table goes away. */
@@ -143,7 +167,7 @@ export class GameHub {
   stopAll(): void { for (const i of [...this.instances]) this.close(i); }
 
   private close(inst: Instance): void {
-    for (const s of inst.seats) if (s.agent) this.env.send(s.agent, null, inst.id);
+    for (const s of inst.seats) if (s.agent && s.agent !== USER_SEAT) this.env.send(s.agent, null, inst.id);
     this.instances = this.instances.filter((i) => i !== inst);
     this.changed();
   }
@@ -173,21 +197,23 @@ export class GameHub {
       const line = sim.line(), detail = sim.detail?.() ?? "";
       if (line !== inst.line || detail !== inst.detail) { inst.line = line; inst.detail = detail; this.changed(); }
       if (sim.over) this.finish(inst);
-    } else if (inst.phase === "over" && age > OVER_SHOW) {
-      if (inst.rematches < MAX_REMATCHES && this.env.rng() < REMATCH_CHANCE) { inst.rematches++; this.begin(inst); }
+    } else if (inst.phase === "over" && age > (inst.seats.some((s) => s.agent === USER_SEAT) ? 40 : OVER_SHOW)) {
+      if (!inst.seats.some((s) => s.agent === USER_SEAT) && inst.rematches < MAX_REMATCHES && this.env.rng() < REMATCH_CHANCE) { inst.rematches++; this.begin(inst); }
       else this.close(inst);
     }
   }
 
   private begin(inst: Instance): void {
     inst.sim = GAMES[inst.game].create(this.env.rng);
+    const me = inst.seats.findIndex((s) => s.agent === USER_SEAT);
+    if (me >= 0) inst.sim.setUser?.(me as 0 | 1);
     inst.phase = "playing"; inst.since = this.t; inst.winner = null; inst.line = inst.sim.line(); inst.detail = "";
     this.changed();
   }
 
   /** Agents walk with their paddles. */
   private follow(inst: Instance, sim: RallySim): void {
-    inst.seats.forEach((s, i) => { if (s.agent) this.env.send(s.agent, playSpot(inst.game, i as 0 | 1, inst.slot.x, inst.slot.z, sim), inst.id); });
+    inst.seats.forEach((s, i) => { if (s.agent && s.agent !== USER_SEAT) this.env.send(s.agent, playSpot(inst.game, i as 0 | 1, inst.slot.x, inst.slot.z, sim), inst.id); });
   }
 
   private finish(inst: Instance): void {

@@ -10,6 +10,7 @@ import { ItemModel } from "./AngerItems";
 import { WeaponModel } from "./AngerWeapon";
 import { smashCtl } from "./smashControl";
 import { bubble, btn, panel, pointer, Stop } from "./ui";
+import { useNumberKeys } from "../numberKeys";
 
 const o = new Object3D(), col = new Color();
 interface Pending { id: number; at: number }
@@ -55,6 +56,7 @@ export function AngerRoom({ layout }: { layout: Layout }) {
     const was = inside.current;
     inside.current = player.on && insideRoom({ x: az.x, z: az.z, w: az.w, d: az.d }, player.x, player.z);
     if (inside.current && !was && !sessRef.current) setPick(true);
+    if (!inside.current && was) setPick(false); // walking out closes the weapon pick instead of leaving it open for ever
 
     let s = sessRef.current;
     if (s) {
@@ -190,9 +192,13 @@ export function AngerRoom({ layout }: { layout: Layout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [smashing, az?.x, az?.z]);
   useEffect(() => { if (!az) { setSess(null); sessRef.current = null; } }, [az]);
+  // the popups answer to the number keys 1-9 (the options are filled in below, once choose / exit exist)
+  const numRef = useRef<(() => void)[]>([]);
+  useNumberKeys(Array.from({ length: 9 }, (_, i) => () => numRef.current[i]?.()), pick || menu);
   if (!az) return null;
 
   const choose = (id: string) => { setWeapon(id); setPick(false); const n = startRun(startSession(id, Date.now()), Date.now()); setSess(n); sessRef.current = n; };
+  numRef.current = pick ? [...WEAPONS.map((x) => () => choose(x.id)), () => setPick(false)] : menu && sess?.running ? [() => setMenu(false), () => exit()] : [];
   // Exit / the header Stop end the whole smashing session at once: the run, its countdown timer and the queued items; the points are banked.
   const exit = () => { const s = sessRef.current; setMenu(false); if (!s) return; setTotal((t) => t + s.points); setSess(null); sessRef.current = null; queue.current.length = 0; setLeft(0); };
   smashCtl.stop = exit;
@@ -249,8 +255,8 @@ export function AngerRoom({ layout }: { layout: Layout }) {
         <Html position={[3.0, 2.5, 2.3]} center zIndexRange={[40, 0]}>
           <Stop><div style={panel}>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>💢 {sess!.points} pts · best combo {sess!.best}</div>
-            <button style={btn} onClick={() => setMenu(false)}>Keep smashing</button>
-            <button style={btn} onClick={exit}>Exit the game</button>
+            <button style={btn} onClick={() => setMenu(false)}>1. Keep smashing</button>
+            <button style={btn} onClick={exit}>2. Exit the game</button>
           </div></Stop>
         </Html>
       )}
@@ -258,8 +264,8 @@ export function AngerRoom({ layout }: { layout: Layout }) {
         <Html position={[-3.7, 2.4, 2.3]} center zIndexRange={[30, 0]}>
           <Stop><div style={panel}>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>💢 Pick a weapon</div>
-            {WEAPONS.map((x) => <button key={x.id} style={btn} onClick={() => choose(x.id)}>{x.icon} {x.name} · {x.power} dmg</button>)}
-            <button style={btn} onClick={() => setPick(false)}>Not today</button>
+            {WEAPONS.map((x, i) => <button key={x.id} style={btn} onClick={() => choose(x.id)}>{i + 1}. {x.icon} {x.name} · {x.power} dmg</button>)}
+            <button style={btn} onClick={() => setPick(false)}>{WEAPONS.length + 1}. Not today</button>
           </div></Stop>
         </Html>
       )}

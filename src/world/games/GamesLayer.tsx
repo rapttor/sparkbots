@@ -6,7 +6,7 @@ import { call } from "../../api";
 import { displayName } from "../../util";
 import { effectiveState, isHeld, releaseVisit, roams, type Roam } from "../roam";
 import type { Layout } from "../layout";
-import { isGuest, type HubEnv, type Instance } from "./hub";
+import { USER_SEAT, isGuest, type HubEnv, type Instance } from "./hub";
 import { hub, none } from "./instance";
 import { RallySim, TABLE } from "./rally";
 import { GAMES } from "./registry";
@@ -35,7 +35,7 @@ export function GamesLayer({ layout }: { layout: Layout }) {
   useEffect(() => {
     const desk = (id: string) => layoutRef.current.desks.find((d) => d.worker.id === id);
     const free = (a: string): boolean => {
-      if (isGuest(a)) return true;
+      if (isGuest(a) || a === USER_SEAT) return true;
       const d = desk(a), r = roams.get(a);
       if (!d || !r || r.visit || r.errand || r.game || isHeld(a)) return false;
       const st = effectiveState(a, d.worker.state);
@@ -46,8 +46,9 @@ export function GamesLayer({ layout }: { layout: Layout }) {
       idle: () => layoutRef.current.desks.map((d) => d.worker.id).filter((a) => free(a) && effectiveState(a, desk(a)!.worker.state) === "idle"),
       sleeping: () => layoutRef.current.desks.map((d) => d.worker.id).filter((a) => free(a) && effectiveState(a, desk(a)!.worker.state) === "asleep"),
       free,
-      alive: (a, inst) => (isGuest(a) || !!desk(a)) && roams.get(a)?.game?.instance === inst,
+      alive: (a, inst) => a === USER_SEAT || ((isGuest(a) || !!desk(a)) && roams.get(a)?.game?.instance === inst),
       send: (a, spot, inst) => {
+        if (a === USER_SEAT) return; // you walk by yourself
         if (isGuest(a) && spot && !roams.has(a)) { // a guest bot walks in through the game room's door
           const rm = layoutRef.current.zones.find((z) => z.zone.id === "game-room"), x = rm ? rm.x : 0, z = rm ? rm.z + rm.d / 2 + 1 : 0;
           roams.set(a, { x, z, tx: x, tz: z, wait: 0, ry: 0, lying: false, moving: true, mode: "wander", awakeUntil: 0, flash: false, angle: 0, clip: null, icon: "", errand: null, visit: null } satisfies Roam);
@@ -64,13 +65,33 @@ export function GamesLayer({ layout }: { layout: Layout }) {
         const was = r.game?.instance === inst ? r.game : null;
         r.game = { instance: inst, x: spot.x, z: spot.z, face: spot.face, arrived: !!was?.arrived && Math.hypot(r.x - spot.x, r.z - spot.z) < 0.25 };
       },
-      arrived: (a) => roams.get(a)?.game?.arrived === true,
-      name: (a) => { const d = desk(a); return isGuest(a) ? "Guest bot" : short(d ? displayName(d.worker) : a); },
+      arrived: (a) => a === USER_SEAT || roams.get(a)?.game?.arrived === true,
+      name: (a) => { const d = desk(a); return a === USER_SEAT ? "You" : isGuest(a) ? "Guest bot" : short(d ? displayName(d.worker) : a); },
       record: (r: GameResult) => { if (isGuest(r.a) || isGuest(r.b)) return; /* a guest bot is not ranked */ void call("POST", "/api/games/result", r).catch(() => { /* the match was only for show; losing its score is harmless */ }); },
     };
     hub.setEnv(env);
     return () => { hub.stopAll(); hub.setEnv(none); };
   }, []);
+
+  // you at a rally table: the arrows / WASD steer your paddle (captured, so your avatar does not walk off); Esc leaves
+  const playing = hub.userInst()?.sim instanceof RallySim;
+  useEffect(() => {
+    if (!playing) return;
+    const held = new Set<string>();
+    const KEYS = new Set(["arrowleft", "arrowright", "arrowup", "arrowdown", "a", "d", "w", "s"]);
+    const push = () => hub.setControl((held.has("arrowright") || held.has("d") ? 1 : 0) - (held.has("arrowleft") || held.has("a") ? 1 : 0), (held.has("arrowdown") || held.has("s") ? 1 : 0) - (held.has("arrowup") || held.has("w") ? 1 : 0));
+    const down = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement | null)?.closest?.("input,textarea,select")) return;
+      const k = e.key.toLowerCase();
+      if (k === "escape") { const i = hub.userInst(); if (i) hub.stop(i.id); return; }
+      if (!KEYS.has(k)) return;
+      e.preventDefault(); e.stopImmediatePropagation(); held.add(k); push();
+    };
+    const up = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (KEYS.has(k)) { e.stopImmediatePropagation(); held.delete(k); push(); } };
+    const clear = () => { held.clear(); push(); };
+    window.addEventListener("keydown", down, true); window.addEventListener("keyup", up, true); window.addEventListener("blur", clear);
+    return () => { window.removeEventListener("keydown", down, true); window.removeEventListener("keyup", up, true); window.removeEventListener("blur", clear); hub.setControl(0, 0); };
+  }, [playing]);
 
   useFrame((_, dt) => {
     if (room) hub.tick(Math.min(dt, 0.1));
@@ -83,9 +104,9 @@ export function GamesLayer({ layout }: { layout: Layout }) {
     }
   });
 
-  const nameOf = (id: string | null) => { if (isGuest(id)) return "Guest bot"; return nameOf0(id); };
+  const nameOf = (id: string | null) => { if (id === USER_SEAT) return "You"; if (isGuest(id)) return "Guest bot"; return nameOf0(id); };
   const nameOf0 = (id: string | null) => { const d = layout.desks.find((x) => x.worker.id === id); return d ? short(displayName(d.worker)) : "?"; };
-  const colorOf = (id: string | null) => isGuest(id) ? "#94a3b8" : layout.desks.find((x) => x.worker.id === id)?.worker.color ?? "#ffb020";
+  const colorOf = (id: string | null) => id === USER_SEAT ? "#ffd166" : isGuest(id) ? "#94a3b8" : layout.desks.find((x) => x.worker.id === id)?.worker.color ?? "#ffb020";
   void ver;
   return (
     <>
@@ -153,7 +174,7 @@ function Table({ inst, nameOf, colorOf }: { inst: Instance; nameOf: (id: string 
 /** The header chips / rankings popover. Plain DOM next to the canvas (not a drei `Html fullscreen`, which drifted off screen with the camera). */
 export function GamesHud({ layout }: { layout: Layout }) {
   if (!layout.zones.some((z) => z.zone.id === "game-room")) return null;
-  const nameOf = (id: string | null) => { if (isGuest(id)) return "Guest bot"; const d = layout.desks.find((x) => x.worker.id === id); return d ? short(displayName(d.worker)) : "?"; };
+  const nameOf = (id: string | null) => { if (id === USER_SEAT) return "You"; if (isGuest(id)) return "Guest bot"; const d = layout.desks.find((x) => x.worker.id === id); return d ? short(displayName(d.worker)) : "?"; };
   return <GamesOverlay nameOf={nameOf} />;
 }
 

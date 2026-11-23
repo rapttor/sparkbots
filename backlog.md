@@ -253,3 +253,7 @@ lets see how we could improve games:
 - [question] what else we should have in this sponsor room? 
 
 (decision: fixed SparkBots values in code, `#` placeholders until provided; no per-user settings, no background requests)
+
+# temporary storage
+
+when needed feel free to create utilize project/tmp/ (add it to .gitignore) 

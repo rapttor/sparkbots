@@ -591,3 +591,13 @@ button.project-link:hover{background:#ffffff10}
   .wc-compose{grid-template-columns:minmax(0,1fr) auto;align-items:end}
   .wc-compose .wc-btns{width:auto}
 }
+
+/* Z near an agent: numbered Perform picker */
+.perform-pick{position:absolute;z-index:6;bottom:64px;left:50%;transform:translateX(-50%);padding:8px 10px;background:#10151fee;border:1px solid #3a4558;border-radius:12px;color:#e7ecf5;font-size:12px;box-shadow:0 8px 24px #0009}
+.perform-pick .pp-title{margin-bottom:6px;display:flex;gap:6px;align-items:center;justify-content:space-between}
+.perform-pick .pp-x{border:0;background:none;color:inherit;cursor:pointer;font-size:16px;line-height:1}
+.perform-pick .pp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:5px}
+.perform-pick .pp-tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 4px 4px;border:1px solid var(--c);border-radius:10px;background:#0e1424;color:inherit;cursor:pointer}
+.perform-pick .pp-tile:hover{background:#1a2338}
+.perform-pick .pp-i{font-size:20px;line-height:1}.perform-pick .pp-t{font-size:10px}
+.perform-pick kbd{position:absolute;top:2px;left:4px;font-size:9px;opacity:.7}

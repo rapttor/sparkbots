@@ -1,12 +1,16 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { call } from "../../api";
 import { hub, setAuto } from "./instance";
+import { USER_SEAT } from "./hub";
+import { RallySim } from "./rally";
+import { RoundSim, RPS_FACES } from "./rounds";
 import { GAMES, GAME_IDS } from "./registry";
 import type { GameId, RankRow } from "./types";
 import { goTo, spotBehindTable } from "./goto";
 import type { PlacedSlot } from "./tables";
 import { RaceSetup } from "./race/RaceSetup";
 import { useSwallowEvents } from "./swallow";
+import { useNumberKeys } from "../numberKeys";
 
 const CSS = `
 .games-bar{position:absolute;z-index:6;top:46px;left:0;right:0;padding:0 15%;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;pointer-events:none}
@@ -22,6 +26,10 @@ const CSS = `
 .games-pop .gtab-i{font-size:20px}.games-pop .gtab-t{font-size:9px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .games-pop form{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
 .game-score{padding:3px 8px;background:#10151fdd;border:1px solid #3a4558;border-radius:6px;color:#e7ecf5;font-size:12px;white-space:nowrap;text-align:center}
+.games-hud{position:absolute;z-index:6;bottom:46px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 12px;background:#10151fee;border:1px solid #3a4558;border-radius:12px;color:#e7ecf5;font-size:12px;max-width:min(520px,90vw);text-align:center;pointer-events:auto}
+.games-hud .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
+.games-hud .big{font-size:26px;padding:4px 14px;line-height:1.1}
+.games-hud .score{font-size:15px;font-weight:600}
 .game-score-detail{font-size:15px}.game-score-status{color:#ffd166}
 `;
 
@@ -54,7 +62,7 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
   };
   const quick = (mode: "vs" | "auto") => {
     if (form.game === "race") return;
-    const r = hub.quick(form.game, mode);
+    const r = mode === "vs" ? hub.playVs(form.game) : hub.quick(form.game, mode);
     setMsg(r.msg);
     if (r.inst) go(r.inst);
   };
@@ -63,6 +71,7 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
   return (
     <>
       <style>{CSS}</style>
+      <PlayHud />
       <div className="games-bar">
         <button className="games-chip" title="Game room: rankings, start a game" onClick={() => setOpen(!open)}>🎮 Games{hub.instances.length ? ` · ${hub.instances.length}` : ""}</button>
         {hub.instances.map((i) => (
@@ -104,7 +113,7 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
             <select aria-label="Game" value={form.game} onChange={(e) => { setForm({ ...form, game: e.target.value as GameId | "race" }); setMsg(""); }}>{GAME_IDS.map((g) => <option key={g} value={g} disabled={!hub.canOpen(g)}>{GAMES[g].icon} {GAMES[g].name}</option>)}<option value="race">🏎 Race</option></select>
             {form.game !== "race" && <>
               <button type="button" onClick={() => quick("auto")} title="Calls two agents that are not working (sleepers are woken) and lets them play">▶ Autoplay · agent vs agent</button>
-              <button type="button" onClick={() => quick("vs")} title="Calls one agent; a guest bot plays against it">🎮 Play vs agent</button>
+              <button type="button" onClick={() => quick("vs")} title="You take a seat against one agent (pong, air hockey, rock-paper-scissors, dice); the other games can only be watched">🎮 Play vs agent</button>
             </>}
             {hub.instances.length > 0 && form.game !== "race" && <button type="button" onClick={() => hub.stopAll()}>Stop all</button>}
           </div>
@@ -126,5 +135,34 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
         </div>
       )}
     </>
+  );
+}
+
+/** Your controls while you sit at a table: the score, a hint, the buttons of the turn-based games, Leave and Play again. */
+function PlayHud() {
+  const ref = useSwallowEvents();
+  useSyncExternalStore((cb) => hub.subscribe(cb), () => hub.version);
+  const inst = hub.userInst();
+  const turnBased = inst?.phase === "playing" && inst.sim instanceof RoundSim;
+  useNumberKeys(turnBased ? (inst!.game === "rps" ? [0, 1, 2].map((m) => () => hub.throwMove(m)) : [() => hub.throwMove()]) : [], !!turnBased); // 1 2 3 = rock paper scissors, 1 = roll
+  if (!inst) return null;
+  const sim = inst.sim, over = inst.phase === "over", playing = inst.phase === "playing";
+  const opp = inst.seats.find((s) => s.agent !== USER_SEAT)?.agent ?? null;
+  const hint = sim instanceof RallySim ? (inst.game === "pong" ? "Arrows / WASD: ↑↓ sideways, ←→ back and forth (further back hits harder, reaches less)" : "Arrows / WASD move your mallet and hit the puck into the far goal")
+    : inst.phase === "gathering" ? "Waiting for your opponent…" : "";
+  return (
+    <div className="games-hud" ref={ref} role="group" aria-label="Your game">
+      <div className="score">You {inst.line} {opp ? hub.nameOf(opp) : "…"}</div>
+      {inst.detail && <div>{inst.detail}</div>}
+      {playing && sim instanceof RoundSim && (inst.game === "rps"
+        ? <div className="row">{RPS_FACES.map((f, i) => <button key={f} className="big" aria-label={["Rock", "Paper", "Scissors"][i]} title={`${i + 1}`} onClick={() => hub.throwMove(i)}>{f}<sup style={{ fontSize: 10, opacity: 0.6 }}>{i + 1}</sup></button>)}</div>
+        : <div className="row"><button className="big" onClick={() => hub.throwMove()}>🎲 Roll</button></div>)}
+      {over && <div>{inst.winner === null ? "Draw." : inst.seats[inst.winner]?.agent === USER_SEAT ? "🏆 You won!" : "You lost this one."}</div>}
+      {hint && <div className="muted">{hint}</div>}
+      <div className="row">
+        {over && <button onClick={() => hub.again()}>↻ Play again</button>}
+        <button onClick={() => hub.stop(inst.id)}>Leave the table</button>
+      </div>
+    </div>
   );
 }

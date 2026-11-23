@@ -12,6 +12,8 @@ export interface GameSim {
   line(): string;
   /** Optional second line (turn-based games: what was thrown last). */
   detail?(): string;
+  /** You play this seat: the simulation stops steering it and waits for your input (keys / buttons). Only the playable games have it. */
+  setUser?(seat: 0 | 1): void;
 }
 
 export interface GameDef {

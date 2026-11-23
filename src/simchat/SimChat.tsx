@@ -17,6 +17,7 @@ import "./simchat.css";
 
 const useSettings = () => useSyncExternalStore(subscribeSettings, getSettings);
 const AGENT_Y = 2.25, ME_Y = 2.2;
+const OLD_MS = 45_000; // an older line floats above the newest one for this long
 const ME_SHOW_MS = 5000; // your own bubble fades away this long after you said it (the agent's stays until it has more to say)
 
 /** A chat bubble drawn as DOM at a 3D point. Follows `at()` every frame (an agent walks, the hand moves). */
@@ -32,10 +33,19 @@ function Clickable({ className, children }: { className?: string; children: Reac
   return <div ref={ref} className={className} style={{ pointerEvents: "auto", cursor: "pointer" }}>{children}</div>;
 }
 
-function Bubble({ who, line, prev, typed, onContinue, onTopic, onClose }: { who: "bot" | "me"; line: ChatLine; prev?: ChatLine; typed: number; onContinue?: () => void; onTopic?: () => void; onClose?: () => void }) {
+/** Older lines of the same speaker float up above the newest one, smaller and fainter, like words hanging in the air. */
+function Stack({ who, older, children }: { who: "bot" | "me"; older: ChatLine[]; children: React.ReactNode }) {
+  return (
+    <div className="sc-stack">
+      {older.map((l, k) => <div key={l.id} className={`sc-bub old ${who}`} style={{ "--k": older.length - k } as React.CSSProperties}><div className="sc-text">{l.text}</div></div>)}
+      {children}
+    </div>
+  );
+}
+
+function Bubble({ who, line, typed, onContinue, onTopic, onClose }: { who: "bot" | "me"; line: ChatLine; typed: number; onContinue?: () => void; onTopic?: () => void; onClose?: () => void }) {
   return (
     <div className={`sc-bub ${who}`}>
-      {prev && <div className="sc-prev">{prev.text}</div>}
       <div className="sc-text">{line.text.slice(0, typed)}<span className="sc-ghost">{line.text.slice(typed)}</span></div>
       {(onContinue || onTopic || onClose) && (
         <Clickable className="sc-cont">
@@ -108,7 +118,8 @@ function ActiveChat({ id }: { id: string }) {
   if (!cur) return null;
   const lastOf = (who: "bot" | "me"): number => { for (let i = shownIdx; i >= 0; i--) if (lines[i].who === who) return i; return -1; };
   const bi = lastOf("bot"), mi = lastOf("me");
-  const prevOf = (i: number): ChatLine | undefined => { for (let k = i - 1; k >= 0 && k > i - 4; k--) if (lines[k].who === lines[i].who) return lines[k]; return undefined; };
+  // up to three earlier lines of the same speaker (not older than OLD_MS) hang above the newest bubble
+  const olderOf = (i: number): ChatLine[] => { const out: ChatLine[] = []; for (let k = i - 1; k >= 0 && out.length < 3; k--) if (lines[k].who === lines[i].who && Date.now() - lines[k].at < OLD_MS) out.unshift(lines[k]); return out; };
   const agentAt = () => { const r = roams.get(id); return r ? { x: r.x, z: r.z } : null; };
   const meAt = () => { const r = roams.get(id); return player.on ? { x: player.x, z: player.z } : r ? { x: r.x + 1.6, z: r.z + 1.6 } : null; };
   const typedFor = (i: number) => (i === shownIdx && out ? out.typed : lines[i].text.length);
@@ -116,8 +127,8 @@ function ActiveChat({ id }: { id: string }) {
   const pickOpt = (oid: string) => { choose(id, oid); setIdx(shownIdx + 1); setT0(performance.now()); };
   return (
     <>
-      {bi >= 0 && <Anchored at={agentAt} y={AGENT_Y}><Bubble who="bot" line={lines[bi]} prev={prevOf(bi)} typed={typedFor(bi)} onContinue={bi === shownIdx && out?.canContinue ? goNext : undefined} onTopic={() => setPicking((p) => !p)} onClose={close} /></Anchored>}
-      {mi >= 0 && Date.now() - lines[mi].at < ME_SHOW_MS && <Anchored at={meAt} y={ME_Y}><Bubble who="me" line={lines[mi]} prev={prevOf(mi)} typed={typedFor(mi)} /></Anchored>}
+      {bi >= 0 && <Anchored at={agentAt} y={AGENT_Y}><Stack who="bot" older={olderOf(bi)}><Bubble who="bot" line={lines[bi]} typed={typedFor(bi)} onContinue={bi === shownIdx && out?.canContinue ? goNext : undefined} onTopic={() => setPicking((p) => !p)} onClose={close} /></Stack></Anchored>}
+      {mi >= 0 && Date.now() - lines[mi].at < ME_SHOW_MS && <Anchored at={meAt} y={ME_Y}><Stack who="me" older={olderOf(mi).filter((l) => Date.now() - l.at < ME_SHOW_MS * 2)}><Bubble who="me" line={lines[mi]} typed={typedFor(mi)} /></Stack></Anchored>}
       {(picking || out?.showOptions || (out?.done && nextWho === null && options.length === 0)) && (
         <Anchored at={meAt} y={ME_Y - 0.9}>
           <Clickable className="sc-opts3">
