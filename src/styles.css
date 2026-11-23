@@ -608,3 +608,10 @@ button.project-link:hover{background:#ffffff10}
 .ws-blob::after{content:"";position:absolute;left:46%;top:70%;width:7%;height:34%;border-radius:50%;background:rgba(100,220,50,.45);animation:ws-drip 7s ease-in forwards}
 @keyframes ws-life{0%{transform:scale(.3) rotate(var(--r));opacity:0}5%{transform:scale(1) rotate(var(--r));opacity:1}65%{opacity:.8}100%{transform:scale(1.05) rotate(var(--r));opacity:0}}
 @keyframes ws-drip{0%{transform:scaleY(.2)}60%{transform:scaleY(1.6) translateY(30%)}100%{transform:scaleY(2) translateY(80%);opacity:0}}
+
+.kmap-tabs{display:flex;gap:3px;margin:2px 0 5px;border-bottom:1px solid #ffffff22;padding-bottom:4px}
+.kmap-tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:0;padding:2px 2px;border:1px solid transparent;border-radius:6px;background:none;color:#aab4c5;cursor:pointer;font-size:14px;line-height:1.1}
+.kmap-tabs button .kt-l{font-size:9px}
+.kmap-tabs button:hover{background:rgba(255,255,255,.08)}
+.kmap-tabs button.on{border-color:#60a5fa;color:#fff;background:rgba(96,165,250,.14)}
+.keymap .kmap-key{white-space:nowrap}

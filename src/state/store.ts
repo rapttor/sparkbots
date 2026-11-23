@@ -45,6 +45,8 @@ interface OfficeState {
   setViewInfo: (v: Partial<OfficeState["viewInfo"]>) => void;
   showKeymap: boolean;        // the clickable key legend in the 3D view
   setShowKeymap: (v: boolean) => void;
+  introKeys: boolean;         // the legend is shown for the opening shot even when you hid it (not saved)
+  setIntroKeys: (v: boolean) => void;
   managerColor: string;       // the player's pants colour
   avatar: string;             // the owner character (developer | raptor | spark)
   devLook: DevLook;           // developer options (top, logo, glasses, beard, overweight)
@@ -98,6 +100,8 @@ export const useStore = create<OfficeState>((set) => ({
   viewInfo: { mode: "overview", locked: false, hasDefault: false, tags: false, showAll: false, zoomPct: 0, fitDist: 0, maxDist: 0 },
   setViewInfo: (v) => set((s) => ({ viewInfo: { ...s.viewInfo, ...v } })),
   showKeymap: (() => { try { return localStorage.getItem("ao.keymap") !== "0"; } catch { return true; } })(),
+  introKeys: false,
+  setIntroKeys: (introKeys) => set({ introKeys }),
   setShowKeymap: (showKeymap) => { try { localStorage.setItem("ao.keymap", showKeymap ? "1" : "0"); } catch { /* private mode */ } set({ showKeymap }); },
   managerColor: (() => { try { return localStorage.getItem("ao.managerColor") || DEFAULT_JEANS; } catch { return DEFAULT_JEANS; } })(),
   avatar: (() => { try { return localStorage.getItem("ao.avatar") || "developer"; } catch { return "developer"; } })(),

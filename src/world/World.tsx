@@ -636,7 +636,11 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       if (!introPlayed) {
         introPlayed = true;
         let ok = false; try { ok = wantIntro(window.location.search, window.localStorage); } catch { /* private mode */ }
-        if (ok) { intro.current = { t: 0, to: zoomT.current >= OVERVIEW_ZOOM ? DEFAULT_ZOOM_T : zoomT.current }; zoomT.current = 1; }
+        if (ok) {
+          intro.current = { t: 0, to: zoomT.current >= OVERVIEW_ZOOM ? DEFAULT_ZOOM_T : zoomT.current }; zoomT.current = 1;
+          useStore.getState().setIntroKeys(true); // show the keymap while the camera sinks in, and for a few seconds after
+          setTimeout(() => useStore.getState().setIntroKeys(false), (INTRO_S + 7) * 1000);
+        }
       }
     }
     if (intro.current) { // sink towards the owner; any scroll, key or click takes over at once
@@ -1093,6 +1097,7 @@ export default function World({ active = true }: { active?: boolean }) {
   useLive(async () => { try { setSubs(await api.subagents()); } catch { /* ignore */ } }, ["subagents"]);
   const [tags, setTags] = useState(() => lsGet("ao.nametags"));
   const showKeymap = useStore((st) => st.showKeymap);
+  const introKeys = useStore((st) => st.introKeys), setIntroKeys = useStore((st) => st.setIntroKeys);
   const setShowKeymap = useStore((st) => st.setShowKeymap);
   const frame = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -1268,7 +1273,7 @@ export default function World({ active = true }: { active?: boolean }) {
       <FollowBar />
       <GamesHud layout={layout} />
       {meetingOpen && <div style={{ position: "absolute", right: "calc(10px + var(--dock-r, 0px))", bottom: 10, zIndex: 6 }}><MeetingChat onClose={() => setMeetingOpen(false)} /></div>}
-      {showKeymap && <KeymapLegend entries={entries} onHide={() => setShowKeymap(false)} />}
+      {(showKeymap || introKeys) && <KeymapLegend entries={entries} onHide={() => { setIntroKeys(false); if (showKeymap) setShowKeymap(false); }} />}
       {menu && menuWorker && (
         <AgentMenu worker={menuWorker} scene={sceneApi.current ?? { talk() {}, act() {}, look() {}, sendTo() {}, archive: (_id, done) => done() }} onClose={() => setMenu(null)} />
       )}
