@@ -3,6 +3,7 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## 2026-11-23
+- **Support links:** Patreon and Buy me a coffee are live in the sponsor room, the landing page, the README and the press kit; the repository gets a Sponsor button via `.github/FUNDING.yml` [13.9.5].
 - **Water cooler chat:** choosing it from an agent's menu beams the agent and takes you to the water cooler, instead of flying you to his empty desk [13.5.11].
 - **Agent dialog:** new Status tab (numbers, caffeine, trophies, Show as…); Actions is shorter and no longer has Fork; Send to… offers Home, Game room and "out of my sight" first [13.1.45].
 - **Water cooler chat:** Bye and Topic buttons on the agent's bubble, a topic picker (icon buttons) and 18 new threads in three new topics: Office, Dev and Gossip [13.5.10].

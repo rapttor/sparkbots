@@ -40,6 +40,6 @@ Claude Code, Codex and OpenCode store their data in formats that are not public 
 
 ## Where to find it
 
-The code, the issues and the roadmap are at https://github.com/rapttor/sparkbots. Sponsor links are coming. If you try it, I would like to hear what broke and what felt silly in a good way.
+The code, the issues and the roadmap are at https://github.com/rapttor/sparkbots. If you want to support it: https://www.patreon.com/c/rapttor or https://buymeacoffee.com/rapttor. If you try it, I would like to hear what broke and what felt silly in a good way.
 
 *SparkBots is independent and is not affiliated with Anthropic, OpenAI or the OpenCode project.*

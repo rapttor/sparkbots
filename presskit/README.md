@@ -30,7 +30,7 @@ No screenshots are included yet; the shot list says how to take them without exp
 - The logo and the robots are original designs. It is not related to, and must not be combined with, the logos or marks of Anthropic, Claude, OpenAI, Codex or OpenCode. Name those tools in plain text only, as tools SparkBots can read.
 - SparkBots is an independent project and is not affiliated with or endorsed by any of those companies.
 - Facts in the articles come from the repository's README, CLAUDE.md, changelog and task list. Where something is not built yet it says so. Do not add numbers, users, awards or prices that are not in the repository.
-- Sponsor links do not exist yet ("sponsor links coming"). Do not invent one.
+- Support links (use exactly these, do not invent others): Patreon https://www.patreon.com/c/rapttor and Buy Me a Coffee https://buymeacoffee.com/rapttor. GitHub Sponsors is not set up yet: say "coming".
 
 ## Colour palette
 

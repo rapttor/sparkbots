@@ -19,7 +19,7 @@ The on-disk formats of the supported tools are not public APIs, so updates may r
 
 **Availability**
 
-SparkBots is released under the MIT licence at https://github.com/rapttor/sparkbots. Press artwork (logo and the three robots) is available in the press kit. Sponsor links are coming.
+SparkBots is released under the MIT licence at https://github.com/rapttor/sparkbots. Press artwork (logo and the three robots) is available in the press kit. Support: https://www.patreon.com/c/rapttor and https://buymeacoffee.com/rapttor.
 
 **About SparkBots**
 

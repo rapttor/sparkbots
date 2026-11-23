@@ -142,7 +142,13 @@ Issues and pull requests are welcome. Read [`CLAUDE.md`](CLAUDE.md) first: it ho
 
 ## Support the project
 
-SparkBots is free and MIT licensed. Sponsor links are coming; until then, the best support is a star on the repository, a bug report, or telling another person who runs too many agents.
+SparkBots is free and MIT licensed. If it saves you time or makes you smile:
+
+- Patreon: https://www.patreon.com/c/rapttor
+- Buy me a coffee: https://buymeacoffee.com/rapttor
+- GitHub Sponsors: not set up yet (github.com/rapttor)
+
+A star on the repository, a bug report, or telling another person who runs too many agents helps just as much.
 
 ## Licence
 

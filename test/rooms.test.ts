@@ -205,16 +205,17 @@ describe("drone flights", () => {
 });
 
 describe("sponsor room", () => {
-  it("every placeholder is '#' and not openable; no invented addresses", () => {
+  it("only the owner's own pages are filled in; every other card is a '#' placeholder; no invented addresses", () => {
     expect(SPONSOR_LINKS.length).toBeGreaterThan(0);
-    for (const l of SPONSOR_LINKS) { expect(l.href).toBe("#"); expect(isFilled(l.href)).toBe(false); }
-    expect(filledLinks()).toEqual([]);
+    const REAL: Record<string, string> = { patreon: "https://www.patreon.com/c/rapttor", coffee: "https://buymeacoffee.com/rapttor" };
+    for (const l of SPONSOR_LINKS) { expect(l.href).toBe(REAL[l.id] ?? "#"); expect(isFilled(l.href)).toBe(l.id in REAL); }
+    expect(filledLinks().map((l) => l.id)).toEqual(["patreon", "coffee"]);
     expect(isFilled("javascript:alert(1)")).toBe(false);
     expect(isFilled("http://insecure.example.com")).toBe(false);
     expect(isFilled("https://example.com/x")).toBe(true);
     const src = readFileSync("src/shared/sponsor.ts", "utf8");
     expect(src).not.toMatch(/\b0x[0-9a-fA-F]{20,}\b|\bT[1-9A-HJ-NP-Za-km-z]{33}\b/); // no wallet-like strings
-    expect(src).not.toMatch(/https?:\/\/(?!\.)[\w.-]+\.\w{2,}/); // no urls at all until provided
+    expect((src.match(/https?:\/\/[\w.-]+\.\w{2,}[^\s"]*/g) ?? []).sort()).toEqual(["https://buymeacoffee.com/rapttor", "https://www.patreon.com/c/rapttor"]); // only the owner's two pages
   });
   it("idle bubbles are off by default and capped", () => {
     const s = { lastAt: 0, shown: 0 };

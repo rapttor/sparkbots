@@ -57,7 +57,7 @@ export function SponsorRoom({ layout }: { layout: Layout }) {
       {SPONSOR_LINKS.map((l, i) => {
         const ok = isFilled(l.href);
         return (
-          <group key={l.id} position={[sz.x + (i - 1) * 2.5, 0.8, sz.z - 1.0]}
+          <group key={l.id} position={[sz.x + (i - 1.5) * 2, 0.8, sz.z - 1.0]}
             onClick={(e) => { e.stopPropagation(); openSponsor(l); }} {...(ok ? pointer : {})}>
             <mesh position={[0, 0.2, 0]}><boxGeometry args={[0.7, 0.4, 0.1]} /><meshStandardMaterial color={ok ? "#fbbf24" : "#6b7280"} /></mesh>
             <Html position={[0, 0.9 + (i % 2) * 0.5, 0]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}><div style={{ ...bubble, opacity: ok ? 1 : 0.6 }}>{l.icon} {l.label}{ok ? "" : " (soon)"}</div></Html>
