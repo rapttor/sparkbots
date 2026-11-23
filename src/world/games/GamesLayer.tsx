@@ -36,11 +36,14 @@ export function GamesLayer({ layout }: { layout: Layout }) {
     const desk = (id: string) => layoutRef.current.desks.find((d) => d.worker.id === id);
     const free = (a: string): boolean => {
       const d = desk(a), r = roams.get(a);
-      return !!d && !!r && r.mode === "wander" && !r.lying && !r.visit && !r.errand && !r.game && !isHeld(a) && effectiveState(a, d.worker.state) === "idle";
+      if (!d || !r || r.visit || r.errand || r.game || isHeld(a)) return false;
+      const st = effectiveState(a, d.worker.state);
+      return (st === "idle" && r.mode === "wander" && !r.lying) || st === "asleep"; // a sleeper is woken when it is sent to a table
     };
     const env: HubEnv = {
       rng: mulberry32((Math.random() * 2 ** 32) >>> 0),
-      idle: () => layoutRef.current.desks.map((d) => d.worker.id).filter(free),
+      idle: () => layoutRef.current.desks.map((d) => d.worker.id).filter((a) => free(a) && effectiveState(a, desk(a)!.worker.state) === "idle"),
+      sleeping: () => layoutRef.current.desks.map((d) => d.worker.id).filter((a) => free(a) && effectiveState(a, desk(a)!.worker.state) === "asleep"),
       free,
       alive: (a, inst) => !!desk(a) && roams.get(a)?.game?.instance === inst,
       send: (a, spot, inst) => {
@@ -51,6 +54,7 @@ export function GamesLayer({ layout }: { layout: Layout }) {
           return;
         }
         if (r.visit) { releaseVisit(a, r.visit.poi, r.visit.slot); r.visit = null; r.clip = null; }
+        r.awakeUntil = performance.now() + 10 * 60_000; // a sleeper stays up while it plays (refreshed on every call; real work still wins)
         const was = r.game?.instance === inst ? r.game : null;
         r.game = { instance: inst, x: spot.x, z: spot.z, face: spot.face, arrived: !!was?.arrived && Math.hypot(r.x - spot.x, r.z - spot.z) < 0.25 };
       },

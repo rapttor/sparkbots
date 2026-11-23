@@ -8,6 +8,8 @@ export interface HubEnv {
   rng: Rng;
   /** Agents that may be recruited right now: idle, wandering, on no trip, not held by a menu. */
   idle(): string[];
+  /** Sleeping agents that may be woken for a game you start yourself (never for automatic ones). */
+  sleeping?(): string[];
   /** One agent: may it be recruited? */
   free(agent: string): boolean;
   /** Is the agent still on its way to / at this table (false once real work pulled it back or it disappeared)? */
@@ -65,6 +67,11 @@ export class GameHub {
   version = 0;
   /** Idle agents that could join a game right now (for the "start a game" form). */
   candidates(): string[] { return this.env.idle().filter((a) => !this.inGame(a)); }
+  /** An agent for a game you start without picking anyone: a random idle one, else a random sleeper (it is woken). Null when nobody is free. */
+  anyAgent(): string | null {
+    const pool = this.candidates().length ? this.candidates() : (this.env.sleeping?.() ?? []).filter((a) => !this.inGame(a));
+    return pool.length ? pool[Math.floor(this.env.rng() * pool.length)]! : null;
+  }
   nameOf(agent: string): string { return this.env.name(agent); }
   private changed(): void { this.version++; for (const l of this.listeners) l(); }
 

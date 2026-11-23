@@ -41,7 +41,7 @@ export function GamesOverlay({ nameOf }: { nameOf: (id: string | null) => string
 
   const start = () => {
     if (form.game === "race") return;
-    const ids = [form.a || cand[0], form.b].filter((x): x is string => !!x);
+    const ids = [form.a || hub.anyAgent(), form.b].filter((x): x is string => !!x);
     if (!ids.length) { setMsg("No idle agent is free right now."); return; }
     const inst = hub.open(form.game, ids, true);
     setMsg(inst ? "" : "No free table for that game (or an agent is busy).");

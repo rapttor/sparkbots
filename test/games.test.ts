@@ -213,3 +213,16 @@ describe("game rankings in SQLite", () => {
     expect(parseGameResult(undefined)).toBeNull();
   });
 });
+
+describe("game hub: starting a game when nobody is idle", () => {
+  it("picks a random sleeper when no agent is idle, an idle one when there is one", () => {
+    const sleepers = ["s1", "s2", "s3"];
+    const env: HubEnv = { rng: mulberry32(3), idle: () => [], sleeping: () => sleepers, free: () => true, alive: () => true, send: () => {}, arrived: () => false, name: (a) => a, record: () => {} };
+    const hub = new GameHub(env);
+    expect(sleepers).toContain(hub.anyAgent()!);
+    env.idle = () => ["i1"];
+    expect(hub.anyAgent()).toBe("i1");
+    env.idle = () => []; env.sleeping = () => [];
+    expect(hub.anyAgent()).toBeNull();
+  });
+});
