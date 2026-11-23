@@ -12,6 +12,7 @@ import { LOGO_EMOJIS, TOP_STYLES, type TopStyle } from "../world/devLook";
 import { DEFAULT_FILTERS } from "./teamFilters";
 import type { OpenCodeModel } from "../shared/opencode";
 import { getShowDesks, setShowDesks } from "../state/deskPref";
+import { soundOn, setSound } from "../world/sfx";
 import { getSettings as getSimChat, setSettings as setSimChat, type ChatAdvance, type ChatFilter, type ChatSpeed } from "../simchat/settings";
 
 type NumKey = "historyDays" | "idleThresholdSec" | "asleepAfterMin" | "doneWaveSec" | "errorSec";
@@ -243,6 +244,9 @@ export function Settings() {
   const cfgSaved = <Status m={cfgMsg} />;
 
   const opts: Opt[] = [
+    { id: "sound", section: "3D office", label: "Sound effects", words: "sound audio scream screech noise mute volume race",
+      desc: "Small sounds made in your browser (screams and tyre screech in the race). Nothing is downloaded. Off silences them.",
+      body: <label><input type="checkbox" checked={soundOn()} onChange={(e) => { setSound(e.target.checked); bump((n) => n + 1); }} /> Play sound effects</label> },
     { id: "show-desks", section: "3D office", label: "Desks", words: "desk furniture table cubicle laptop floating hide show",
       desc: "Off (default): each agent sits in a glass cubicle with a laptop floating in it. On: the desk furniture is drawn under the laptop. Desks are walk-through either way.",
       body: <label><input type="checkbox" checked={getShowDesks()} onChange={(e) => { setShowDesks(e.target.checked); bump((n) => n + 1); }} /> Show desks</label> },

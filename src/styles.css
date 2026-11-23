@@ -601,3 +601,10 @@ button.project-link:hover{background:#ffffff10}
 .perform-pick .pp-tile:hover{background:#1a2338}
 .perform-pick .pp-i{font-size:20px;line-height:1}.perform-pick .pp-t{font-size:10px}
 .perform-pick kbd{position:absolute;top:2px;left:4px;font-size:9px;opacity:.7}
+
+/* race: coolant splashes on the windshield (driver view) */
+.ws-layer{position:absolute;inset:0;pointer-events:none;z-index:4;overflow:hidden}
+.ws-blob{position:absolute;margin:-30px 0 0 -30px;border-radius:52% 48% 55% 45%;background:radial-gradient(circle at 42% 38%,rgba(140,255,70,.6),rgba(80,210,45,.38) 52%,rgba(60,170,40,0) 72%);box-shadow:0 0 18px rgba(110,230,60,.25);animation:ws-life 7s ease-in forwards;transform-origin:50% 30%}
+.ws-blob::after{content:"";position:absolute;left:46%;top:70%;width:7%;height:34%;border-radius:50%;background:rgba(100,220,50,.45);animation:ws-drip 7s ease-in forwards}
+@keyframes ws-life{0%{transform:scale(.3) rotate(var(--r));opacity:0}5%{transform:scale(1) rotate(var(--r));opacity:1}65%{opacity:.8}100%{transform:scale(1.05) rotate(var(--r));opacity:0}}
+@keyframes ws-drip{0%{transform:scaleY(.2)}60%{transform:scaleY(1.6) translateY(30%)}100%{transform:scaleY(2) translateY(80%);opacity:0}}

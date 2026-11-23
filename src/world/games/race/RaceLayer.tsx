@@ -13,6 +13,8 @@ import { slideOf, speedOf } from "./car";
 import { AGENT_SPEED, CAR_KINDS, CAR_TYPES, type CarKind, type Part } from "./carTypes";
 import { LAPS, RaceHub, type RaceEnv } from "./hub";
 import { raceCam } from "./cam";
+import { playScream, playScreech, playSplat } from "../../sfx";
+import { useWindshield } from "./glassSplats";
 import { sendView } from "../../viewBus";
 import { buildTrack, pointAt, trackInput, type Track } from "./track";
 import { goTo } from "../goto";
@@ -123,7 +125,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
     raceCam.active = true; camReady.current = false;
     sendView({ t: "mode", mode: "walk" }); // the 3D scene (not the label map) must be showing
     const typing = (e: KeyboardEvent) => { const el = e.target as HTMLElement | null; return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable); };
-    const down = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (!DRIVE_KEYS.has(k) || typing(e) || e.metaKey || e.ctrlKey || e.altKey) return; e.preventDefault(); e.stopImmediatePropagation(); if (k === "c") { if (!e.repeat) fpv = !fpv; return; } if (k === "escape") { raceHub.stop(); return; } if (k === "e" || k === "shift") { if (!e.repeat && raceHub.userId) raceHub.sim?.useItem(raceHub.userId); return; } keys.current.add(k); };
+    const down = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (!DRIVE_KEYS.has(k) || typing(e) || e.metaKey || e.ctrlKey || e.altKey) return; e.preventDefault(); e.stopImmediatePropagation(); if (k === "c") { if (!e.repeat) fpv = !fpv; raceCam.fpv = fpv; return; } if (k === "escape") { raceHub.stop(); return; } if (k === "e" || k === "shift") { if (!e.repeat && raceHub.userId) raceHub.sim?.useItem(raceHub.userId); return; } keys.current.add(k); };
     const up = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (DRIVE_KEYS.has(k)) { keys.current.delete(k); } };
     const clear = () => keys.current.clear();
     window.addEventListener("keydown", down, true); window.addEventListener("keyup", up, true); window.addEventListener("blur", clear);
@@ -167,6 +169,8 @@ export function RaceLayer({ layout }: { layout: Layout }) {
       camera.position.set(camera.position.x + (goal[0]! - camera.position.x) * k, camera.position.y + (goal[1]! - camera.position.y) * k, camera.position.z + (goal[2]! - camera.position.z) * k);
       camera.lookAt(car.x + fx * (fpv ? 12 : 5), fpv ? sp.fpvUp * 0.8 : sp.eye * 0.5, car.z + fz * (fpv ? 12 : 5));
     }
+    // tyres screech while you drift or slide hard
+    if (me && raceCam.active && (me.car.drifting || Math.abs(slideOf(me.car)) > 4) && speedOf(me.car) > 8) playScreech(Math.min(1, Math.abs(slideOf(me.car)) / 12 + 0.3));
     // carmageddon: your car runs agents over (visual only: they flatten for a moment, burst into bits, reappear at their desk and run off)
     if (me && sim.carmageddon && speedOf(me.car) > 2.5) {
       const ids: string[] = [], now = performance.now(), hr = sim.spec.hitRadius;
@@ -177,6 +181,7 @@ export function RaceLayer({ layout }: { layout: Layout }) {
         ro.squash = now + 3500; ro.flee = null; ids.push(id);
         splash(ro.x, ro.z, layoutRef.current.desks.find((d) => d.worker.id === id)?.worker.color ?? "#ffb020");
         raceHub.squash();
+        playScream(); playSplat(); playScreech(0.9); useWindshield.getState().hit(3); // the scream, the thump, the tyres, and coolant on the glass (driver view)
       }
       if (ids.length) sendView({ t: "animate", ids });
     }

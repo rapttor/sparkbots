@@ -27,6 +27,7 @@ import { ZonesLayer } from "./zonelayer";
 import { lunchAll, followerList, insideRoom, meeting, MAX_SEATS, setFollowers, startErrand, setPois, rebuildRoamGrid } from "./roam";
 import { useShowDesks } from "../state/deskPref";
 import { PerformPicker, usePerform } from "./PerformPicker";
+import { Windshield } from "./games/race/Windshield";
 import { managerAt, roams, setLook, clearLook, player as playerState, pushPlayerOut, holdAgent, releaseAgent } from "./roam";
 import { tarsParts } from "./tars";
 import { ACTIONS } from "./actions";
@@ -1238,6 +1239,7 @@ export default function World({ active = true }: { active?: boolean }) {
       {menu && menuWorker && (
         <AgentMenu worker={menuWorker} scene={sceneApi.current ?? { talk() {}, act() {}, look() {}, sendTo() {}, archive: (_id, done) => done() }} onClose={() => setMenu(null)} />
       )}
+      <Windshield />
       <PerformPicker act={(key, id) => sceneApi.current?.act(key, id)} />
       {nearby && (
         <div style={{ ...box, left: "50%", bottom: 24, transform: "translateX(-50%)", fontSize: 14 }}>
