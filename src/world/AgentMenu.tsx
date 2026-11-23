@@ -13,6 +13,7 @@ import { hub as gameHub } from "./games/instance";
 import { playChoices, startGame } from "./games/playWhileLimited";
 import { rateLimitedAt } from "./rateLimit";
 import { requestCoffee } from "./servicebots";
+import { gatherAtCooler } from "./cooler";
 import { SimChatUnread } from "../simchat/SimChat";
 import { useSimChat } from "../simchat/store";
 import { getSettings } from "../simchat/settings";
@@ -183,7 +184,7 @@ export function AgentMenu({ worker: w, scene, onClose }: { worker: Worker; scene
       )}
       </> : <>
       {item("💬 Talk", () => { openChat(w.id); onClose(); }, "E")}
-      {getSettings().enabled && <button className="am-item" onClick={() => { useSimChat.getState().open(w.id); useStore.getState().focusAgent(w.id); onClose(); }}><span>🫧 Water cooler chat<SimChatUnread id={w.id} /></span></button>}
+      {getSettings().enabled && <button className="am-item" onClick={() => { gatherAtCooler(w.id); useSimChat.getState().open(w.id); onClose(); }}><span>🫧 Water cooler chat<SimChatUnread id={w.id} /></span></button>}
       {item("☕ Bring a coffee", () => { requestCoffee(w.id); onClose(); })}
       {item(followers.includes(w.id) ? "👥 Stop following" : "👥 Follow me", () => { toggleFollower(w.id); onClose(); }, "F")}
       {ACTIONS.filter((a) => a.kind === "real" && a.key !== "y").map((a) => item(`${a.label} …`, () => { scene.act(a.key, w.id); onClose(); }, a.key.toUpperCase(), a.can?.(w) ?? undefined))}

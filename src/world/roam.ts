@@ -134,6 +134,8 @@ export function poiChoices(): { id: string; label: string }[] {
   return out;
 }
 export const poiCount = () => pois.length;
+/** One spot by its id ("water-cooler:chat"), or undefined when that room is not in the layout. */
+export const poiById = (id: string): PlacedPoi | undefined => allPois.find((p) => p.id === id);
 
 /** Where robot number `slot` stands at a POI: the first one on the spot, the others in a ring around it. */
 export function slotPos(p: PlacedPoi, slot: number): { x: number; z: number } {
