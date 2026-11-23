@@ -146,6 +146,7 @@ SparkBots is free and MIT licensed. If it saves you time or makes you smile:
 
 - Patreon: https://www.patreon.com/c/rapttor
 - Buy me a coffee: https://buymeacoffee.com/rapttor
+- Ethereum (ETH, mainnet only): `0xeF4590e1c22Cabade5300aFa469f9dDEBA1275D2`
 - GitHub Sponsors: not set up yet (github.com/rapttor)
 
 A star on the repository, a bug report, or telling another person who runs too many agents helps just as much.

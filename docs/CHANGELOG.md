@@ -3,6 +3,7 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## 2026-11-23
+- **Support:** an Ethereum (mainnet) tip address in the sponsor room, the landing page and the README; clicking copies it [13.9.6].
 - **Games you can play:** Play vs agent seats you at the table for pong, air hockey, rock-paper-scissors and dice, with your own controls and results saved as "You" [13.7.16].
 - **Keys:** Z near an agent opens a numbered Perform picker; popups (weapon pick, reception menu, games) answer to number keys; the weapon pick closes when you leave the anger room [13.1.46].
 - **Water cooler chat:** earlier lines float above the newest bubble like a stack of balloons [13.5.12].

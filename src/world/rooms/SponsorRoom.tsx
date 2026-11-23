@@ -3,25 +3,27 @@ import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import type { Layout } from "../layout";
 import { roams } from "../roam";
-import { SPONSOR_LINES, SPONSOR_LINKS, filledLinks, isFilled, type SponsorLink } from "../../shared/sponsor";
+import { SPONSOR_LINES, SPONSOR_LINKS, filledLinks, isFilled, isUsable, type SponsorLink } from "../../shared/sponsor";
 import { SPONSOR_BUBBLE_FLAG, mayShow, type SponsorBubbleState } from "./sponsorBubbles";
 import { loadFlag } from "./fire";
 import { bubble, btn, btnOff, panel, pointer, Stop } from "./ui";
 
 /** Open a sponsor link. Only ever called from a click, and only for a real https address ("#" placeholders do nothing). */
 export function openSponsor(l: SponsorLink): boolean {
+  if (l.address && isUsable(l)) { try { void navigator.clipboard?.writeText(l.address); } catch { /* clipboard blocked: nothing happens */ } return true; } // a receive address is copied, never opened
   if (!isFilled(l.href)) return false;
   window.open(l.href, "_blank", "noopener,noreferrer");
   return true;
 }
 
 function Cards() {
+  const [copied, setCopied] = useState("");
   return (
     <div style={panel}>
       <div style={{ fontWeight: 700, marginBottom: 4 }}>💛 Support SparkBots</div>
       {SPONSOR_LINKS.map((l) => {
-        const ok = isFilled(l.href);
-        return <button key={l.id} style={ok ? btn : btnOff} disabled={!ok} title={ok ? l.note : "Coming soon"} onClick={() => openSponsor(l)}>{l.icon} {l.label}{ok ? "" : " (soon)"}</button>;
+        const ok = isUsable(l);
+        return <button key={l.id} style={ok ? btn : btnOff} disabled={!ok} title={ok ? l.note : "Coming soon"} onClick={() => { if (openSponsor(l) && l.address) { setCopied(l.id); setTimeout(() => setCopied(""), 2500); } }}>{l.icon} {l.label}{ok ? (copied === l.id ? " · address copied ✓" : l.address ? " · copy address" : "") : " (soon)"}</button>;
       })}
     </div>
   );
@@ -55,7 +57,7 @@ export function SponsorRoom({ layout }: { layout: Layout }) {
   return (
     <>
       {SPONSOR_LINKS.map((l, i) => {
-        const ok = isFilled(l.href);
+        const ok = isUsable(l);
         return (
           <group key={l.id} position={[sz.x + (i - 1.5) * 2, 0.8, sz.z - 1.0]}
             onClick={(e) => { e.stopPropagation(); openSponsor(l); }} {...(ok ? pointer : {})}>

@@ -5,7 +5,7 @@ import { FIRE_MAX_GAP_S, FIRE_MIN_GAP_S, initFire, tickFire } from "../src/world
 import { WEAPONS, ITEMS, SESSION_S, MAX_ALIVE, WAVE_GAP_MIN_MS, WAVE_MAX, WAVE_MIN, COLS, ROWS, DEBRIS_CAP, DebrisPool, HIT_AT, COMBO_MS, REST_PITCH, WAVE_GAP_MAX_MS, clampToRoom, comboMult, comboOf, fxScale, hitRadius, overReception, playerPitch, smashMany, swingTargets, isOver, smash, slotPos, startRun, startSession, stopRun, swingPose, tickWaves, timeLeft, hitShake } from "../src/world/rooms/anger";
 import { BLOW_S, PUMP_LIMIT_S, pumpPhase, pumpScale, boredLine, BORED_LINES } from "../src/world/rooms/gymLogic";
 import { FLIGHT_S, flight } from "../src/world/rooms/drones";
-import { SPONSOR_LINKS, filledLinks, isFilled } from "../src/shared/sponsor";
+import { SPONSOR_LINKS, filledLinks, isAddress, isFilled, isUsable } from "../src/shared/sponsor";
 import { MAX_PER_SESSION, MIN_GAP_MS, mayShow } from "../src/world/rooms/sponsorBubbles";
 import { ZONES } from "../src/world/zones";
 
@@ -210,11 +210,16 @@ describe("sponsor room", () => {
     const REAL: Record<string, string> = { patreon: "https://www.patreon.com/c/rapttor", coffee: "https://buymeacoffee.com/rapttor" };
     for (const l of SPONSOR_LINKS) { expect(l.href).toBe(REAL[l.id] ?? "#"); expect(isFilled(l.href)).toBe(l.id in REAL); }
     expect(filledLinks().map((l) => l.id)).toEqual(["patreon", "coffee"]);
+    const eth = SPONSOR_LINKS.find((l) => l.id === "eth")!;
+    expect(eth.address).toBe("0xeF4590e1c22Cabade5300aFa469f9dDEBA1275D2"); // the owner's own receive address, exactly as given
+    expect(isAddress(eth.address)).toBe(true); expect(isUsable(eth)).toBe(true);
+    expect(isAddress("0x123")).toBe(false); expect(isAddress("0xZZ4590e1c22Cabade5300aFa469f9dDEBA1275D2")).toBe(false);
     expect(isFilled("javascript:alert(1)")).toBe(false);
     expect(isFilled("http://insecure.example.com")).toBe(false);
     expect(isFilled("https://example.com/x")).toBe(true);
     const src = readFileSync("src/shared/sponsor.ts", "utf8");
-    expect(src).not.toMatch(/\b0x[0-9a-fA-F]{20,}\b|\bT[1-9A-HJ-NP-Za-km-z]{33}\b/); // no wallet-like strings
+    expect((src.match(/\b0x[0-9a-fA-F]{20,}\b/g) ?? [])).toEqual(["0xeF4590e1c22Cabade5300aFa469f9dDEBA1275D2"]); // only the owner's address
+    expect(src).not.toMatch(/\bT[1-9A-HJ-NP-Za-km-z]{33}\b/); // no other wallet-like strings
     expect((src.match(/https?:\/\/[\w.-]+\.\w{2,}[^\s"]*/g) ?? []).sort()).toEqual(["https://buymeacoffee.com/rapttor", "https://www.patreon.com/c/rapttor"]); // only the owner's two pages
   });
   it("idle bubbles are off by default and capped", () => {

@@ -303,16 +303,24 @@ pnpm start --open</pre>
 var SPONSORS = [
   { label: "Patreon", icon: "🧡", href: "https://www.patreon.com/c/rapttor", note: "Support SparkBots monthly" },
   { label: "Buy me a coffee", icon: "☕", href: "https://buymeacoffee.com/rapttor", note: "One-time thank-you" },
-  { label: "USDT", icon: "🪙", href: "#", note: "One-time tip (address coming soon)" },
+  { label: "Ethereum", icon: "Ξ", href: "#", address: "0xeF4590e1c22Cabade5300aFa469f9dDEBA1275D2", note: "Tip in ETH on Ethereum mainnet only." },
   { label: "GitHub Sponsors", icon: "⭐", href: "#", note: "Star or sponsor the repo" }
 ];
 (function () {
   var box = document.getElementById("sponsors");
   SPONSORS.forEach(function (s) {
-    var ok = /^https:\/\/[^\s\/]+\.[^\s]+$/i.test(s.href);
+    var isAddr = /^0x[0-9a-fA-F]{40}$/.test(s.address || "");
+    var ok = /^https:\/\/[^\s\/]+\.[^\s]+$/i.test(s.href) || isAddr;
     var c = document.createElement("div"); c.className = "card";
     c.innerHTML = '<div class="ico">' + s.icon + '</div><h3></h3><p></p>';
     c.querySelector("h3").textContent = s.label; c.querySelector("p").textContent = s.note;
+    if (isAddr) { // a receive address: shown in full, copied on click, never opened or sent anywhere
+      var code = document.createElement("code"); code.textContent = s.address; code.style.cssText = "display:block;word-break:break-all;font-size:.78rem;margin:8px 0";
+      c.appendChild(code);
+      var cb = document.createElement("button"); cb.type = "button"; cb.className = "btn primary"; cb.textContent = "Copy address";
+      cb.addEventListener("click", function () { var done = function () { cb.textContent = "Copied"; setTimeout(function () { cb.textContent = "Copy address"; }, 1500); }; if (navigator.clipboard) navigator.clipboard.writeText(s.address).then(done, done); else done(); });
+      c.appendChild(cb); box.appendChild(c); return;
+    }
     var a = document.createElement("a"); a.className = "btn" + (ok ? " primary" : "");
     a.textContent = ok ? "Open" : "Coming soon";
     if (ok) { a.href = s.href; a.rel = "noopener"; a.target = "_blank"; } else a.setAttribute("aria-disabled", "true");
