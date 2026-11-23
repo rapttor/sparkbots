@@ -30,6 +30,8 @@ export interface CarSpec {
   radius: number;     // keeps the body inside the road edge
   hitRadius: number;  // how close an agent must be to get run over
   camBack: number; camUp: number; eye: number; // chase camera distance/height, driver's-seat eye height
+  /** Driver view (C): the camera sits on the very front of the vehicle, `fpvAhead` m in front of the centre and `fpvUp` m high, so no part of the body is in the way. */
+  fpvAhead: number; fpvUp: number;
   parts: Part[];
 }
 
@@ -39,7 +41,7 @@ const wheel = (x: number, z: number, r: number, w: number): Part => ({ shape: "c
 export const CAR_TYPES: Record<CarKind, CarSpec> = {
   race: {
     kind: "race", name: "Race car", icon: "🏎", maxSpeed: 40, accel: 26, brake: 45, steer: 2.4, grip: 9, cornerG: 32, radius: 0.8, hitRadius: 1.3,
-    camBack: 9, camUp: 3.4, eye: 0.8,
+    camBack: 9, camUp: 3.4, eye: 0.8, fpvAhead: 2.6, fpvUp: 0.8,
     parts: [
       { shape: "box", size: [2.6, 0.3, 0.8], at: [0, 0.38, 0], color: "team" },
       { shape: "cone", size: [0.4, 1.1, 0], at: [1.9, 0.36, 0], axis: "x", tip: 1, color: "team" },
@@ -57,7 +59,7 @@ export const CAR_TYPES: Record<CarKind, CarSpec> = {
   },
   kart: {
     kind: "kart", name: "Rocket kart", icon: "🛺", maxSpeed: 32, accel: 30, brake: 40, steer: 2.5, grip: 8, cornerG: 26, radius: 0.9, hitRadius: 1.4,
-    camBack: 9.5, camUp: 3.8, eye: 1.5,
+    camBack: 9.5, camUp: 3.8, eye: 1.5, fpvAhead: 1.6, fpvUp: 1.25,
     parts: [
       { shape: "box", size: [2.2, 0.18, 1.3], at: [0, 0.36, 0], color: "team" },
       { shape: "box", size: [0.3, 0.24, 1.6], at: [1.25, 0.34, 0], color: "team" },
@@ -78,7 +80,7 @@ export const CAR_TYPES: Record<CarKind, CarSpec> = {
   },
   monster: {
     kind: "monster", name: "Monster truck", icon: "🛻", maxSpeed: AGENT_SPEED * 2, accel: 8, brake: 16, steer: 1.9, grip: 7, cornerG: 11, radius: 1.2, hitRadius: 2.0,
-    camBack: 10.5, camUp: 5, eye: 2.7,
+    camBack: 10.5, camUp: 5, eye: 2.7, fpvAhead: 2.2, fpvUp: 2.7,
     parts: [
       { shape: "box", size: [3.0, 0.35, 1.2], at: [0, 1.0, 0], color: DARK },
       { shape: "box", size: [2.7, 0.8, 1.9], at: [0, 1.6, 0], color: "team" },

@@ -503,3 +503,17 @@ describe("track-side drivers", () => {
     expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThan(1.5);
   });
 });
+
+describe("driver view camera", () => {
+  it("sits on the very front of every vehicle, above anything near the nose", () => {
+    for (const kind of Object.keys(CAR_TYPES) as (keyof typeof CAR_TYPES)[]) {
+      const sp = CAR_TYPES[kind];
+      for (const p of sp.parts) {
+        const front = p.shape === "box" ? p.at[0] + p.size[0] / 2 : p.shape === "cone" && p.axis === "x" ? p.at[0] + p.size[1] / 2 : p.shape === "cyl" && p.axis === "z" ? p.at[0] + p.size[0] : p.at[0] + p.size[0];
+        const top = p.shape === "box" ? p.at[1] + p.size[1] / 2 : p.at[1] + p.size[0];
+        if (p.at[0] > -0.5 || kind === "monster") expect(front, `${kind} ${p.shape}`).toBeLessThanOrEqual(sp.fpvAhead + 0.01); // nothing sticks out in front of the camera
+        if (front > sp.fpvAhead - 1.2) expect(top, `${kind} ${p.shape} near the nose`).toBeLessThanOrEqual(sp.fpvUp + 0.01); // and nothing near the nose is above it
+      }
+    }
+  });
+});

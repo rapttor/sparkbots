@@ -162,10 +162,10 @@ export function RaceLayer({ layout }: { layout: Layout }) {
       if (!camReady.current) { camYaw.current = car.h; camReady.current = true; }
       camYaw.current += angleDiff(car.h - camYaw.current) * (1 - Math.exp(-(fpv ? 14 : 4) * dt));
       const fx = Math.cos(camYaw.current), fz = Math.sin(camYaw.current);
-      const goal = fpv ? [car.x + fx * 0.4, sp.eye, car.z + fz * 0.4] : [car.x - fx * sp.camBack, sp.camUp, car.z - fz * sp.camBack];
-      const k = 1 - Math.exp(-7 * dt);
+      const goal = fpv ? [car.x + fx * sp.fpvAhead, sp.fpvUp, car.z + fz * sp.fpvAhead] : [car.x - fx * sp.camBack, sp.camUp, car.z - fz * sp.camBack];
+      const k = 1 - Math.exp(-(fpv ? 40 : 7) * dt); // the driver view sticks to the nose: a lazy camera would fall back into the body at speed
       camera.position.set(camera.position.x + (goal[0]! - camera.position.x) * k, camera.position.y + (goal[1]! - camera.position.y) * k, camera.position.z + (goal[2]! - camera.position.z) * k);
-      camera.lookAt(car.x + fx * (fpv ? 12 : 5), fpv ? sp.eye * 0.8 : sp.eye * 0.5, car.z + fz * (fpv ? 12 : 5));
+      camera.lookAt(car.x + fx * (fpv ? 12 : 5), fpv ? sp.fpvUp * 0.8 : sp.eye * 0.5, car.z + fz * (fpv ? 12 : 5));
     }
     // carmageddon: your car runs agents over (visual only: they flatten for a moment, burst into bits, reappear at their desk and run off)
     if (me && sim.carmageddon && speedOf(me.car) > 2.5) {

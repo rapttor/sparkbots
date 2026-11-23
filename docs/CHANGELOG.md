@@ -3,6 +3,7 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## 2026-11-23
+- **Race:** the driver view (C) puts the camera on the front of the vehicle, so the monster truck's body no longer blocks the road [13.7.18].
 - **Games:** Play vs agent now works for every game: billiards (aim with the arrows, power, Space shoots) and basketball (stop the meter with Space) join pong, hockey, rock-paper-scissors and dice [13.7.17].
 - **Support:** an Ethereum (mainnet) tip address in the sponsor room, the landing page and the README; clicking copies it [13.9.6].
 - **Games you can play:** Play vs agent seats you at the table for pong, air hockey, rock-paper-scissors and dice, with your own controls and results saved as "You" [13.7.16].
