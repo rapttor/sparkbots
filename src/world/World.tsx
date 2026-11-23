@@ -30,7 +30,7 @@ import { avatarScreen } from "./occlusion";
 import { INTRO_S, introZoom, wantIntro } from "./intro";
 import { PerformPicker, usePerform } from "./PerformPicker";
 import { Windshield } from "./games/race/Windshield";
-import { managerAt, roams, setLook, clearLook, player as playerState, pushPlayerOut, holdAgent, releaseAgent } from "./roam";
+import { handZone, managerAt, roams, setLook, clearLook, player as playerState, pushPlayerOut, holdAgent, releaseAgent } from "./roam";
 import { tarsParts } from "./tars";
 import { ACTIONS } from "./actions";
 import { Minibots } from "./minibots";
@@ -64,7 +64,7 @@ import { SimChatBubbles } from "../simchat/SimChat";
 import { NameTags } from "./nametags";
 import { dummy, modeOf, poseBot, stepRoam, writeStatic, type Meshes } from "./bots";
 import { onView } from "./viewBus";
-import { nearestBot, selectWorker, typing } from "./sceneUtils";
+import { botInCircle, nearestBot, selectWorker, typing } from "./sceneUtils";
 
 type Mode = "overview" | "walk";
 interface Nearby { id: string; title: string }
@@ -440,7 +440,9 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     };
     const up = (e: PointerEvent) => {
       pts.delete(e.pointerId); if (e.pointerType !== "mouse") lastNdc.current = null;
-      if (grab && !grab.active && e.button === 0) { // a plain click (no drag): the camera glides to the clicked ground point
+      const inRing = grab && !grab.active && e.button === 0 && modeRef.current === "walk" && controllerRef.current === "hand" ? botInCircle(layoutRef.current, handPos.current) : null;
+      if (inRing) { ctl.onPick(inRing.worker.id, 0, 0); } // a robot inside the hand's circle: the click opens its dialog
+      else if (grab && !grab.active && e.button === 0) { // a plain click (no drag): the camera glides to the clicked ground point
         camFocus.current.set(grab.at.x, 0, grab.at.z); clampFocus();
         const pose = officePose(camFocus.current, 0.5); flyTo(pose.cam, pose.target);
       }
@@ -570,10 +572,14 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   useEffect(() => {
     const animate = ensureAnimated;
     ctl.api.current = {
-      talk: () => { const b = nearestBot(layoutRef.current, pos.current); if (b) selectWorker(b.worker.id); },
+      talk: () => {
+        if (controllerRef.current === "hand") { const b = botInCircle(layoutRef.current, handPos.current); if (b) { ctl.onPick(b.worker.id, 0, 0); return true; } return false; } // hand: the robot in the circle gets its central dialog
+        const b = nearestBot(layoutRef.current, pos.current); if (b) selectWorker(b.worker.id);
+        return !!b;
+      },
       act: (key, id) => {
         const a = ACTIONS.find((x) => x.key === key);
-        const target = id ?? nearestBot(layoutRef.current, pos.current)?.worker.id;
+        const target = id ?? (controllerRef.current === "hand" ? botInCircle(layoutRef.current, handPos.current) : nearestBot(layoutRef.current, pos.current))?.worker.id;
         if (!a || !target) return;
         const w = layoutRef.current.desks.find((d) => d.worker.id === target)?.worker;
         if (a.kind === "real") { // real actions never run without the exact text being confirmed first
@@ -603,7 +609,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       if (e.repeat) return; // holding a key must not fire an action (or a confirmation) over and over
       if (modeRef.current !== "walk") return;
       if (k === "e") ctl.api.current?.talk();
-      else if (k === "z") { const b = nearestBot(layoutRef.current, pos.current); if (b) usePerform.getState().open(b.worker.id); } // Z: the numbered Perform picker for the nearest agent
+      else if (k === "z") { const b = controllerRef.current === "hand" ? botInCircle(layoutRef.current, handPos.current) : nearestBot(layoutRef.current, pos.current); if (b) usePerform.getState().open(b.worker.id); } // Z: the numbered Perform picker for the nearest agent
       else if (ACTIONS.some((a) => a.key === k && (a.kind === "real" || a.key === "f"))) ctl.api.current?.act(k); // other cosmetic actions are picker / menu only
     };
     const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
@@ -764,7 +770,9 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       }
       p.copy(handPos.current); p.y = 0;
       if (handGroup.current) { handGroup.current.visible = !smashCtl.active; handGroup.current.position.set(p.x, 0, p.z); }
+      handZone.on = !smashCtl.active; handZone.x = p.x; handZone.z = p.z;
     } else {
+      handZone.on = false;
       const ks = smashCtl.active ? new Set<string>() : keys.current; // smashing: the parked avatar does not walk (zoom, orbit and the camera keep working)
       let dx = (ks.has("d") || ks.has("arrowright") ? 1 : 0) - (ks.has("a") || ks.has("arrowleft") ? 1 : 0);
       let dz = (ks.has("s") || ks.has("arrowdown") ? 1 : 0) - (ks.has("w") || ks.has("arrowup") ? 1 : 0);
@@ -1111,6 +1119,8 @@ export default function World({ active = true }: { active?: boolean }) {
   const allWorkers = useMemo(() => snapshot?.teams.flatMap((t) => t.workers) ?? [], [snapshot]);
   const onPick = useCallback((id: string, x: number, y: number) => setMenu({ id, x, y }), []);
   const menuWorker = menu ? snapshot?.teams.flatMap((t) => t.workers).find((x) => x.id === menu.id) : undefined;
+  // the agent's central dialog covers the middle of the screen: the sidebar steps aside while it is open
+  useEffect(() => { if (menu?.id && useStore.getState().dock.open) useStore.getState().toggleDock(); }, [menu?.id]);
   const [warp, setWarp] = useState<Warp | null>(null);
   const view = useRef<ViewState>(viewState);
   // Double-click a project area in overview: switch to walk mode and stand next to that project.
@@ -1190,7 +1200,7 @@ export default function World({ active = true }: { active?: boolean }) {
     const p = lastPtr.current ?? { x: w / 2, y: h / 2 };
     setHandMenu({ x: Math.max(8, Math.min(p.x, w - 258)), y: Math.max(8, Math.min(p.y, h - 260)) });
   };
-  const hotkeys = { e: () => { if (nearby) sceneApi.current?.talk(); else if (consoleSpot.near) openDataRoom(); else if (controller === "hand") openHandMenu(); }, o: orderCoffee, r: rally, u: bossComing, i: lunch, x: clearFollowers, q: () => setMeetingOpen(!meetingOpen), c: resetView, m: openMap, " ": () => { try { if (localStorage.getItem("ao.spaceMap") === "0") return; } catch { /* private mode */ } toggleMapOverlay(); }, l: toggleLock, t: toggleTags, "0": resetView };
+  const hotkeys = { e: () => { if (controller === "hand") { if (sceneApi.current?.talk() !== true) { if (consoleSpot.near) openDataRoom(); else openHandMenu(); } } else if (nearby) sceneApi.current?.talk(); else if (consoleSpot.near) openDataRoom(); }, o: orderCoffee, r: rally, u: bossComing, i: lunch, x: clearFollowers, q: () => setMeetingOpen(!meetingOpen), c: resetView, m: openMap, " ": () => { try { if (localStorage.getItem("ao.spaceMap") === "0") return; } catch { /* private mode */ } toggleMapOverlay(); }, l: toggleLock, t: toggleTags, "0": resetView };
   const hotRef = useRef(hotkeys); hotRef.current = hotkeys;
   const activeRef2 = useRef(active); activeRef2.current = active;
   useEffect(() => {

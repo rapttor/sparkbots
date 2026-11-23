@@ -2,6 +2,11 @@
 
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
+## 1.0.1 (2026-11-23)
+- **Hand mode:** the hand's ring pushes robots out of its way; a click or action with a robot in the circle opens its dialog [13.1.53].
+- **Dialogs:** the sidebar closes when an agent's central dialog opens [13.1.53].
+- **pnpm monitor:** press `o` in the terminal to open the page again [13.9.9].
+
 ## 1.0.0 (2026-11-23)
 - **Games:** agents far from a table are beamed there or carried by a drone instead of walking for minutes [13.7.24].
 - **rapttor:** the header starts with the rapttor raptor logo and opens an About page (no icon on the right); a "made by" mark in the footer; the logo and logotype on the sponsor room wall [13.9.8].

@@ -58,7 +58,7 @@ pnpm start --open     # prints http://127.0.0.1:4317/?t=<token>
 |---|---|
 | `pnpm start` | Start the server (serves the built client). Add `--open` to open the browser. |
 | `pnpm open` | Same as `pnpm start --open`. |
-| `pnpm monitor` / `pnpm dev` | Watch mode: the server restarts on code changes, the client hot-reloads. Uses a persisted token (`~/.agent-office/dev-token`, mode 0600) so an open tab survives restarts. `--no-open` skips the browser. |
+| `pnpm monitor` / `pnpm dev` | Watch mode: the server restarts on code changes, the client hot-reloads. Uses a persisted token (`~/.agent-office/dev-token`, mode 0600) so an open tab survives restarts. `--no-open` skips the browser. In the terminal, press `o` to open the page again (if you closed the browser) and `q` to quit. |
 | `pnpm test` | Run the test suite (Vitest). |
 | `pnpm typecheck` | TypeScript, strict. |
 

@@ -103,3 +103,19 @@ describe("the owner's default outfit", () => {
     expect(b).toBeGreaterThan(r + 30); // blue
   });
 });
+
+describe("hand circle", () => {
+  it("picks the robot standing inside the circle, closest first, none outside", async () => {
+    const { botInCircle, HAND_PICK_R } = await import("../src/world/sceneUtils");
+    const { roams } = await import("../src/world/roam");
+    const mk = (id: string, x: number, z: number) => ({ worker: { id } as never, x, z, y: 0, index: 0 }) as never;
+    const layout = { desks: [{ worker: { id: "a" }, x: 5, z: 5 }, { worker: { id: "b" }, x: 9, z: 9 }] } as never;
+    void mk;
+    roams.set("a", { x: 1, z: 0 } as never); roams.set("b", { x: 0.4, z: 0 } as never);
+    const p = { x: 0, z: 0 } as never;
+    expect(botInCircle(layout, p)?.worker.id).toBe("b");                       // closest inside
+    roams.set("b", { x: HAND_PICK_R + 0.5, z: 0 } as never);
+    expect(botInCircle(layout, p)).toBeNull();                                 // nobody inside
+    roams.delete("a"); roams.delete("b");
+  });
+});

@@ -35,3 +35,15 @@ export function nearestDesk(l: Layout, p: Vector3): DeskSlot | null {
   }
   return best;
 }
+
+/** The robot standing inside the hand's circle on the floor (hand mode), if any: where it stands now, closest first. */
+export const HAND_PICK_R = 0.95;
+export function botInCircle(l: Layout, p: Vector3, radius = HAND_PICK_R): { worker: BotWorker; index: number } | null {
+  let best: { worker: BotWorker; index: number } | null = null, bd = radius * radius;
+  l.desks.forEach((d, index) => {
+    const r = roams.get(d.worker.id);
+    const dx = (r?.x ?? d.x) - p.x, dz = (r?.z ?? d.z) - p.z, dd = dx * dx + dz * dz;
+    if (dd < bd) { bd = dd; best = { worker: d.worker, index }; }
+  });
+  return best;
+}

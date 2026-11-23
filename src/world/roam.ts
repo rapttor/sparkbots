@@ -43,6 +43,8 @@ export function effectiveState<S extends string>(id: string, real: S): S | Look[
 }
 /** Where "you" are right now in any mode: your avatar when walking, the hand when in hand mode, the camera focus otherwise. Drones and service robots bring things here. */
 export const managerAt = { x: 0, z: 0 };
+/** The hand's circle on the floor (hand mode): wandering robots step out of it, like they do for the walking manager. */
+export const handZone = { on: false, x: 0, z: 0, r: 0.62 };
 /** The manager's position in walk mode (null in overview): bots step out of the way. */
 export const player: { x: number; z: number; on: boolean; hx: number; hz: number; still: number; fast: boolean } = { x: 0, z: 0, on: false, hx: 0, hz: -1, still: 0, fast: false };
 
@@ -102,6 +104,7 @@ export function separate(id: string, r: Roam): void {
     push(o.x, o.z, SEP, o.moving && (o.mode === "wander" || r.mode === "wander") ? 0.5 : 1);
   });
   if (player.on) push(player.x, player.z, PLAYER_SEP, 1);
+  if (handZone.on) push(handZone.x, handZone.z, handZone.r + 0.45, 1); // the hand's ring pushes robots out of it
 }
 
 /** Pushes the manager out of any bot it overlaps. Robots seated at their desk or lying in bed do not push: desks and

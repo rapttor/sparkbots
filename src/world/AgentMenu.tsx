@@ -49,7 +49,7 @@ function CaffeineRow({ id }: { id: string }) {
 
 /** What the 3D scene offers the menu (cosmetic things happen inside the scene). */
 export interface SceneApi {
-  talk: () => void;
+  talk: () => boolean | void;
   act: (key: string, workerId?: string) => void;
   look: (id: string, state: WorkerState | null, sit?: boolean, ms?: number) => void;
   archive: (id: string, done: () => void) => void;
