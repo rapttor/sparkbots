@@ -742,7 +742,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       return;
     }
     const p = pos.current;
-    if (player.current) player.current.visible = !smashCtl.active; // anger room smash run: the weapon is you, so the avatar and the hand are parked
+    if (player.current) player.current.visible = controllerRef.current === "avatar" && !smashCtl.active; // hand mode: no avatar, only the hand; anger room smash run: the weapon is you, so the avatar and the hand are parked
     if (frozen.current) { if (handGroup.current) handGroup.current.visible = false; return; } // a laptop close-up owns the camera and the focus; the hand would only cover the screen
     if (controllerRef.current === "hand") {
       // Hand: WASD pans the camera, the hand sits where the mouse points, and the camera follows the hand only when it nears the edge.

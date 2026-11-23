@@ -2,6 +2,9 @@
 
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
+## Unreleased
+- **Hand mode:** the owner's avatar is hidden, only the hand shows [13.1.54].
+
 ## 1.0.1 (2026-11-23)
 - **Hand mode:** the hand's ring pushes robots out of its way; a click or action with a robot in the circle opens its dialog [13.1.53].
 - **Dialogs:** the sidebar closes when an agent's central dialog opens [13.1.53].
