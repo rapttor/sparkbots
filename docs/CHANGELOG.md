@@ -3,6 +3,7 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## Unreleased
+- **Docs:** `docs/PAGES.md` explains how to publish the landing page and why the workflow fails on a private repository; a new water cooler + race screenshot in the README, landing page and press kit [13.9.11].
 - **Setup:** `install.sh` / `install.ps1`: clone the repo, run one script, and SparkBots is installed, built, started and open in the browser [13.9.10].
 - **Race:** a race the agents start on their own no longer moves your camera or character [13.7.25].
 - **Hand mode:** the owner's avatar is hidden, only the hand shows [13.1.54].

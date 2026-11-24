@@ -1,5 +1,6 @@
 # Publishes the landing page (landing.html + its screenshots) as the project site https://rapttor.github.io/sparkbots/
 # One-time setup in the repository: Settings > Pages > Build and deployment > Source: "GitHub Actions".
+# Needs a PUBLIC repository (or a paid GitHub plan). Step by step and troubleshooting: docs/PAGES.md
 name: Landing page
 
 on:

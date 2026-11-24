@@ -18,6 +18,10 @@ It is a personal tool first: local, private, a bit silly on purpose, and careful
   <img src="presskit/screenshots/office-story.jpg" alt="The SparkBots campus: project areas, data center, coffee factory, restaurant and yard (demo data)" width="90%">
 </p>
 
+<p align="center">
+  <img src="presskit/screenshots/watercooler-race.jpg" alt="Water cooler chat in speech bubbles with answer buttons, and a race on the track round the campus" width="90%">
+</p>
+
 ## Why
 
 If you run several agents across several projects, the terminal gives you tabs and scrollback, not awareness. Which one is blocked on a permission prompt? Which project burned the tokens this week? What was that agent doing yesterday? SparkBots answers those at a glance, and makes the answers pleasant to look at.
