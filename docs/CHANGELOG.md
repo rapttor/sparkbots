@@ -2,7 +2,10 @@
 
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
-## Unreleased
+## 1.0.0 (2026-11-24)
+
+The first public release. Everything below was built before it; the entries are in the order they happened (newest first).
+
 - **landing.sh:** the same one-script setup as install.sh, but it shows the landing page with an "Open SparkBots" button for your running session instead of the 3D office [13.9.12].
 - **Camera:** hold `[` `]` to turn the view and `-` `=` to zoom (Shift = faster); zoom and turn buttons in the corner of the 3D view [13.1.56].
 - **Hand mode:** the hand no longer pushes robots; its ring turns amber while a robot is under it, and a click opens that robot's dialog [13.1.55].
@@ -11,12 +14,10 @@ Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest f
 - **Race:** a race the agents start on their own no longer moves your camera or character [13.7.25].
 - **Hand mode:** the owner's avatar is hidden, only the hand shows [13.1.54].
 
-## 1.0.1 (2026-11-23)
 - **Hand mode:** the hand's ring pushes robots out of its way; a click or action with a robot in the circle opens its dialog [13.1.53].
 - **Dialogs:** the sidebar closes when an agent's central dialog opens [13.1.53].
 - **pnpm monitor:** press `o` in the terminal to open the page again [13.9.9].
 
-## 1.0.0 (2026-11-23)
 - **Games:** agents far from a table are beamed there or carried by a drone instead of walking for minutes [13.7.24].
 - **rapttor:** the header starts with the rapttor raptor logo and opens an About page (no icon on the right); a "made by" mark in the footer; the logo and logotype on the sponsor room wall [13.9.8].
 - **Keymap:** keys with alternatives are stacked one below the other [13.1.51].

@@ -12,3 +12,6 @@ node_modules/
 .env
 .env.*
 !.env.example
+
+# build output (install.sh / pnpm build recreates it)
+dist/
