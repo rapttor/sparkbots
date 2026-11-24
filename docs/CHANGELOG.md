@@ -3,6 +3,7 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## Unreleased
+- **Race:** a race the agents start on their own no longer moves your camera or character [13.7.25].
 - **Hand mode:** the owner's avatar is hidden, only the hand shows [13.1.54].
 
 ## 1.0.1 (2026-11-23)

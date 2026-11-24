@@ -596,3 +596,18 @@ describe("nitro powerup", () => {
     expect(c.nitroT).toBe(0);
   });
 });
+
+describe("who started the race", () => {
+  it("a race the agents start by themselves is not 'by you' (so it never moves your camera); one you start is", () => {
+    const idle = ["a", "b", "c"];
+    const env: RaceEnv = { rng: mulberry32(5), idle: () => idle, alive: () => true, name: (a) => a, color: () => "#fff" };
+    const auto = new RaceHub(env); auto.setTrack(oval()); auto.auto = true;
+    for (let t = 0; t < 400 && !auto.running; t += 0.05) auto.tick(0.05);
+    expect(auto.running).toBe(true);
+    expect(auto.byUser).toBe(false);
+    const mine = new RaceHub(env); mine.setTrack(oval()); mine.auto = false;
+    expect(mine.start()).toBe(true);
+    expect(mine.byUser).toBe(true);
+    mine.stop(); expect(mine.start(true)).toBe(true); expect(mine.byUser).toBe(true);
+  });
+});

@@ -50,6 +50,8 @@ export class RaceHub {
   items = true;
   /** Agents run over in this carmageddon race. */
   squashed = 0;
+  /** The race was started by you (Race setup, Drive / Watch), not by idle agents on their own: only then does the camera move to it. */
+  byUser = false;
   /** Standings of the last finished race (names, in order), for the overlay. */
   last: { name: string; time: number | null }[] = [];
   private t = 0;
@@ -80,7 +82,7 @@ export class RaceHub {
   candidates(): string[] { return this.env.idle(); }
 
   /** Start a race with idle agents, optionally with you in it (then pit bots fill the grid up to three cars). False if impossible. */
-  start(withUser = false, color = "#ffd166"): boolean {
+  start(withUser = false, color = "#ffd166", byUser = true): boolean {
     this.squashed = 0;
     if (this.sim || !this.track) return false;
     const idle = this.candidates();
@@ -94,6 +96,7 @@ export class RaceHub {
     sim.itemsOn = this.items;
     while (pool.length && sim.racers.length < Math.max(2, Math.min(this.cars, 8))) { const [a] = pool.splice(Math.floor(this.env.rng() * pool.length), 1); sim.add(a!, uniq(this.env.name(a!)), this.env.color(a!)); }
     for (let k = 0; sim.racers.length < Math.max(2, Math.min(this.cars, 3)); k++) sim.add(`pit${k}`, `Pit bot ${k + 1}`, FILLER_COLORS[k % FILLER_COLORS.length]!);
+    this.byUser = byUser;
     this.sim = sim; this.overFor = 0; this.last = []; this.userId = withUser ? USER_ID : null;
     this.changed();
     return true;
@@ -129,7 +132,7 @@ export class RaceHub {
     if (!sim) {
       if (!this.auto || !this.track) return;
       this.autoIn -= dt;
-      if (this.autoIn <= 0) { this.autoIn = 60 + this.env.rng() * 90; if (this.candidates().length >= MIN_AUTO) this.start(false); }
+      if (this.autoIn <= 0) { this.autoIn = 60 + this.env.rng() * 90; if (this.candidates().length >= MIN_AUTO) this.start(false, "#ffd166", false); }
       return;
     }
     const before = sim.phase;

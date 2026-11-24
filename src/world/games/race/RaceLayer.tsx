@@ -102,11 +102,11 @@ export function RaceLayer({ layout }: { layout: Layout }) {
   const track = useMemo(() => buildTrack(trackInput(layout)), [layout]);
   useEffect(() => { raceHub.setTrack(track); }, [track]);
   useTrackSideDrivers(raceHub, track, ver);
-  // a race starts: leave the top view (it hides the whole 3D world) and, when you only watch, take the camera to the start line
+  // a race YOU start: leave the top view (it hides the whole 3D world) and, when you only watch, take the camera to the start line
   const wasRunning = useRef(false);
   useEffect(() => {
     const on = raceHub.running;
-    if (on && !wasRunning.current) {
+    if (on && !wasRunning.current && raceHub.byUser) { // a race the agents started by themselves never moves your camera or your character
       sendView({ t: "reset" });
       if (!raceHub.userRacing && track) goTo(track.xs[0]!, track.zs[0]! + track.halfWidth + 6);
     }
