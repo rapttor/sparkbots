@@ -36,7 +36,7 @@ jobs:
           rm -f _site/presskit/screenshots/*.mjs _site/presskit/screenshots/*.md
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: _site
       - id: deployment
