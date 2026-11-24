@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import {
   BoxGeometry, Color, CylinderGeometry, DoubleSide, InstancedMesh, Plane, Raycaster, SphereGeometry, Sphere, Vector2, Vector3,
-  type Group, type Mesh, type PerspectiveCamera,
+  type Group, type Mesh, type MeshBasicMaterial, type PerspectiveCamera,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Worker as BotWorker } from "../../server/adapters/types";
@@ -30,7 +30,7 @@ import { avatarScreen } from "./occlusion";
 import { INTRO_S, introZoom, wantIntro } from "./intro";
 import { PerformPicker, usePerform } from "./PerformPicker";
 import { Windshield } from "./games/race/Windshield";
-import { handZone, managerAt, roams, setLook, clearLook, player as playerState, pushPlayerOut, holdAgent, releaseAgent } from "./roam";
+import { managerAt, roams, setLook, clearLook, player as playerState, pushPlayerOut, holdAgent, releaseAgent } from "./roam";
 import { tarsParts } from "./tars";
 import { ACTIONS } from "./actions";
 import { Minibots } from "./minibots";
@@ -198,6 +198,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   const handInit = useRef(false);
   const zoomSaved = useRef((() => { try { const v = Number(localStorage.getItem("ao.camZoomSaved")); return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_ZOOM_T; } catch { return DEFAULT_ZOOM_T; } })());
   const handGroup = useRef<Group>(null);
+  const ringMat = useRef<MeshBasicMaterial>(null);
   const clampHand = () => {
     const l = layoutRef.current;
     handPos.current.x = Math.min(l.maxX + 20, Math.max(l.minX - 20, handPos.current.x));
@@ -770,9 +771,11 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       }
       p.copy(handPos.current); p.y = 0;
       if (handGroup.current) { handGroup.current.visible = !smashCtl.active; handGroup.current.position.set(p.x, 0, p.z); }
-      handZone.on = !smashCtl.active; handZone.x = p.x; handZone.z = p.z;
+      { // hovering: the ring turns amber while a robot is under it (a click then opens its dialog); the hand never pushes anyone
+        const hov = !smashCtl.active && botInCircle(layoutRef.current, handPos.current);
+        if (ringMat.current) ringMat.current.color.set(hov ? "#ffb020" : "#7dffb0");
+      }
     } else {
-      handZone.on = false;
       const ks = smashCtl.active ? new Set<string>() : keys.current; // smashing: the parked avatar does not walk (zoom, orbit and the camera keep working)
       let dx = (ks.has("d") || ks.has("arrowright") ? 1 : 0) - (ks.has("a") || ks.has("arrowleft") ? 1 : 0);
       let dz = (ks.has("s") || ks.has("arrowdown") ? 1 : 0) - (ks.has("w") || ks.has("arrowup") ? 1 : 0);
@@ -975,7 +978,7 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
         </mesh>
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]} raycast={() => null}>
           <ringGeometry args={[0.5, 0.62, 32]} />
-          <meshBasicMaterial color="#7dffb0" transparent opacity={0.75} toneMapped={false} />
+          <meshBasicMaterial ref={ringMat} color="#7dffb0" transparent opacity={0.75} toneMapped={false} />
         </mesh>
       </group>
 
