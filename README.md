@@ -40,9 +40,10 @@ If you run several agents across several projects, the terminal gives you tabs a
 - A **Data center**: one rack per project, with LEDs that blink faster the busier the project is, tape reels, cables and inspector robots. Click the console to search everything your agents ever said.
 
 **Have a little fun** (cosmetic, never touching agent work)
-- A coffee factory with a barista robot (press `O`), a game room where idle agents pair up for pong, air hockey, rock-paper-scissors and dice (with rankings), a gym, a restaurant, an anger room, and a sponsor room.
+- A coffee factory with a barista robot (press `O`; a drone brings the cup to you), a game room with pong, air hockey, rock-paper-scissors, dice, billiards and basketball: agents play each other, or **you take a seat against an agent** (rankings included; far-away agents are beamed or flown to the table). A race track around the campus (race car, rocket kart, monster truck with wheelies and somersaults, nitro on `Shift`, carmageddon), a gym, a restaurant, an anger room and a sponsor room.
 - Walk as an avatar or float a big hand around; *Perform* zap, dance or high-five an agent; call a meeting with a crowd of followers; a "Boss is coming" key for when you want the office to look busy.
-- A simulated water-cooler chat for idle agents: fully offline, written in advance, no model calls.
+- A simulated water-cooler chat for idle agents in bubbles above their heads: 138 short threads in seven topics (games, cars, life, work, office, dev, gossip) with answer buttons and a topic picker; fully offline, written in advance, no model calls.
+- An opening shot (the camera sinks from the top view to your character), a keymap with Basics / Games / Race / Popups tabs, and an About page for the maker (the logo in the header).
 
 ## Quick start
 
@@ -80,8 +81,9 @@ Try it without any history: add `&fixture=40` (any number) to the URL to fill th
 |---|---|
 | `W A S D` / arrows, `Shift` | Move (hold Shift to sprint). In hand mode: A/D turn, W/S zoom. |
 | Click floor | Avatar: walk there. Hand: the camera glides there; hold and drag to pan. |
-| Click an agent | Open its menu: talk, follow, fork, perform, send somewhere, give a card. |
-| `E` | Talk to the nearby agent, or use the data console. |
+| Click an agent | Open its dialog: actions, chat & history, status (caffeine, trophies). In hand mode a click with an agent inside the hand's circle does the same. |
+| `E` | Talk to the nearby agent (hand mode: the one in the hand's circle), or use the data console. |
+| `Z` | Perform on the nearest agent: a numbered picker (1-9 runs one). Popups answer to the number keys. |
 | `C` / `0` | Camera behind you / reset the view. |
 | Scroll, right-drag | Zoom (in = first person, out = overview) and turn. |
 | `M`, `L`, `T` | Map tab, lock zoom, name tags. |

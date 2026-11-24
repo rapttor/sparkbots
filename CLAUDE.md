@@ -13,7 +13,7 @@ A local, browser-based 3D "company" where every Claude Code session is a worker,
 - **No `--dangerously-skip-permissions`, ever.** Nothing the office spawns may bypass Claude Code permissions. This is a hard rule, not a default.
 - **Undocumented formats get `[VERIFY]`.** Claude Code's on-disk formats (`~/.claude/sessions/`, JSONL record shapes) are not a public API. Every parser is defensive: unknown fields are ignored, unparseable lines are skipped and counted, and nothing crashes the server.
 - **Original mascot only.** Workers are an original low-poly "spark bot" design. No Claude/Anthropic logo, wordmark or likeness anywhere in the repo, assets or screenshots (trademark; required for open source).
-- **Scope discipline.** Work is tracked in `docs/TASKS.md`: phases 1-12 and 14 are done apart from small leftovers (12.1 cleanup), Phase 13 (backlog) is mostly done (open: 13.1.4/5/8/9, 13.4.3/4/8, 13.7.7-10, deferred sync 13.0.3-6), and 7.41 c/d (live approval, slash commands) is open. Keep the task list updated when work is planned or finished.
+- **Scope discipline.** Work is tracked in `docs/TASKS.md`. Version 1.0.x is released: phases 1-12 and 14 and almost all of Phase 13 are done. Open: the deferred sync tasks 13.0.3-4, board card links 13.3.6, race polish 13.7.10b/f, and the owner's launch tasks 13.9.4 (OG image, screenshots, GitHub Pages). Keep the task list and `docs/CHANGELOG.md` updated when work is planned or finished (tag each task Haiku / Sonnet / Opus).
 
 ---
 
@@ -41,7 +41,7 @@ A local, browser-based 3D "company" where every Claude Code session is a worker,
 - **Server:** Fastify, `ws` for WebSocket push, `chokidar` for file watching, `pidusage` (or `ps` parsing) for process stats.
 - **Client:** Vite + React 18 + React Three Fiber + drei. Zustand for client state. Panels are plain React (no 3D needed to use any feature).
 - **Storage:** JSON files in `~/.agent-office/` (config, board, aliases, spawned-run registry) plus one SQLite file `~/.agent-office/app.db` (`server/db.ts`, numbered migrations) for data SparkBots generates and keeps forever: usage history, rack aliases, caffeine, game results, rewards.
-- **Distribution:** `npx agent-office` (placeholder name) starts the server and opens the browser.
+- **Distribution:** clone the repo and run `./install.sh` (or `install.ps1` on Windows): it checks Node and pnpm, installs, builds, starts and opens the browser. `pnpm monitor` is the watch mode (press `o` in its terminal to open the page again).
 - **Tests:** Vitest. Fixture JSONL files under `test/fixtures/` (anonymized, hand-written, never copied from real sessions).
 
 ### Repo layout
@@ -98,7 +98,7 @@ type AgentEvent =
   | { kind: "error"; session; message: string; at };
 ```
 
-Claude Code, Codex and OpenCode have session adapters (`server/adapters/`). OpenCode is read-only toward its SQLite chat database and mirrors new rows into a JSONL cache in `~/.agent-office/cache/opencode/`. Other AI servers (Ollama, LM Studio, llama.cpp, ...) are tracked as *services* (`server/services/`: probe, scan, registry; the Services panel), at the user's request: they are listed with status and loaded models, not as session workers. Scanning beyond localhost only runs when the user types a range.
+Claude Code, Codex and OpenCode have session adapters (`server/adapters/`), listed once in `server/adapters/registry.ts` (`SourceAdapter`: discover, liveness, per-session line parser, tool to activity, chat history, default colour); adding a tool is a new adapter folder plus one registry entry. Sending prompts and hiring stay per source in `server/routes.ts`. OpenCode is read-only toward its SQLite chat database and mirrors new rows into a JSONL cache in `~/.agent-office/cache/opencode/`. Other AI servers (Ollama, LM Studio, llama.cpp, ...) are tracked as *services* (`server/services/`: probe, scan, registry; the Services panel), at the user's request: they are listed with status and loaded models, not as session workers. Scanning beyond localhost only runs when the user types a range.
 
 ---
 
