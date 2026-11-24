@@ -61,6 +61,8 @@ cd sparkbots
 
 The script checks Node (22.13+, Node 24 recommended) and pnpm and installs them if they are missing (it asks first, and only with Homebrew or nvm; otherwise it tells you what to install), installs the dependencies, builds, starts SparkBots and opens the page in your browser. Everything stays inside the repository folder; it never touches `~/.claude` or your agents' files. Useful options: `--no-open` (just print the address), `--dev` (watch mode with hot reload), `--skip-build`, `--install-only`, `--check` (report only, change nothing), `--yes` (do not ask). Read `install.sh` first if you like: it is short.
 
+Prefer to start from the landing page? `./landing.sh` does the same setup, starts SparkBots in the background and opens the **landing page** (http://127.0.0.1:4380/) instead of the 3D office. It shows a button, "Open SparkBots", that opens your running session (the address, token included, never leaves your machine), and it notices when SparkBots starts or stops. `--no-open` and `--port N` work too.
+
 By hand, the same thing is:
 
 ```bash

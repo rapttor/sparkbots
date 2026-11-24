@@ -6,6 +6,7 @@ import { readFile, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { loadConfig, loadTeams } from "./config";
 import { checkRequest, makeToken, stableToken } from "./security";
+import { clearSession, writeSession } from "./session";
 import { execFile } from "node:child_process";
 import { Company } from "./model/company";
 import { claudeDir } from "./adapters/claude-code/discover";
@@ -126,6 +127,9 @@ setInterval(() => {
 await app.listen({ host: "127.0.0.1", port: cfg.port });
 const url = `http://127.0.0.1:${cfg.port}/?t=${token}`;
 console.log(`SparkBots: ${url}`);
+writeSession(url, cfg.port); // so landing.sh can offer "open the current session"
+for (const sig of ["SIGINT", "SIGTERM"] as const) process.once(sig, () => { clearSession(); process.exit(0); });
+process.on("exit", clearSession);
 if (argv.includes("--open")) { // argv array, no shell; URL is our own loopback address
   const [bin, args]: [string, string[]] = process.platform === "darwin" ? ["open", [url]] : process.platform === "win32" ? ["cmd", ["/c", "start", "", url]] : ["xdg-open", [url]];
   execFile(bin, args, (err) => { if (err) console.log(`(could not open a browser: ${err.message})`); });

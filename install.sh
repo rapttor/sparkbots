@@ -8,21 +8,26 @@
 #   ./install.sh --install-only  install and build, do not start
 #   ./install.sh --check       only report what is installed; changes nothing
 #   ./install.sh --yes         do not ask before installing Node (needs Homebrew or nvm)
+#   ./install.sh --landing     the same setup, but SparkBots starts in the background and the browser shows the LANDING page, with a button
+#                              that opens your running session (this is what ./landing.sh does; --port N picks the landing page port, default 4380)
 #
 # Nothing here touches ~/.claude or anything outside this folder, except installing Node / pnpm when they are missing (and you say yes).
 set -euo pipefail
 cd "$(dirname "$0")"
 
-YES=0 OPEN=1 DEV=0 BUILD=1 START=1 CHECK=0
-for a in "$@"; do
+YES=0 OPEN=1 DEV=0 BUILD=1 START=1 CHECK=0 LANDING=0 LPORT=4380
+while [ $# -gt 0 ]; do
+  a="$1"; shift
   case "$a" in
+    --landing) LANDING=1 ;;
+    --port) LPORT="${1:?--port needs a number}"; shift ;;
     --yes|-y) YES=1 ;;
     --no-open) OPEN=0 ;;
     --dev) DEV=1 ;;
     --skip-build) BUILD=0 ;;
     --install-only) START=0 ;;
     --check) CHECK=1 ;;
-    -h|--help) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown option: $a (see --help)"; exit 2 ;;
   esac
 done
@@ -83,6 +88,21 @@ if [ "$BUILD" = 1 ] || [ ! -f dist/index.html ]; then say "Building"; pnpm build
 [ "$START" = 1 ] || { say "Done. Start it with:  pnpm start --open"; exit 0; }
 
 # ---- run ----
+if [ "$LANDING" = 1 ]; then
+  SB_PORT="${AO_PORT:-4317}"
+  if curl -s -o /dev/null -m 1 "http://127.0.0.1:${SB_PORT}/" 2>/dev/null; then
+    say "SparkBots is already running on port ${SB_PORT}: the landing page will link to it"
+  else
+    say "Starting SparkBots in the background"
+    pnpm start &
+    SB_PID=$!
+    trap 'kill "$SB_PID" 2>/dev/null || true' EXIT INT TERM
+    for _ in 1 2 3 4 5 6 7 8 9 10; do curl -s -o /dev/null -m 1 "http://127.0.0.1:${SB_PORT}/" 2>/dev/null && break; sleep 1; done
+  fi
+  say "Landing page on http://127.0.0.1:${LPORT}/ (Ctrl-C stops everything it started)"
+  if [ "$OPEN" = 1 ]; then node scripts/landing-server.mjs --port "$LPORT" --open; else node scripts/landing-server.mjs --port "$LPORT"; fi
+  exit 0
+fi
 say "Starting SparkBots (Ctrl-C stops it)"
 if [ "$DEV" = 1 ]; then
   if [ "$OPEN" = 1 ]; then exec pnpm monitor; else exec pnpm monitor --no-open; fi   # in the terminal press  o  to open the page again
