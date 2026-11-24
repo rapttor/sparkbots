@@ -46,7 +46,17 @@ If you run several agents across several projects, the terminal gives you tabs a
 
 ## Quick start
 
-Requirements: **Node 24**, **pnpm**, and a browser.
+**Pull the repo, run one script, enjoy:**
+
+```bash
+git clone https://github.com/rapttor/sparkbots.git
+cd sparkbots
+./install.sh          # Windows: powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+The script checks Node (22.13+, Node 24 recommended) and pnpm and installs them if they are missing (it asks first, and only with Homebrew or nvm; otherwise it tells you what to install), installs the dependencies, builds, starts SparkBots and opens the page in your browser. Everything stays inside the repository folder; it never touches `~/.claude` or your agents' files. Useful options: `--no-open` (just print the address), `--dev` (watch mode with hot reload), `--skip-build`, `--install-only`, `--check` (report only, change nothing), `--yes` (do not ask). Read `install.sh` first if you like: it is short.
+
+By hand, the same thing is:
 
 ```bash
 pnpm install
