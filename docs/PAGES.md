@@ -29,3 +29,7 @@ You can check the state from a terminal with the GitHub CLI: `gh api repos/raptt
 ## No Pages? Alternatives
 
 `landing.html` is a single static page: it can be uploaded as `index.html` to any static host (for example rapttor.com), together with `presskit/screenshots/` and `presskit/artwork/`.
+
+## Troubleshooting: "No artifacts named github-pages were found"
+
+If the upload step succeeds but `deploy-pages` reports 0 artifacts, the workflow needs `actions: read` in `permissions` and `actions/upload-pages-artifact@v4` (v3 failed on a fresh public repository). Both are set in `.github/workflows/pages.yml`.
