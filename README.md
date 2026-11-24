@@ -90,6 +90,7 @@ Try it without any history: add `&fixture=40` (any number) to the URL to fill th
 | `Z` | Perform on the nearest agent: a numbered picker (1-9 runs one). Popups answer to the number keys. |
 | `C` / `0` | Camera behind you / reset the view. |
 | Scroll, right-drag | Zoom (in = first person, out = overview) and turn. |
+| `[` `]`, `-` `=` | Turn the view left / right, zoom out / in: hold the key, `Shift` = faster. The same as the ＋ − ↶ ↷ buttons in the bottom-right corner of the 3D view. |
 | `M`, `L`, `T` | Map tab, lock zoom, name tags. |
 | `O`, `R`, `U`, `I` | Order a coffee, rally the waiting agents, "boss is coming", lunch break. |
 | `Q`, `X`, `Shift+click` | Meeting chat, release the followers, add/remove a follower. |

@@ -41,6 +41,8 @@ export const KEYMAP: KeyDef[] = [
   { id: "dbl", keys: "Double-click project", label: "Go to that project", actionable: false },
   { id: "rdrag", keys: "Right-drag", label: "Turn the view", actionable: false },
   { id: "wheel", keys: "Scroll", label: "Zoom (in = first-person, out = overview)", actionable: false },
+  { id: "view-turn", keys: "[ / ]", label: "Turn the view left / right: hold (Shift = faster). Same as the ↶ ↷ buttons in the corner", actionable: false },
+  { id: "view-zoom", keys: "- / =", label: "Zoom out / in: hold (Shift = faster). Same as the − ＋ buttons", actionable: false },
 
   // ---- Games tab: playing at a table (Games chip > New game > Play vs agent) ----
   { id: "g-start", tab: "games", keys: "🎮 Games", label: "New game: ▶ Autoplay (agent vs agent) or 🎮 Play vs agent (you take seat 1; a guest bot plays if nobody is free). Rankings are on the other tab", actionable: false },

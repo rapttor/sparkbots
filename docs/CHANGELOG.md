@@ -3,6 +3,7 @@
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
 ## Unreleased
+- **Camera:** hold `[` `]` to turn the view and `-` `=` to zoom (Shift = faster); zoom and turn buttons in the corner of the 3D view [13.1.56].
 - **Hand mode:** the hand no longer pushes robots; its ring turns amber while a robot is under it, and a click opens that robot's dialog [13.1.55].
 - **Docs:** `docs/PAGES.md` explains how to publish the landing page and why the workflow fails on a private repository; a new water cooler + race screenshot in the README, landing page and press kit [13.9.11].
 - **Setup:** `install.sh` / `install.ps1`: clone the repo, run one script, and SparkBots is installed, built, started and open in the browser [13.9.10].

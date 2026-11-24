@@ -27,7 +27,9 @@ import { ZonesLayer } from "./zonelayer";
 import { lunchAll, followerList, insideRoom, meeting, MAX_SEATS, setFollowers, startErrand, setPois, rebuildRoamGrid } from "./roam";
 import { useShowDesks } from "../state/deskPref";
 import { avatarScreen } from "./occlusion";
+import { ViewButtons } from "./ViewButtons";
 import { INTRO_S, introZoom, wantIntro } from "./intro";
+import { TURN_RATE, ZOOM_RATE, isViewKey, normKey, viewKeyInput } from "./viewKeys";
 import { PerformPicker, usePerform } from "./PerformPicker";
 import { Windshield } from "./games/race/Windshield";
 import { managerAt, roams, setLook, clearLook, player as playerState, pushPlayerOut, holdAgent, releaseAgent } from "./roam";
@@ -604,8 +606,8 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (!activeRef.current || typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
-      const k = e.key.toLowerCase();
-      if (intro.current && ("wasdqeflmcxuior ".includes(k) || k.startsWith("arrow"))) intro.current = null;
+      const k = normKey(e.key.toLowerCase());
+      if (intro.current && ("wasdqeflmcxuior ".includes(k) || k.startsWith("arrow") || isViewKey(k))) intro.current = null;
       keys.current.add(k);
       if (e.repeat) return; // holding a key must not fire an action (or a confirmation) over and over
       if (modeRef.current !== "walk") return;
@@ -613,7 +615,11 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
       else if (k === "z") { const b = controllerRef.current === "hand" ? botInCircle(layoutRef.current, handPos.current) : nearestBot(layoutRef.current, pos.current); if (b) usePerform.getState().open(b.worker.id); } // Z: the numbered Perform picker for the nearest agent
       else if (ACTIONS.some((a) => a.key === k && (a.kind === "real" || a.key === "f"))) ctl.api.current?.act(k); // other cosmetic actions are picker / menu only
     };
-    const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
+    const up = (e: KeyboardEvent) => {
+      const k = normKey(e.key.toLowerCase());
+      keys.current.delete(k);
+      if (k === "-" || k === "=") try { localStorage.setItem("ao.camZoom", String(zoomT.current)); } catch { /* private mode */ }
+    };
     const clear = () => keys.current.clear();
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
@@ -745,6 +751,13 @@ function Scene({ mode, layout, jump, onNearby, onEnter, ctl }: { mode: Mode; lay
     const p = pos.current;
     if (player.current) player.current.visible = controllerRef.current === "avatar" && !smashCtl.active; // hand mode: no avatar, only the hand; anger room smash run: the weapon is you, so the avatar and the hand are parked
     if (frozen.current) { if (handGroup.current) handGroup.current.visible = false; return; } // a laptop close-up owns the camera and the focus; the hand would only cover the screen
+    { // view keys (held): [ ] turn, - = zoom; Shift = faster. Not while driving or smashing; the zoom lock is respected
+      const vk = viewKeyInput(keys.current);
+      if ((vk.turn || vk.zoom) && !raceCam.active && !smashCtl.active) {
+        if (vk.turn) yaw.current += vk.turn * TURN_RATE * vk.fast * dt;
+        if (vk.zoom && !lockedRef.current) zoomT.current = Math.min(1, Math.max(0, zoomT.current + vk.zoom * ZOOM_RATE * vk.fast * dt));
+      }
+    }
     if (controllerRef.current === "hand") {
       // Hand: WASD pans the camera, the hand sits where the mouse points, and the camera follows the hand only when it nears the edge.
       const ks = keys.current;
@@ -1291,6 +1304,7 @@ export default function World({ active = true }: { active?: boolean }) {
         <AgentMenu worker={menuWorker} scene={sceneApi.current ?? { talk() {}, act() {}, look() {}, sendTo() {}, archive: (_id, done) => done() }} onClose={() => setMenu(null)} />
       )}
       <Windshield />
+      {!inCloseup && <ViewButtons />}
       <PerformPicker act={(key, id) => sceneApi.current?.act(key, id)} />
       {nearby && (
         <div style={{ ...box, left: "50%", bottom: 24, transform: "translateX(-50%)", fontSize: 14 }}>

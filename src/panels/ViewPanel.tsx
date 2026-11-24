@@ -14,7 +14,7 @@ export function ViewPanel() {
   return (
     <section className="panel">
       <h1>View</h1>
-      <p className="muted small">One camera: scroll / pinch to zoom. Zoom in for first-person, zoom out for the top-down overview. Right-drag or A/D turns the view.</p>
+      <p className="muted small">One camera: scroll / pinch to zoom. Zoom in for first-person, zoom out for the top-down overview. Right-drag or the [ ] keys turn the view; the - = keys and the buttons in the corner zoom.</p>
 
       <h2>Camera</h2>
       <Row label="Zoom">
