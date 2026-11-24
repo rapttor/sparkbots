@@ -22,7 +22,7 @@ You can check the state from a terminal with the GitHub CLI: `gh api repos/raptt
 
 ## Before making the repository public
 
-- Look through the history and the files for anything personal: real session titles or messages in screenshots (blur them, as in `presskit/screenshots/watercooler-race.jpg`), personal paths, tokens. `backlog.md` is the owner's own idea file.
+- Look through the history and the files for anything personal: real session titles or messages in screenshots (the owner decided to leave the real names in `presskit/screenshots/watercooler-race.jpg`), personal paths, tokens. `backlog.md` is the owner's own idea file.
 - The README and the release notes already say `git clone https://github.com/rapttor/sparkbots.git`; that only works for other people once the repository is public.
 - Enable GitHub Sponsors first or leave `github:` commented in `.github/FUNDING.yml`.
 
