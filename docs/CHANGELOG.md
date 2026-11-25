@@ -10,6 +10,7 @@ The first public release. Everything below was built before it; the entries are 
 - **Camera:** hold `[` `]` to turn the view and `-` `=` to zoom (Shift = faster); zoom and turn buttons in the corner of the 3D view [13.1.56].
 - **Hand mode:** the hand no longer pushes robots; its ring turns amber while a robot is under it, and a click opens that robot's dialog [13.1.55].
 - **Docs:** `docs/PAGES.md` explains how to publish the landing page and why the workflow fails on a private repository; a new water cooler + race screenshot in the README, landing page and press kit [13.9.11].
+- **Setup:** `install.sh` / `install.ps1` / `landing.sh` can also install the agent CLIs (Claude Code, Codex, OpenCode, Ollama, llama.cpp): offered on a terminal, asked first, or `--tools` / `-Tools`; `--no-tools` skips [13.9.14].
 - **Setup:** `install.sh` / `install.ps1`: clone the repo, run one script, and SparkBots is installed, built, started and open in the browser [13.9.10].
 - **Race:** a race the agents start on their own no longer moves your camera or character [13.7.25].
 - **Hand mode:** the owner's avatar is hidden, only the hand shows [13.1.54].
