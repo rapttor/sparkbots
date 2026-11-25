@@ -15,6 +15,8 @@ export type UnityStatus = "idle" | "connecting" | "online" | "reconnecting" | "b
 export interface Live { x: number; y: number; z: number; r: number }
 /** Latest known position of every peer (target for interpolation). Not reactive on purpose. */
 export const live = new Map<string, Live>();
+/** Non-reactive effect clock: when someone last arrived through the booth (performance.now()), read by the 3D scene each frame. */
+export const fx = { arrival: -1e9 };
 
 interface UnityState {
   inside: boolean;
@@ -24,7 +26,7 @@ interface UnityState {
   muted: string[];      // ids whose bubbles are hidden (kept in this browser)
   reported: string[];   // ids reported this session
   enter: () => Promise<boolean>;
-  leave: () => void;
+  leave: (message?: string) => void; // always says goodbye on purpose; a message (optional) becomes your ghost's text
   say: (text: string) => void;
   move: (x: number, z: number, r: number) => void;
   setGhost: (on: boolean) => void;
@@ -64,7 +66,9 @@ export const useUnity = create<UnityState>((set, get) => {
     set({ status: tries === 0 ? "connecting" : "reconnecting", note: tries === 0 ? "Connecting…" : "Reconnecting…" });
 
     sock.onopen = () => {
-      sock.send(JSON.stringify({ t: "hello", key: h.key, name: h.name || "Guest", color: useStore.getState().managerColor, ghost: h.ghost }));
+      // Everybody appears as the owner character they set up themselves (Settings > 3D office): avatar, look and colour.
+      const me = useStore.getState();
+      sock.send(JSON.stringify({ t: "hello", key: h.key, name: h.name || "Guest", color: me.managerColor, avatar: me.avatar, look: me.devLook, ghost: h.ghost }));
     };
     sock.onmessage = (ev) => {
       const m = parseMsg(String(ev.data));
@@ -74,8 +78,9 @@ export const useUnity = create<UnityState>((set, get) => {
       if (m.t === "welcome") {
         tries = 0; live.clear(); lastPos = 0; lastSent = { x: NaN, z: NaN, r: NaN }; // send my position right away
         for (const p of m.peers) live.set(p.id, { x: p.x, y: p.y, z: p.z, r: p.r });
+        fx.arrival = performance.now();
         set({ status: "online", note: "" });
-      } else if (m.t === "join") live.set(m.peer.id, { x: m.peer.x, y: m.peer.y, z: m.peer.z, r: m.peer.r });
+      } else if (m.t === "join") { live.set(m.peer.id, { x: m.peer.x, y: m.peer.y, z: m.peer.z, r: m.peer.r }); fx.arrival = performance.now(); }
       else if (m.t === "leave") live.delete(m.id);
       set((s) => ({ room: reduceRoom(s.room, m, Date.now()) }));
     };
@@ -114,7 +119,9 @@ export const useUnity = create<UnityState>((set, get) => {
       return true;
     },
 
-    leave: () => {
+    leave: (message) => {
+      // Goodbye on purpose, so the relay leaves a plain or message ghost. Closing the window instead (no bye) leaves a broken one.
+      if (get().status === "online") send({ t: "bye", ...(message ? { text: cleanText(message, UNITY_MAX_TEXT) } : {}) });
       stop();
       set({ inside: false, status: "idle", note: "", room: emptyRoom() });
     },

@@ -5,18 +5,19 @@ import Fastify from "fastify";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_RELAY, UNITY_BUBBLE_MS, UNITY_MAX_GHOSTS, ago, cleanText, clampToFloor, emptyRoom, parseMsg, pruneBubbles, reduceRoom, relayUrl, validRelay,
-  type UGhost, type UPeer,
+  avatarOf, lookOf, type GhostKind, type UGhost, type UPeer,
 } from "../src/shared/unity";
+import { DEFAULT_DEV_LOOK } from "../src/world/devLook";
 import { defaultConfig, aoHome, type Config } from "../server/config";
 import { registerUnity, unityKey } from "../server/unity";
 
 const id = (n: number) => n.toString(16).padStart(16, "0");
-const peer = (n: number, over: Partial<UPeer> = {}): UPeer => ({ id: id(n), name: `P${n}`, color: "#112233", x: 0, y: 0, z: 0, r: 0, ...over });
-const ghost = (n: number, leftAt: number, text = ""): UGhost => ({ ...peer(n), text, leftAt });
+const peer = (n: number, over: Partial<UPeer> = {}): UPeer => ({ id: id(n), avatar: "developer", look: DEFAULT_DEV_LOOK, name: `P${n}`, color: "#112233", x: 0, y: 0, z: 0, r: 0, ...over });
+const ghost = (n: number, leftAt: number, text = "", kind: GhostKind = text ? "message" : "plain"): UGhost => ({ ...peer(n), kind, text, leftAt });
 
 describe("unity: parsing relay frames (the relay is not trusted)", () => {
   it("accepts a welcome and cleans every field", () => {
-    const m = parseMsg(JSON.stringify({ t: "welcome", id: id(1), peers: [{ id: id(2), name: "  Al​ice‮ ", color: "#ff0000", x: 1, y: 2, z: 3, r: 4 }], ghosts: [{ id: id(3), name: "G", color: "nope", x: 0, y: 0, z: 0, r: 0, text: "hi​ there", leftAt: 5 }] }));
+    const m = parseMsg(JSON.stringify({ t: "welcome", id: id(1), peers: [{ id: id(2), name: "  Al​ice‮ ", color: "#ff0000", x: 1, y: 2, z: 3, r: 4 }], ghosts: [{ id: id(3), kind: "message", name: "G", color: "nope", x: 0, y: 0, z: 0, r: 0, text: "hi​ there", leftAt: 5 }] }));
     expect(m?.t).toBe("welcome");
     if (m?.t !== "welcome") return;
     expect(m.peers[0]!.name).toBe("Alice");
@@ -30,6 +31,28 @@ describe("unity: parsing relay frames (the relay is not trusted)", () => {
   it("clamps numbers and ignores non-numbers", () => {
     const m = parseMsg(JSON.stringify({ t: "pos", id: id(1), x: 1e9, y: "a", z: -1e9, r: NaN }));
     expect(m).toEqual({ t: "pos", id: id(1), x: 1e4, y: 0, z: -1e4, r: 0 });
+  });
+  it("ghost kinds: only a goodbye message carries text; unknown kinds become plain", () => {
+    const g = (o: object) => { const m = parseMsg(JSON.stringify({ t: "leave", id: id(1), ghost: { id: id(1), name: "G", color: "#112233", x: 0, y: 0, z: 0, r: 0, leftAt: 5, ...o } })); return m?.t === "leave" ? m.ghost : undefined; };
+    expect(g({ kind: "message", text: "see you" })).toMatchObject({ kind: "message", text: "see you" });
+    expect(g({ kind: "message", text: "   " })).toMatchObject({ kind: "plain", text: "" });          // a message ghost without a message is a plain ghost
+    expect(g({ kind: "broken", text: "should not show" })).toMatchObject({ kind: "broken", text: "" }); // a broken figure never has text
+    expect(g({ kind: "plain", text: "nope" })).toMatchObject({ kind: "plain", text: "" });
+    expect(g({ kind: "weird", text: "x" })).toMatchObject({ kind: "plain", text: "" });
+    expect(g({ text: "old relay" })).toMatchObject({ kind: "plain" });
+  });
+  it("everybody is drawn as a known character: avatar and look are checked", () => {
+    expect(avatarOf("raptor")).toBe("raptor");
+    expect(avatarOf("spark")).toBe("spark");
+    expect(avatarOf("<script>")).toBe("developer");
+    expect(avatarOf(undefined)).toBe("developer");
+    expect(lookOf(undefined)).toEqual(DEFAULT_DEV_LOOK);
+    expect(lookOf({ top: "hoodie", topColor: "#102030", logo: "🚀", glasses: false, beard: false, overweight: false })).toEqual({ top: "hoodie", topColor: "#102030", logo: "🚀", glasses: false, beard: false, overweight: false });
+    const bad = lookOf({ top: "cape", topColor: "red; evil", logo: "long text that is not an emoji", glasses: "yes", beard: 1, overweight: null });
+    expect(bad).toEqual(DEFAULT_DEV_LOOK);
+    const m = parseMsg(JSON.stringify({ t: "join", peer: { id: id(2), name: "R", color: "#112233", avatar: "raptor", look: { top: "plaid" }, x: 0, y: 0, z: 0, r: 0 } }));
+    expect(m?.t === "join" && m.peer.avatar).toBe("raptor");
+    expect(m?.t === "join" && m.peer.look.top).toBe("plaid");
   });
   it("bubble text is plain, capped at 80, without invisible characters", () => {
     expect(cleanText("a‮​  b\n\nc", 80)).toBe("a b c");

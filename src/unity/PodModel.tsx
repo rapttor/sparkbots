@@ -9,16 +9,17 @@ import type { Mesh, MeshStandardMaterial } from "three";
 export const POD_GREEN = "#4ade80";
 export const POD_DARK = "#0b1f17";
 
-export function PodModel({ glow = 0.4 }: { glow?: number }) {
+export function PodModel({ glow = 0.4, energy }: { glow?: number; energy?: () => number }) {
   const lamp = useRef<Mesh>(null);
   const door = useRef<Mesh>(null);
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
     const pulse = 0.5 + 0.5 * Math.sin(t * (1.6 + glow * 2));
     const l = lamp.current?.material as MeshStandardMaterial | undefined;
-    if (l) l.emissiveIntensity = 1.2 + pulse * (0.8 + glow * 2.2);
+    const e = energy ? energy() : 0; // 0..1, somebody just arrived
+    if (l) l.emissiveIntensity = 1.2 + pulse * (0.8 + glow * 2.2) + e * 5;
     const d = door.current?.material as MeshStandardMaterial | undefined;
-    if (d) d.opacity = 0.35 + 0.2 * pulse;
+    if (d) d.opacity = Math.min(0.95, 0.35 + 0.2 * pulse + e * 0.5);
   });
   return (
     <group>
@@ -38,6 +39,12 @@ export function PodModel({ glow = 0.4 }: { glow?: number }) {
       <mesh ref={lamp} position={[0, 2.98, 0]}><sphereGeometry args={[0.2, 16, 12]} /><meshStandardMaterial color="#d9ffe9" emissive={POD_GREEN} emissiveIntensity={1.6} toneMapped={false} /></mesh>
       {/* the doorway: a soft glowing arch on the front face (towards +z) */}
       <mesh ref={door} position={[0, 1.2, 0.74]}><planeGeometry args={[0.7, 1.9]} /><meshStandardMaterial color={POD_GREEN} emissive={POD_GREEN} emissiveIntensity={1.4} transparent opacity={0.45} depthWrite={false} toneMapped={false} /></mesh>
+      {/* the phone on the back wall: this is the booth people call in from */}
+      <group position={[0, 1.45, -0.64]}>
+        <mesh><boxGeometry args={[0.3, 0.42, 0.08]} /><meshStandardMaterial color="#1f2937" roughness={0.5} /></mesh>
+        <mesh position={[0, 0.07, 0.045]}><boxGeometry args={[0.2, 0.1, 0.02]} /><meshStandardMaterial color="#bbf7d0" emissive={POD_GREEN} emissiveIntensity={0.9} toneMapped={false} /></mesh>
+        <mesh position={[-0.2, 0.03, 0.05]} rotation={[0, 0, 0.18]}><capsuleGeometry args={[0.035, 0.26, 4, 8]} /><meshStandardMaterial color="#111827" roughness={0.4} /></mesh>
+      </group>
       <pointLight position={[0, 1.4, 0]} color={POD_GREEN} intensity={1.4} distance={5} />
     </group>
   );

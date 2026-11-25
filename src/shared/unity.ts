@@ -3,6 +3,8 @@
  * Everything here is pure (no DOM, no network) so it is easy to test. The relay is not trusted: every message is validated
  * and sanitised here before it reaches the scene, and text is only ever rendered as plain text.
  */
+import { DEFAULT_DEV_LOOK, LOGO_EMOJIS, TOP_STYLES, type DevLook } from "../world/devLook";
+
 export const UNITY_ROOM = "unity";
 export const DEFAULT_RELAY = "wss://sparkbots-relay.rapttor.workers.dev";
 export const UNITY_MAX_TEXT = 80;
@@ -12,8 +14,13 @@ export const UNITY_MAX_PEERS = 60;
 export const UNITY_MAX_GHOSTS = 30;
 export const UNITY_MAX_NAME = 24;
 
-export interface UPeer { id: string; name: string; color: string; x: number; y: number; z: number; r: number }
-export interface UGhost extends UPeer { text: string; leftAt: number }
+/** The character a player chose in their own SparkBots (avatar + developer look); everybody sees them as that character. */
+export type UAvatar = "developer" | "raptor" | "spark";
+export type ULook = DevLook;
+export interface UPeer { id: string; avatar: UAvatar; look: ULook; name: string; color: string; x: number; y: number; z: number; r: number }
+/** How someone left: said goodbye with a message, said goodbye without one, or the connection just dropped (window closed). */
+export type GhostKind = "message" | "plain" | "broken";
+export interface UGhost extends UPeer { kind: GhostKind; text: string; leftAt: number }
 
 export type UnityMsg =
   | { t: "welcome"; id: string; peers: UPeer[]; ghosts: UGhost[] }
@@ -48,17 +55,34 @@ export function cleanText(s: unknown, max: number): string {
 }
 const num = (n: unknown): number => (typeof n === "number" && Number.isFinite(n) ? Math.max(-1e4, Math.min(1e4, n)) : 0);
 
+/** Only known values get through: a relay (or a hello) cannot smuggle arbitrary text into what gets rendered. */
+export function lookOf(o: unknown): ULook {
+  const l = (o && typeof o === "object" ? o : {}) as Record<string, unknown>;
+  const D = DEFAULT_DEV_LOOK;
+  return {
+    top: TOP_STYLES.some((t) => t.id === l.top) ? (l.top as ULook["top"]) : D.top,
+    topColor: typeof l.topColor === "string" && COLOR.test(l.topColor) ? l.topColor : D.topColor,
+    logo: typeof l.logo === "string" && LOGO_EMOJIS.includes(l.logo) ? l.logo : D.logo,
+    glasses: typeof l.glasses === "boolean" ? l.glasses : D.glasses,
+    beard: typeof l.beard === "boolean" ? l.beard : D.beard,
+    overweight: typeof l.overweight === "boolean" ? l.overweight : D.overweight,
+  };
+}
+export const avatarOf = (v: unknown): UAvatar => (v === "raptor" || v === "spark" ? v : "developer");
+
 function peerOf(o: unknown): UPeer | null {
   if (!o || typeof o !== "object") return null;
   const p = o as Record<string, unknown>;
   if (typeof p.id !== "string" || !ID.test(p.id)) return null;
-  return { id: p.id, name: cleanText(p.name, UNITY_MAX_NAME) || "Guest", color: typeof p.color === "string" && COLOR.test(p.color) ? p.color : "#4fc3f7", x: num(p.x), y: num(p.y), z: num(p.z), r: num(p.r) };
+  return { id: p.id, avatar: avatarOf(p.avatar), look: lookOf(p.look), name: cleanText(p.name, UNITY_MAX_NAME) || "Guest", color: typeof p.color === "string" && COLOR.test(p.color) ? p.color : "#4fc3f7", x: num(p.x), y: num(p.y), z: num(p.z), r: num(p.r) };
 }
 function ghostOf(o: unknown): UGhost | null {
   const p = peerOf(o);
   if (!p) return null;
   const g = o as Record<string, unknown>;
-  return { ...p, text: cleanText(g.text, UNITY_MAX_TEXT), leftAt: typeof g.leftAt === "number" && Number.isFinite(g.leftAt) ? g.leftAt : 0 };
+  const kind: GhostKind = g.kind === "message" || g.kind === "broken" ? g.kind : "plain"; // unknown or missing: a plain ghost
+  const text = kind === "message" ? cleanText(g.text, UNITY_MAX_TEXT) : ""; // only a goodbye message carries text
+  return { ...p, kind: text || kind !== "message" ? kind : "plain", text, leftAt: typeof g.leftAt === "number" && Number.isFinite(g.leftAt) ? g.leftAt : 0 };
 }
 
 /** Parse and validate one relay frame. Anything unexpected returns null. */

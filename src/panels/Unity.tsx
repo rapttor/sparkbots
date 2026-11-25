@@ -42,9 +42,9 @@ export function UnityPanel() {
       <div className="card" style={{ margin: "10px 0" }}>
         <b>What switching it on shares</b>
         <ul className="small" style={{ margin: "6px 0 0", paddingLeft: 18, listStyle: "disc" }}>
-          <li>Your <b>display name</b>, your <b>colour</b>, where you stand in Unity and the short messages you type. <b>Everyone in the lobby can see these, and they are strangers.</b></li>
+          <li>Your <b>display name</b>, the <b>character</b> you set up in Settings (avatar, look and colour), where you stand in Unity and the short messages you type. <b>Everyone in the lobby can see these, and they are strangers.</b></li>
           <li>The relay (a small Cloudflare Worker run by the maker) sees your <b>IP address</b> to limit abuse. It keeps only a short hash of it.</li>
-          <li>A <b>ghost</b> (name, last place, your last message and the time) is stored on the relay for up to 7 days or until you come back. You can turn ghosts off below.</li>
+          <li>A <b>ghost</b> (name, character, last place, the goodbye message you choose to leave, and the time) is stored on the relay for up to 7 days (2 days if you just closed the window) or until you come back. You can turn ghosts off below.</li>
           <li><b>Never shared:</b> your agents, projects, folders, prompts, transcripts or anything from <code>~/.claude</code>.</li>
           <li>You can <b>mute</b> anyone and <b>report</b> them from the Unity screen. Messages are plain text, at most 80 characters, and links are dropped.</li>
           <li>Your identity is a random secret kept in <code>~/.agent-office/unity.json</code>. Delete the file to become someone new.</li>
@@ -57,10 +57,10 @@ export function UnityPanel() {
           <input value={name} maxLength={UNITY_MAX_NAME} onChange={(e) => setName(e.target.value)} onBlur={() => { if (name !== s.name) void save({ name }); }} placeholder="Guest" aria-label="Display name" />
         </div>
       </div>
-      <div className="opt"><div className="opt-text"><div className="opt-label">Leave a ghost when I go</div><div className="muted small">Others see a faint figure with the time you left. It disappears as soon as you come back.</div></div>
+      <div className="opt"><div className="opt-text"><div className="opt-label">Leave a ghost when I go</div><div className="muted small">Leave through the phone booth and others see a faint figure of you (with your message, if you leave one). Close the window instead and you leave a broken figure with no message. It disappears as soon as you come back.</div></div>
         <div className="opt-body"><input type="checkbox" checked={s.ghost} disabled={busy} onChange={(e) => void save({ ghost: e.target.checked })} aria-label="Leave a ghost" /></div>
       </div>
-      <p className="muted small">Your colour is the one you picked for your character in Settings.</p>
+      <p className="muted small">You appear as the character from Settings (avatar, look and colour), walking, never as the hand.</p>
 
       <h2>Go in</h2>
       <p>

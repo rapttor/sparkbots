@@ -4,22 +4,42 @@ import { DurableObject } from "cloudflare:workers";
 //
 // Protocol (JSON text frames):
 //   client -> relay  hello {key, name, color, ghost?}   first message, within 5 s, else the socket is closed
-//                    pos {x,y,z,r} | say {text} | ghost {on} | report {id}
+//                    pos {x,y,z,r} | say {text} | ghost {on} | report {id} | bye {text?}   (bye = I am leaving on purpose)
 //   relay -> client  welcome {id, peers[], ghosts[]} | join {peer} | pos | say | leave {id, ghost?} | replaced
 //   close codes      4000 replaced, 4001 no hello, 4002 bad key, 4003 banned, 4004 flood
 //
 // Identity: the client keeps a random secret and sends it in `hello` (never in the URL, so it is not
 // logged). The relay stores only SHA-256(secret) as the peer id, so nobody can pose as someone else
 // without their secret, and there are no accounts. A second connection with the same secret replaces
-// the first (two tabs). When someone leaves they may leave a "ghost" (last place, last bubble, time)
-// that stays for GHOST_TTL_MS or until they return.
+// the first (two tabs). When someone leaves they may leave a "ghost" (last place, time, kind) that stays
+// until they return or it expires. The kind says how they left: `message` (they said goodbye with a message,
+// which is the ghost's text), `plain` (goodbye without a message), `broken` (the socket just closed, e.g. the
+// window was closed: no text, drawn as a broken figure). The last chat bubble is never used as ghost text.
 //
 // Abuse limits (the lobby is public): per-IP sockets, per-IP connect rate, per-IP bubble budget, a frame
 // flood cutoff, text/name hygiene, reports, and bans by id or IP hash. The IP is only ever kept as a short
 // hash, in memory or in the ban list, and is never sent to clients.
 
+// The look every player chose in their own SparkBots (Settings > 3D office). Only these values are accepted,
+// so a hello cannot smuggle arbitrary text or huge strings into what other people render.
+const AVATARS = ["developer", "raptor", "spark"];
+const TOPS = ["turtleneck", "tshirt", "hoodie", "plaid"];
+const LOGOS = ["", "🦖", "🤖", "👾", "🚀", "🔥", "⚡", "🧠", "💾", "🎮", "☕", "🍕", "🐱", "🐶", "🦄", "👑", "🌈", "💡"];
+interface Look { top: string; topColor: string; logo: string; glasses: boolean; beard: boolean; overweight: boolean }
+const DEFAULT_LOOK: Look = { top: "tshirt", topColor: "#f4f6fa", logo: "🦖", glasses: true, beard: true, overweight: true };
+const cleanLook = (o: any): Look => ({
+  top: TOPS.includes(o?.top) ? o.top : DEFAULT_LOOK.top,
+  topColor: /^#[0-9a-fA-F]{6}$/.test(o?.topColor ?? "") ? o.topColor : DEFAULT_LOOK.topColor,
+  logo: LOGOS.includes(o?.logo) ? o.logo : DEFAULT_LOOK.logo,
+  glasses: typeof o?.glasses === "boolean" ? o.glasses : DEFAULT_LOOK.glasses,
+  beard: typeof o?.beard === "boolean" ? o.beard : DEFAULT_LOOK.beard,
+  overweight: typeof o?.overweight === "boolean" ? o.overweight : DEFAULT_LOOK.overweight,
+});
+
 interface Peer {
   id: string; // "" until hello is accepted
+  avatar: string;
+  look: Look;
   ip: string; // short hash of the client IP, never sent to clients
   name: string;
   color: string;
@@ -33,12 +53,18 @@ interface Peer {
   lastSay: number;
   lastReport: number;
   ghost: boolean; // leave a ghost behind on exit
+  bye?: { text: string }; // set when the client said goodbye on purpose
   replaced?: boolean;
   gone?: boolean;
 }
 
+type GhostKind = "message" | "plain" | "broken";
+
 interface Ghost {
   id: string;
+  kind: GhostKind;
+  avatar: string;
+  look: Look;
   name: string;
   color: string;
   x: number;
@@ -75,6 +101,7 @@ const MIN_SAY_INTERVAL_MS = 1000;
 const MIN_REPORT_INTERVAL_MS = 5000;
 const HELLO_TIMEOUT_MS = 5000;
 const GHOST_TTL_MS = 7 * 24 * 3600 * 1000;
+const BROKEN_TTL_MS = 2 * 24 * 3600 * 1000; // a broken figure fades sooner
 const REPORT_TTL_MS = 30 * 24 * 3600 * 1000;
 const MAX_GHOSTS = 30;
 const MAX_REPORTERS = 50;
@@ -113,9 +140,14 @@ const num = (n: unknown): number => (typeof n === "number" && Number.isFinite(n)
 
 const att = (ws: WebSocket): Peer | null => (ws.deserializeAttachment() as Peer | null) ?? null;
 
-const publicPeer = (p: Peer) => ({ id: p.id, name: p.name, color: p.color, x: p.x, y: p.y, z: p.z, r: p.r });
+const publicPeer = (p: Peer) => ({ id: p.id, avatar: p.avatar, look: p.look, name: p.name, color: p.color, x: p.x, y: p.y, z: p.z, r: p.r });
 
-const toGhost = (p: Peer): Ghost => ({ id: p.id, name: p.name, color: p.color, x: p.x, y: p.y, z: p.z, r: p.r, text: p.text, leftAt: Date.now() });
+const toGhost = (p: Peer): Ghost => ({
+  id: p.id, avatar: p.avatar, look: p.look, name: p.name, color: p.color, x: p.x, y: p.y, z: p.z, r: p.r, leftAt: Date.now(),
+  kind: p.bye ? (p.bye.text ? "message" : "plain") : "broken",
+  text: p.bye?.text ?? "",
+});
+const ghostTtl = (g: Ghost): number => (g.kind === "broken" ? BROKEN_TTL_MS : GHOST_TTL_MS);
 
 async function sha(s: string, bytes: number): Promise<string> {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -150,7 +182,7 @@ export class Room extends DurableObject<RoomEnv> {
 
     const { 0: client, 1: server } = new WebSocketPair();
     this.ctx.acceptWebSocket(server);
-    const pending: Peer = { id: "", ip, name: "Guest", color: DEFAULT_COLOR, x: 0, y: 0, z: 0, r: 0, text: "", at: now, lastPos: 0, lastSay: 0, lastReport: 0, ghost: true };
+    const pending: Peer = { id: "", avatar: "developer", look: DEFAULT_LOOK, ip, name: "Guest", color: DEFAULT_COLOR, x: 0, y: 0, z: 0, r: 0, text: "", at: now, lastPos: 0, lastSay: 0, lastReport: 0, ghost: true };
     server.serializeAttachment(pending);
     if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(now + HELLO_TIMEOUT_MS);
 
@@ -219,6 +251,18 @@ export class Room extends DurableObject<RoomEnv> {
       ws.serializeAttachment(peer);
     } else if (msg?.t === "report") {
       await this.report(ws, peer, msg.id, now);
+    } else if (msg?.t === "bye") {
+      // Goodbye on purpose. The optional text follows the bubble rules (plain text, no links, per-IP budget); if it is
+      // refused the person still leaves a plain ghost.
+      let text = clean(msg.text, MAX_TEXT);
+      if (text && LINK_RE.test(text)) text = "";
+      if (text) {
+        const recent = (this.says.get(peer.ip) ?? []).filter((t) => now - t < 10_000);
+        if (recent.length >= limit(this.env.SAYS_PER_IP_10S, 8)) text = "";
+        else { recent.push(now); this.says.set(peer.ip, recent); }
+      }
+      peer.bye = { text };
+      ws.serializeAttachment(peer);
     }
   }
 
@@ -242,6 +286,8 @@ export class Room extends DurableObject<RoomEnv> {
       return;
     }
     peer.id = id;
+    peer.avatar = AVATARS.includes(msg.avatar) ? msg.avatar : "developer";
+    peer.look = cleanLook(msg.look);
     peer.name = cleanName(msg.name);
     peer.color = /^#[0-9a-fA-F]{6}$/.test(msg.color ?? "") ? msg.color : DEFAULT_COLOR;
     peer.ghost = msg.ghost !== false;
@@ -289,10 +335,11 @@ export class Room extends DurableObject<RoomEnv> {
   private async loadGhosts(): Promise<Ghost[]> {
     const all = await this.ctx.storage.list<Ghost>({ prefix: "g:" });
     const now = Date.now();
+    for (const g of all.values()) g.kind ??= "plain"; // ghosts stored before kinds existed
     const live: Ghost[] = [];
     const drop: string[] = [];
     for (const [key, g] of all) {
-      if (now - g.leftAt > GHOST_TTL_MS) drop.push(key);
+      if (now - g.leftAt > ghostTtl(g)) drop.push(key);
       else live.push(g);
     }
     live.sort((a, b) => b.leftAt - a.leftAt);

@@ -48,10 +48,12 @@ const wa = await a.next((m) => m.t === "welcome");
 check("A welcome: no peers, no ghosts", wa.peers.length === 0 && wa.ghosts.length === 0);
 check("peer id is a hash, not the secret", wa.id.length === 16 && !keyA.includes(wa.id));
 
-const b = await open("Bob", keyB);
+const b = await open("Bob", keyB, { avatar: "raptor", look: { top: "hoodie", topColor: "#102030", logo: "🚀", glasses: false, beard: true, overweight: false } });
 const wb = await b.next((m) => m.t === "welcome");
 check("B welcome lists Alice, ids differ", wb.peers.length === 1 && wb.peers[0].name === "Alice" && wb.id !== wa.id);
-check("A is told Bob joined", (await a.next((m) => m.t === "join")).peer.id === wb.id);
+const ja = await a.next((m) => m.t === "join");
+check("A is told Bob joined", ja.peer.id === wb.id);
+check("the join carries Bob's chosen character", ja.peer.avatar === "raptor" && ja.peer.look.top === "hoodie" && ja.peer.look.logo === "🚀" && ja.peer.look.glasses === false);
 
 // --- before hello nothing is accepted; no hello means the socket is closed
 const raw = await open("x", "x", {}, false);
@@ -85,32 +87,64 @@ check("old tab is told it was replaced", true);
 check("replacing a tab sends no leave to the room", await a.quiet((m) => m.t === "leave", 500));
 check("welcome does not list myself", wb2.peers.every((p) => p.id !== wb2.id));
 
-// --- ghosts
+// --- ghosts: how you leave decides the kind
 await sleep(1000);
-b2.send({ t: "say", text: "bye for now" });
+b2.send({ t: "say", text: "just a bubble" });
 await a.next((m) => m.t === "say");
+b2.send({ t: "bye", text: "see you tomorrow" });
+await sleep(150);
 b2.ws.close();
 const left = await a.next((m) => m.t === "leave");
-check("leave carries a ghost with the last bubble", left.id === wb.id && left.ghost?.text === "bye for now" && left.ghost.name === "Bob");
+check("a goodbye message becomes the ghost's message, not the last bubble", left.id === wb.id && left.ghost?.kind === "message" && left.ghost.text === "see you tomorrow" && left.ghost.name === "Bob");
 
-const c = await open("Carol", keyC);
+const c = await open("Carol", keyC, { avatar: "<script>", look: { top: "cape", topColor: "red; evil", logo: "not an emoji at all", glasses: "yes" } });
 const wc = await c.next((m) => m.t === "welcome");
-check("a newcomer sees Bob's ghost, not as a live peer", wc.ghosts.some((g) => g.id === wb.id && g.text === "bye for now") && wc.peers.every((p) => p.id !== wb.id));
+check("a newcomer sees Bob's ghost, not as a live peer", wc.ghosts.some((g) => g.id === wb.id && g.kind === "message" && g.text === "see you tomorrow") && wc.peers.every((p) => p.id !== wb.id));
 
 const b3 = await open("Bob", keyB);
 const wb3 = await b3.next((m) => m.t === "welcome");
 check("Bob returning sees no ghost of himself", wb3.ghosts.every((g) => g.id !== wb.id));
 check("the room is told Bob is back", (await c.next((m) => m.t === "join" && m.peer.id === wb.id)).peer.name === "Bob");
 
-const d = await open("Dave", keyD);
-check("Bob's ghost is gone once he is back", (await d.next((m) => m.t === "welcome")).ghosts.every((g) => g.id !== wb.id));
+const d = await open("Dave", keyD, { avatar: "spark" });
+const wd = await d.next((m) => m.t === "welcome");
+check("Bob's ghost is gone once he is back", wd.ghosts.every((g) => g.id !== wb.id));
+const carol = wd.peers.find((p) => p.name === "Carol");
+check("hostile avatar/look values are replaced by safe defaults", carol?.avatar === "developer" && carol.look.top === "tshirt" && carol.look.topColor === "#f4f6fa" && carol.look.logo === "🦖" && carol.look.glasses === true);
 
-// --- opt out of ghosts
+// closing without a goodbye (the window was closed): broken ghost, no text, even after chatting
+d.send({ t: "say", text: "my last words" });
+await a.next((m) => m.t === "say" && m.id === wd.id);
+d.ws.close();
+const dLeft = await a.next((m) => m.t === "leave" && m.id === wd.id);
+check("closing without a goodbye leaves a broken ghost with no text", dLeft.ghost?.kind === "broken" && dLeft.ghost.text === "" && dLeft.ghost.avatar === "spark");
+
+// a goodbye without text: plain ghost
+const g1 = await open("Gina", mk());
+const wg = await g1.next((m) => m.t === "welcome");
+check("a newcomer sees the broken ghost", wg.ghosts.some((g) => g.id === wd.id && g.kind === "broken" && g.text === ""));
+g1.send({ t: "bye" });
+await sleep(150);
+g1.ws.close();
+const gLeft = await a.next((m) => m.t === "leave" && m.id === wg.id);
+check("a goodbye without text leaves a plain ghost", gLeft.ghost?.kind === "plain" && gLeft.ghost.text === "");
+
+// a link or an oversized text in the goodbye is dropped (plain ghost), the person still leaves
+const h = await open("Hank", mk());
+const wh = await h.next((m) => m.t === "welcome");
+h.send({ t: "bye", text: "see https://spam.example" });
+await sleep(150);
+h.ws.close();
+check("a goodbye with a link leaves a plain ghost without the link", (await a.next((m) => m.t === "leave" && m.id === wh.id)).ghost?.kind === "plain");
+
+// opt out of ghosts
 const e = await open("Eve", keyE, { ghost: false });
 await e.next((m) => m.t === "welcome");
+e.send({ t: "bye", text: "no ghost please" });
+await sleep(150);
 e.ws.close();
 const eLeft = await a.next((m) => m.t === "leave" && m.ghost === undefined);
-check("ghost:false leaves no ghost", !!eLeft);
+check("ghost:false leaves no ghost, even with a goodbye", !!eLeft);
 const f = await open("Frank", mk());
 check("opted-out peer has no ghost for newcomers", (await f.next((m) => m.t === "welcome")).ghosts.every((g) => g.name !== "Eve"));
 
@@ -118,5 +152,5 @@ check("opted-out peer has no ghost for newcomers", (await f.next((m) => m.t === 
 await sleep(5500);
 check("a socket that never says hello is closed (4001)", raw.closeCode === 4001);
 
-for (const x of [a, b3, c, d, f]) x.ws.close();
+for (const x of [a, b3, c, f]) x.ws.close();
 console.log(process.exitCode ? "\nSome checks failed." : "\nAll checks passed.");
