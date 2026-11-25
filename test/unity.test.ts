@@ -5,7 +5,7 @@ import Fastify from "fastify";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_RELAY, UNITY_BUBBLE_MS, UNITY_MAX_GHOSTS, ago, cleanText, clampToFloor, emptyRoom, parseMsg, pruneBubbles, reduceRoom, relayUrl, validRelay,
-  avatarOf, lookOf, type GhostKind, type UGhost, type UPeer,
+  avatarOf, countUrl, lookOf, parseCount, relayHttp, type GhostKind, type UGhost, type UPeer,
 } from "../src/shared/unity";
 import { DEFAULT_DEV_LOOK } from "../src/world/devLook";
 import { defaultConfig, aoHome, type Config } from "../server/config";
@@ -110,6 +110,13 @@ describe("unity: helpers", () => {
     expect(validRelay("wss://example.com/room/x")).toBe(false);
     expect(validRelay(42)).toBe(false);
     expect(relayUrl("wss://x.dev/")).toBe("wss://x.dev/room/unity");
+  });
+  it("the head count: addresses and a believable number only", () => {
+    expect(relayHttp("wss://x.dev/")).toBe("https://x.dev");
+    expect(relayHttp("ws://127.0.0.1:8787")).toBe("http://127.0.0.1:8787");
+    expect(countUrl("wss://x.dev")).toBe("https://x.dev/room/unity/count");
+    expect(parseCount({ n: 7 })).toBe(7);
+    for (const bad of [null, undefined, {}, { n: -1 }, { n: 1.5 }, { n: "3" }, { n: 1e9 }, [], "5"]) expect(parseCount(bad)).toBeNull();
   });
   it("ago", () => {
     expect(ago(0, 30_000)).toBe("just now");

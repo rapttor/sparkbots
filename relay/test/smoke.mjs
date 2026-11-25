@@ -53,6 +53,15 @@ const wb = await b.next((m) => m.t === "welcome");
 check("B welcome lists Alice, ids differ", wb.peers.length === 1 && wb.peers[0].name === "Alice" && wb.id !== wa.id);
 const ja = await a.next((m) => m.t === "join");
 check("A is told Bob joined", ja.peer.id === wb.id);
+// --- the count behind the pod in the office: a number only, same Origin rule as the sockets, CORS for local pages
+const httpBase = base.replace(/^ws/, "http");
+const cnt = await fetch(`${httpBase}/room/${room}/count`, { headers: { Origin: "http://127.0.0.1:4317" } });
+check("the room count says 2 (Alice and Bob)", cnt.status === 200 && (await cnt.json()).n === 2);
+check("the count allows local pages (CORS) and is cached for a short time", cnt.headers.get("access-control-allow-origin") === "http://127.0.0.1:4317" && /max-age=\d+/.test(cnt.headers.get("cache-control") ?? ""));
+const foreign = await fetch(`${httpBase}/room/${room}/count`, { headers: { Origin: "https://evil.example" } });
+check("the count refuses other websites (403)", foreign.status === 403);
+check("the count shows only a number", Object.keys(await (await fetch(`${httpBase}/room/${room}/count`)).json()).join() === "n");
+
 check("the join carries Bob's chosen character", ja.peer.avatar === "raptor" && ja.peer.look.top === "hoodie" && ja.peer.look.logo === "🚀" && ja.peer.look.glasses === false);
 
 // --- before hello nothing is accepted; no hello means the socket is closed

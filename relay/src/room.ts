@@ -394,6 +394,11 @@ export class Room extends DurableObject<RoomEnv> {
     try { ws.close(4003, "banned"); } catch { /* closed */ }
   }
 
+  /** Number of people in the room right now (for the pod in the office). Called by the Worker over RPC. */
+  async count(): Promise<number> {
+    return this.ctx.getWebSockets().map(att).filter((p) => !!p && !!p.id && !p.replaced && !p.gone).length;
+  }
+
   // ---- admin (called by the Worker over RPC after it checked the token; not reachable from a client socket)
 
   async adminPeers() {

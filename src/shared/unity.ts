@@ -156,6 +156,16 @@ export function pruneBubbles(s: UnityRoomState, now: number): UnityRoomState {
 
 export const relayUrl = (base: string, room = UNITY_ROOM): string => `${base.replace(/\/+$/, "")}/room/${room}`;
 
+/** The http(s) address of the same relay (wss -> https, ws -> http), and the address of a room's head count. */
+export const relayHttp = (base: string): string => base.replace(/\/+$/, "").replace(/^ws/, "http");
+export const countUrl = (base: string, room = UNITY_ROOM): string => `${relayHttp(base)}/room/${room}/count`;
+
+/** A head count from the relay: only a small non-negative whole number is believed. */
+export function parseCount(v: unknown): number | null {
+  const n = (v as { n?: unknown } | null)?.n;
+  return typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 10_000 ? n : null;
+}
+
 /** wss:// for any host; plain ws:// only for a relay on this machine (development). */
 export const validRelay = (u: unknown): u is string =>
   typeof u === "string" && u.length <= 200 && (/^wss:\/\/[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:\d{1,5})?\/?$/i.test(u) || /^ws:\/\/(127\.0\.0\.1|localhost)(:\d{1,5})?\/?$/.test(u));

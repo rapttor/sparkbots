@@ -43,7 +43,7 @@ export function UnityPanel() {
         <b>What switching it on shares</b>
         <ul className="small" style={{ margin: "6px 0 0", paddingLeft: 18, listStyle: "disc" }}>
           <li>Your <b>display name</b>, the <b>character</b> you set up in Settings (avatar, look and colour), where you stand in Unity and the short messages you type. <b>Everyone in the lobby can see these, and they are strangers.</b></li>
-          <li>The relay (a small Cloudflare Worker run by the maker) sees your <b>IP address</b> to limit abuse. It keeps only a short hash of it.</li>
+          <li>The relay (a small Cloudflare Worker run by the maker) sees your <b>IP address</b> to limit abuse. It keeps only a short hash of it. While Unity is on, the office also asks it how many people are inside (at most every 30 seconds, only while this tab is visible), so the pod in the office can show the number.</li>
           <li>A <b>ghost</b> (name, character, last place, the goodbye message you choose to leave, and the time) is stored on the relay for up to 7 days (2 days if you just closed the window) or until you come back. You can turn ghosts off below.</li>
           <li><b>Never shared:</b> your agents, projects, folders, prompts, transcripts or anything from <code>~/.claude</code>.</li>
           <li>You can <b>mute</b> anyone and <b>report</b> them from the Unity screen. Messages are plain text, at most 80 characters, and links are dropped.</li>
