@@ -4,17 +4,23 @@ import { DurableObject } from "cloudflare:workers";
 //
 // Protocol (JSON text frames):
 //   client -> relay  hello {key, name, color, ghost?}   first message, within 5 s, else the socket is closed
-//                    pos {x,y,z,r} | say {text} | ghost {on}
+//                    pos {x,y,z,r} | say {text} | ghost {on} | report {id}
 //   relay -> client  welcome {id, peers[], ghosts[]} | join {peer} | pos | say | leave {id, ghost?} | replaced
+//   close codes      4000 replaced, 4001 no hello, 4002 bad key, 4003 banned, 4004 flood
 //
 // Identity: the client keeps a random secret and sends it in `hello` (never in the URL, so it is not
 // logged). The relay stores only SHA-256(secret) as the peer id, so nobody can pose as someone else
 // without their secret, and there are no accounts. A second connection with the same secret replaces
 // the first (two tabs). When someone leaves they may leave a "ghost" (last place, last bubble, time)
 // that stays for GHOST_TTL_MS or until they return.
+//
+// Abuse limits (the lobby is public): per-IP sockets, per-IP connect rate, per-IP bubble budget, a frame
+// flood cutoff, text/name hygiene, reports, and bans by id or IP hash. The IP is only ever kept as a short
+// hash, in memory or in the ban list, and is never sent to clients.
 
 interface Peer {
   id: string; // "" until hello is accepted
+  ip: string; // short hash of the client IP, never sent to clients
   name: string;
   color: string;
   x: number;
@@ -25,6 +31,7 @@ interface Peer {
   at: number; // connected at (ms), for the hello timeout
   lastPos: number; // ms, rate limiting
   lastSay: number;
+  lastReport: number;
   ghost: boolean; // leave a ghost behind on exit
   replaced?: boolean;
   gone?: boolean;
@@ -42,20 +49,65 @@ interface Ghost {
   leftAt: number;
 }
 
+interface Report {
+  id: string;
+  name: string;
+  text: string;
+  ip: string;
+  by: string[]; // distinct reporter ids
+  first: number;
+  last: number;
+}
+
+export interface RoomEnv {
+  // Optional overrides (wrangler vars or --var), strings.
+  MAX_PER_IP?: string;
+  CONNECTS_PER_MIN?: string;
+  SAYS_PER_IP_10S?: string;
+  MAX_FRAMES_PER_SEC?: string;
+}
+
 const MAX_PEERS = 50;
 const MAX_MESSAGE_BYTES = 512;
 const MAX_TEXT = 80;
 const MIN_POS_INTERVAL_MS = 40; // ~25 Hz cap
 const MIN_SAY_INTERVAL_MS = 1000;
+const MIN_REPORT_INTERVAL_MS = 5000;
 const HELLO_TIMEOUT_MS = 5000;
 const GHOST_TTL_MS = 7 * 24 * 3600 * 1000;
+const REPORT_TTL_MS = 30 * 24 * 3600 * 1000;
 const MAX_GHOSTS = 30;
+const MAX_REPORTERS = 50;
 const DEFAULT_COLOR = "#4fc3f7";
 const KEY_RE = /^[A-Za-z0-9_-]{22,128}$/;
+const ID_RE = /^[0-9a-f]{16}$/;
+const LINK_RE = /https?:\/\/|www\./i;
+const RESERVED = /^(admin|administrator|mod|moderator|system|staff|owner|support|sparkbots|rapttor|unity|claude|anthropic)$/;
 
-// Strip control chars and trim; text is rendered as plain text by clients, never HTML.
+const limit = (v: string | undefined, d: number): number => {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : d;
+};
+
+// Strip control, invisible and bidi-override characters, collapse whitespace; text is rendered as plain
+// text by clients, never HTML.
+// Code point ranges: C0/C1 controls, zero-width and bidi marks, line/paragraph separators and bidi
+// overrides/isolates, word joiner and invisible operators, BOM.
+const INVISIBLE: [number, number][] = [[0, 0x1f], [0x7f, 0x9f], [0x200b, 0x200f], [0x2028, 0x202f], [0x2060, 0x206f], [0xfeff, 0xfeff]];
+const visible = (ch: string): boolean => {
+  const cp = ch.codePointAt(0) ?? 0;
+  return !INVISIBLE.some(([a, b]) => cp >= a && cp <= b);
+};
+// Whitespace is collapsed before stripping (tabs/newlines become spaces instead of being glued together)
+// and again after, because removing an invisible character can leave two spaces side by side.
 const clean = (s: unknown, max: number): string =>
-  typeof s === "string" ? s.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max) : "";
+  typeof s === "string" ? [...s.replace(/\s+/g, " ")].filter(visible).join("").replace(/\s+/g, " ").trim().slice(0, max) : "";
+
+const cleanName = (s: unknown): string => {
+  const n = clean(s, 24);
+  if (!n || LINK_RE.test(n) || RESERVED.test(n.toLowerCase().replace(/[^a-z0-9]/g, ""))) return "Guest";
+  return n;
+};
 
 const num = (n: unknown): number => (typeof n === "number" && Number.isFinite(n) ? Math.max(-1e4, Math.min(1e4, n)) : 0);
 
@@ -65,20 +117,42 @@ const publicPeer = (p: Peer) => ({ id: p.id, name: p.name, color: p.color, x: p.
 
 const toGhost = (p: Peer): Ghost => ({ id: p.id, name: p.name, color: p.color, x: p.x, y: p.y, z: p.z, r: p.r, text: p.text, leftAt: Date.now() });
 
-async function idFor(key: string): Promise<string> {
-  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
-  return [...new Uint8Array(d)].slice(0, 8).map((b) => b.toString(16).padStart(2, "0")).join("");
+async function sha(s: string, bytes: number): Promise<string> {
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(d)].slice(0, bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export class Room extends DurableObject {
-  async fetch(_req: Request): Promise<Response> {
-    if (this.ctx.getWebSockets().length >= MAX_PEERS) return new Response("room full", { status: 403 });
+export class Room extends DurableObject<RoomEnv> {
+  // In-memory counters. They reset when the object is evicted, which only happens after it has been idle
+  // longer than every window below, so nothing is lost.
+  private connects = new Map<string, number[]>();
+  private says = new Map<string, number[]>();
+  private frames = new WeakMap<WebSocket, { t: number; n: number }>();
+
+  async fetch(req: Request): Promise<Response> {
+    const now = Date.now();
+    // The Worker overwrites this header from CF-Connecting-IP; clients cannot set it.
+    const ip = await sha(req.headers.get("X-Client-IP") ?? "unknown", 6);
+
+    if (await this.banned("ip", ip)) return new Response("banned", { status: 403 });
+
+    const sockets = this.ctx.getWebSockets();
+    if (sockets.length >= MAX_PEERS) return new Response("room full", { status: 403 });
+
+    const open = sockets.filter((s) => { const p = att(s); return p && p.ip === ip && !p.replaced && !p.gone; }).length;
+    if (open >= limit(this.env.MAX_PER_IP, 8)) return new Response("too many connections", { status: 429 });
+
+    const hits = (this.connects.get(ip) ?? []).filter((t) => now - t < 60_000);
+    if (hits.length >= limit(this.env.CONNECTS_PER_MIN, 40)) return new Response("slow down", { status: 429 });
+    hits.push(now);
+    this.connects.set(ip, hits);
+    if (this.connects.size > 500) for (const [k, v] of this.connects) if (now - v[v.length - 1] > 60_000) this.connects.delete(k);
 
     const { 0: client, 1: server } = new WebSocketPair();
     this.ctx.acceptWebSocket(server);
-    const pending: Peer = { id: "", name: "Guest", color: DEFAULT_COLOR, x: 0, y: 0, z: 0, r: 0, text: "", at: Date.now(), lastPos: 0, lastSay: 0, ghost: true };
+    const pending: Peer = { id: "", ip, name: "Guest", color: DEFAULT_COLOR, x: 0, y: 0, z: 0, r: 0, text: "", at: now, lastPos: 0, lastSay: 0, lastReport: 0, ghost: true };
     server.serializeAttachment(pending);
-    if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + HELLO_TIMEOUT_MS);
+    if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(now + HELLO_TIMEOUT_MS);
 
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -99,6 +173,18 @@ export class Room extends DurableObject {
   }
 
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer): Promise<void> {
+    const now = Date.now();
+
+    // Flood cutoff: far more frames per second than a client ever needs.
+    const f = this.frames.get(ws) ?? { t: now, n: 0 };
+    if (now - f.t >= 1000) { f.t = now; f.n = 0; }
+    f.n++;
+    this.frames.set(ws, f);
+    if (f.n > limit(this.env.MAX_FRAMES_PER_SEC, 100)) {
+      try { ws.close(4004, "flood"); } catch { /* already closed */ }
+      return;
+    }
+
     if (typeof raw !== "string" || raw.length > MAX_MESSAGE_BYTES) return;
     let msg: any;
     try { msg = JSON.parse(raw); } catch { return; }
@@ -110,7 +196,6 @@ export class Room extends DurableObject {
       return; // nothing else is accepted before hello
     }
 
-    const now = Date.now();
     if (msg?.t === "pos") {
       if (now - peer.lastPos < MIN_POS_INTERVAL_MS) return;
       Object.assign(peer, { x: num(msg.x), y: num(msg.y), z: num(msg.z), r: num(msg.r), lastPos: now });
@@ -119,7 +204,12 @@ export class Room extends DurableObject {
     } else if (msg?.t === "say") {
       if (now - peer.lastSay < MIN_SAY_INTERVAL_MS) return;
       const text = clean(msg.text, MAX_TEXT);
-      if (!text) return;
+      if (!text || LINK_RE.test(text)) return; // links are spam in a public lobby, and bubbles are not clickable anyway
+      // A new secret per connection must not be a way around the per-peer limit.
+      const recent = (this.says.get(peer.ip) ?? []).filter((t) => now - t < 10_000);
+      if (recent.length >= limit(this.env.SAYS_PER_IP_10S, 8)) return;
+      recent.push(now);
+      this.says.set(peer.ip, recent);
       peer.lastSay = now;
       peer.text = text;
       ws.serializeAttachment(peer);
@@ -127,6 +217,8 @@ export class Room extends DurableObject {
     } else if (msg?.t === "ghost") {
       peer.ghost = msg.on !== false; // "Clear my ghost": off means nothing is left behind when I leave
       ws.serializeAttachment(peer);
+    } else if (msg?.t === "report") {
+      await this.report(ws, peer, msg.id, now);
     }
   }
 
@@ -144,8 +236,13 @@ export class Room extends DurableObject {
       ws.close(4002, "bad key");
       return;
     }
-    peer.id = await idFor(msg.key);
-    peer.name = clean(msg.name, 24) || "Guest";
+    const id = await sha(msg.key, 8);
+    if (await this.banned("id", id)) {
+      ws.close(4003, "banned");
+      return;
+    }
+    peer.id = id;
+    peer.name = cleanName(msg.name);
     peer.color = /^#[0-9a-fA-F]{6}$/.test(msg.color ?? "") ? msg.color : DEFAULT_COLOR;
     peer.ghost = msg.ghost !== false;
 
@@ -212,5 +309,102 @@ export class Room extends DurableObject {
       if (!p?.id || p.replaced) continue; // only ready peers hear the room
       try { s.send(data); } catch { /* socket is closing */ }
     }
+  }
+
+  // ---- reports and bans
+
+  private async report(ws: WebSocket, peer: Peer, target: unknown, now: number): Promise<void> {
+    if (now - peer.lastReport < MIN_REPORT_INTERVAL_MS) return;
+    if (typeof target !== "string" || !ID_RE.test(target) || target === peer.id) return;
+    peer.lastReport = now;
+    ws.serializeAttachment(peer);
+
+    const live = this.ctx.getWebSockets().map(att).find((p) => p?.id === target);
+    const key = "r:" + target;
+    const r = (await this.ctx.storage.get<Report>(key)) ?? { id: target, name: "", text: "", ip: "", by: [], first: now, last: now };
+    if (live) { r.name = live.name; r.text = live.text; r.ip = live.ip; }
+    if (!r.by.includes(peer.id) && r.by.length < MAX_REPORTERS) r.by.push(peer.id);
+    r.last = now;
+    await this.ctx.storage.put(key, r);
+  }
+
+  // expiry 0 means permanent
+  private async banned(kind: "id" | "ip", key: string): Promise<boolean> {
+    const exp = await this.ctx.storage.get<number>(`b:${kind}:${key}`);
+    if (exp === undefined) return false;
+    if (exp !== 0 && exp < Date.now()) {
+      await this.ctx.storage.delete(`b:${kind}:${key}`);
+      return false;
+    }
+    return true;
+  }
+
+  // Remove a peer without a ghost and tell the room.
+  private kick(ws: WebSocket, peer: Peer): void {
+    peer.gone = true;
+    try { ws.serializeAttachment(peer); } catch { /* closed */ }
+    if (peer.id) this.broadcast({ t: "leave", id: peer.id }, ws);
+    try { ws.close(4003, "banned"); } catch { /* closed */ }
+  }
+
+  // ---- admin (called by the Worker over RPC after it checked the token; not reachable from a client socket)
+
+  async adminPeers() {
+    return this.ctx
+      .getWebSockets()
+      .map(att)
+      .filter((p): p is Peer => !!p && !!p.id && !p.replaced && !p.gone)
+      .map((p) => ({ id: p.id, name: p.name, ip: p.ip, since: p.at, text: p.text }));
+  }
+
+  async adminReports() {
+    const all = await this.ctx.storage.list<Report>({ prefix: "r:" });
+    const now = Date.now();
+    const out: (Report & { count: number })[] = [];
+    for (const [key, r] of all) {
+      if (now - r.last > REPORT_TTL_MS) await this.ctx.storage.delete(key);
+      else out.push({ ...r, count: r.by.length });
+    }
+    return out.sort((a, b) => b.count - a.count || b.last - a.last).map(({ by, ...rest }) => rest);
+  }
+
+  async adminBans() {
+    const all = await this.ctx.storage.list<number>({ prefix: "b:" });
+    const now = Date.now();
+    const out: { kind: string; key: string; expires: number }[] = [];
+    for (const [key, exp] of all) {
+      if (exp !== 0 && exp < now) await this.ctx.storage.delete(key);
+      else { const [, kind, k] = key.split(":"); out.push({ kind, key: k, expires: exp }); }
+    }
+    return out;
+  }
+
+  // minutes 0 = permanent. `alsoIp` also bans the IP hash the id was last seen on (use sparingly: shared IPs).
+  async adminBan(id: string, minutes: number, alsoIp: boolean) {
+    if (!ID_RE.test(id)) return { ok: false, error: "bad id" };
+    const expires = minutes > 0 ? Date.now() + minutes * 60_000 : 0;
+    let ip = "";
+    for (const s of this.ctx.getWebSockets()) {
+      const p = att(s);
+      if (p?.id === id) { ip = p.ip; this.kick(s, p); }
+    }
+    if (!ip) ip = (await this.ctx.storage.get<Report>("r:" + id))?.ip ?? "";
+    await this.ctx.storage.put(`b:id:${id}`, expires);
+    await this.ctx.storage.delete("g:" + id);
+    if (alsoIp && ip) {
+      await this.ctx.storage.put(`b:ip:${ip}`, expires);
+      for (const s of this.ctx.getWebSockets()) {
+        const p = att(s);
+        if (p && p.ip === ip && !p.gone) this.kick(s, p);
+      }
+    }
+    return { ok: true, id, ip: alsoIp ? ip : undefined, expires };
+  }
+
+  // key is a peer id (16 hex) or an IP hash (12 hex)
+  async adminUnban(key: string) {
+    if (!/^[0-9a-f]{12,16}$/.test(key)) return { ok: false, error: "bad key" };
+    await this.ctx.storage.delete([`b:id:${key}`, `b:ip:${key}`]);
+    return { ok: true };
   }
 }
