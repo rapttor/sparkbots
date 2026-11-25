@@ -2,6 +2,15 @@
 
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
+## 1.1.1 (2026-11-25)
+
+Unity polish and a README that finally shows what SparkBots looks like. `v1.1.0` introduced Unity; this is the first release with the finished README and screenshots.
+
+- **Unity:** `[` and `]` turn the view (like in the office) and the walking keys follow the camera, so the amenities on every side can be seen from the front [15.22].
+- **Unity:** the list of visitors and the list of ghosts scroll inside their own cards instead of being cut off at the edge of the screen when a room is busy [15.22].
+- **README:** a titled **Unity: the public lobby** section (how to turn it on, what is in there, ghosts and the goodbye menu, controls, what is shared and what the relay sees, running your own relay, the demo crowd); a "New in 1.1" note; a screenshots section; the keys and features that were missing (quick map, follow / fork / nudge, the Server room's MCP list, how the three tools look) [15.22].
+- **Screenshots:** new Unity and pod pictures, all from demo data. `presskit/screenshots/capture-unity.mjs` takes them from an isolated sandbox (empty home folder, `?fixture=40` and the client-only `?unitycrowd=N`), so no real session, project or chat can appear [15.22].
+
 ## 1.1.0 (2026-11-25)
 
 **Unity**, an optional public lobby for everyone who uses SparkBots, and the small relay behind it (`relay/`, a Cloudflare Worker). Off by default: while it is off, SparkBots makes no connection to anything. Switching it on is explained in the Unity panel (what is shared, what the relay sees).

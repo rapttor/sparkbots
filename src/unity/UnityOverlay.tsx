@@ -66,11 +66,12 @@ function Hud() {
 
   return (
     <>
-      <div style={{ position: "absolute", top: 12, left: 12, width: 250, maxHeight: "70%", overflow: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ position: "absolute", top: 12, left: 12, width: 250, display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={card}>
           <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>🌀 Unity <span style={{ fontWeight: 400, opacity: 0.7 }}>· public lobby</span></div>
           <div style={{ opacity: 0.75, marginBottom: 6 }}><Dot c={ok ? "#4ade80" : status === "banned" || status === "error" ? "#f87171" : "#fbbf24"} />{ok ? `${peers.length + 1} here` : note || status}</div>
           <div><Dot c={myColor} />You</div>
+          <div style={{ maxHeight: "36vh", overflowY: "auto" }}>
           {peers.map((p) => (
             <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
               <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><Dot c={p.color} />{p.name}</span>
@@ -79,15 +80,16 @@ function Hud() {
             </div>
           ))}
           {peers.length === 0 && ok && <div style={{ opacity: 0.65, marginTop: 4 }}>No one else is here right now.</div>}
+          </div>
         </div>
         {room.ghosts.length > 0 && (
           <div style={card}>
             <button style={{ ...mini, border: 0, background: "none", padding: 0, fontSize: 12 }} onClick={() => setShowGhosts(!showGhosts)}>👻 {room.ghosts.length} ghost{room.ghosts.length === 1 ? "" : "s"} {showGhosts ? "▾" : "▸"}</button>
-            {showGhosts && room.ghosts.map((g) => (
+            {showGhosts && <div style={{ maxHeight: "24vh", overflowY: "auto" }}>{room.ghosts.map((g) => (
               <div key={g.id} style={{ marginTop: 4, opacity: 0.85 }} title={g.kind === "message" ? g.text : g.kind === "broken" ? "Connection lost" : "Said goodbye"}>
                 <Dot c={g.color} />{ICON[g.kind]} {g.name} <span style={{ opacity: 0.65 }}>· {ago(g.leftAt)}</span>
               </div>
-            ))}
+            ))}</div>}
           </div>
         )}
       </div>
@@ -102,7 +104,7 @@ function Hud() {
             style={{ flex: 1, background: "#0b1f17", border: "1px solid #2f6f4d", borderRadius: 8, color: "#ecfdf5", padding: "6px 10px", fontSize: 13, minWidth: 0 }} />
           <button style={{ ...mini, padding: "5px 12px", fontSize: 12 }} disabled={!ok || !text.trim()} onClick={submit}>Send</button>
         </div>
-        <div style={{ fontSize: 11, color: "#86efac99" }}>WASD / arrows or click to walk · Shift sprints · wheel zooms · E uses what you stand next to · everyone here can read what you say</div>
+        <div style={{ fontSize: 11, color: "#86efac99" }}>WASD / arrows or click to walk · Shift sprints · wheel zooms · [ ] turn the view · E uses what you stand next to · everyone here can read what you say</div>
       </div>
 
       {exiting && <ExitMenu onStay={() => setExiting(false)} />}

@@ -162,6 +162,7 @@ function Me({ radius }: { radius: number }) {
   const target = useRef<{ x: number; z: number } | null>({ ...OUT });
   const keys = useRef(new Set<string>());
   const zoom = useRef(1.2); // mouse wheel: how far the camera stands back
+  const yaw = useRef(0);    // [ and ] turn the view around you (like in the office); the walking keys follow the camera
   const motion = useRef<Motion>({ clip: "idle", t: 0, speed: 0 });
   const me = useUnity((s) => s.room.me);
   const status = useUnity((s) => s.status);
@@ -171,7 +172,7 @@ function Me({ radius }: { radius: number }) {
     const down = (e: KeyboardEvent) => {
       if (typing() || e.ctrlKey || e.metaKey || e.altKey) return;
       const k = e.key.toLowerCase();
-      if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "shift"].includes(k)) { keys.current.add(k); if (k !== "shift") target.current = null; if (k.startsWith("arrow")) e.preventDefault(); }
+      if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "shift", "[", "]"].includes(k)) { keys.current.add(k); if (k !== "shift" && k !== "[" && k !== "]") target.current = null; if (k.startsWith("arrow")) e.preventDefault(); }
     };
     const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
     const blur = () => keys.current.clear();
@@ -202,6 +203,9 @@ function Me({ radius }: { radius: number }) {
       const ex = t.x - pos.current.x, ez = t.z - pos.current.z, d = Math.hypot(ex, ez);
       if (d < 0.15) target.current = null; else { dx = ex / d; dz = ez / d; }
     }
+    const turn = (k.has("]") ? 1 : 0) - (k.has("[") ? 1 : 0);
+    yaw.current += turn * dt * 1.6;
+    if (dx || dz) { const c = Math.cos(yaw.current), s = Math.sin(yaw.current); [dx, dz] = [dx * c + dz * s, -dx * s + dz * c]; } // keys are relative to the view
     const moving = dx !== 0 || dz !== 0;
     const spd = moving ? (k.has("shift") ? SPRINT : SPEED) : 0;
     if (moving) {
@@ -216,9 +220,10 @@ function Me({ radius }: { radius: number }) {
     if (node) { node.position.set(pos.current.x, 0, pos.current.z); node.rotation.y = pos.current.r; }
     // follow camera, looking at chest height like the office camera
     const f = 1 - Math.exp(-4 * dt);
-    camera.position.x += (pos.current.x - camera.position.x) * f;
+    const back = 12.5 * zoom.current;
+    camera.position.x += (pos.current.x + Math.sin(yaw.current) * back - camera.position.x) * f;
     camera.position.y += (9.5 * zoom.current - camera.position.y) * f;
-    camera.position.z += (pos.current.z + 12.5 * zoom.current - camera.position.z) * f;
+    camera.position.z += (pos.current.z + Math.cos(yaw.current) * back - camera.position.z) * f;
     camera.lookAt(pos.current.x, focusY, pos.current.z);
     if (status === "online") useUnity.getState().move(pos.current.x, pos.current.z, pos.current.r);
   });

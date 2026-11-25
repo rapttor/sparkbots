@@ -31,6 +31,10 @@ No images are generated here. Capture them yourself.
 - Conference room with several robots seated.
 
 
+## Unity and the pod
+
+`node presskit/screenshots/capture-unity.mjs` takes the Unity pictures (`unity-pod`, `unity-panel`, `unity-lobby`, `unity-town`, `unity-front`, `unity-goodbye`) from a sandbox it starts itself: an empty `HOME` and `AO_HOME`, ports 4398 / 5398, a fixed token, `?fixture=40` for the office and the client-only demo crowd `?unitycrowd=N` for Unity. It does not need `pnpm monitor` and cannot show real sessions. Pass a scene name (`pod`, `panel`, `lobby`, `town`, `front`, `goodbye`) to redo just one. Check every picture before you use it.
+
 ## Automatic capture
 
 `node presskit/screenshots/capture.mjs` (with `pnpm monitor` running) takes the app screenshots with headless Chrome: `office-story`, `campus`, `projects-panel`, `game-room`, `board`, `stats`. The 3D shots use `?fixture=40` (demo projects such as "web-shop", "api-gateway"), so no real project names appear. The Board shot is filtered to the `sparkbots` project and the Stats shot is cropped to the chart, so no cost figures or other project names show. Check every image before publishing it.
