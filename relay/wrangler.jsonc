@@ -1,0 +1,14 @@
+{
+  "name": "sparkbots-relay",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-01",
+  "durable_objects": {
+    "bindings": [{ "name": "ROOM", "class_name": "Room" }]
+  },
+  // Free plan requires SQLite-backed Durable Objects.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
+  "vars": {
+    // Comma-separated browser Origins allowed to connect. Non-browser clients send no Origin and are allowed.
+    "ALLOWED_ORIGINS": "http://127.0.0.1:4317,http://localhost:4317"
+  }
+}
