@@ -2,6 +2,20 @@
 
 Every change is also a task in `docs/TASKS.md` (the id is in brackets). Newest first.
 
+## 1.1.0 (2026-11-25)
+
+**Unity**, an optional public lobby for everyone who uses SparkBots, and the small relay behind it (`relay/`, a Cloudflare Worker). Off by default: while it is off, SparkBots makes no connection to anything. Switching it on is explained in the Unity panel (what is shared, what the relay sees).
+
+- **Unity:** a glowing pod in the office opens a separate 3D space (the office pauses underneath) where everybody who is in Unity meets, drawn as the owner character they chose in Settings (avatar, look, colour), walking, never the hand [15.4-15.6, 15.11, 15.12].
+- **Phone booth:** everybody arrives through a phone booth in the middle; leaving opens a goodbye menu (leave a message, just go, or stay) [15.15].
+- **Ghosts:** when you leave, a faint figure stays behind until you come back: with your message if you left one, without it if you just went, and in broken pieces if the window was simply closed [15.9, 15.14, 15.16].
+- **Amenities:** a town of 16 original, mostly animated things on a spiral around the booth (water cooler, a fax and a big copier that feed shredders, a gold statue of the maker at twice your size, a boxing ring where agent types throw bytes, a plant, a stapler monument, coffee, vending, a duck shrine, a commit whiteboard, ping-pong, arcade, campfire, jukebox, a giant keyboard floor), nine more when a room is busy. The ring around each one turns gold when two or more people stand and talk in it [15.17-15.20].
+- **Pod head count:** the pod in the office shows "Unity · N here" while Unity is on [15.10].
+- **Safety for a public room:** per-IP limits, flood cutoff, plain-text bubbles without links, reserved names, mute and report in the client, bans and an admin tool for the relay owner [15.13].
+- **Identity:** a random secret in `~/.agent-office/unity.json` (never in a URL); the relay stores only its hash. No accounts.
+- **Performance:** far-away characters are drawn as cheap instanced stand-ins, name tags only for the nearest people; `?unitycrowd=N` shows a made-up crowd for testing (no network) [15.21].
+- **Docs and tests:** README and `CLAUDE.md` privacy notes updated; layout, parser, server-settings and relay tests added.
+
 ## 1.0.0 (2026-11-24)
 
 The first public release. Everything below was built before it; the entries are in the order they happened (newest first).
