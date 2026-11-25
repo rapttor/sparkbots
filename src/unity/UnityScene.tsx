@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, type ThreeEvent } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import { BufferAttribute, BufferGeometry, type Group, type Mesh, type MeshBasicMaterial } from "three";
@@ -10,6 +10,7 @@ import { getAvatar, type PoseClip } from "../world/avatar";
 import { ago, avatarOf, clampToFloor, type UGhost, type UPeer } from "../shared/unity";
 import { itemCount, layoutFor } from "../shared/unityLayout";
 import { Amenities, IMPLEMENTED } from "./amenities";
+import { FAR_FAR, FAR_NEAR, FarCrowd, farGhost, farSolid, type FarEntry } from "./farCrowd";
 
 /**
  * The Unity space: a floating green platform with a starry sky and the phone booth in the middle, where everybody arrives.
@@ -20,6 +21,28 @@ const BOOTH = { x: 0, z: 0 };
 const BOOTH_SCALE = 1.35; // the owner is tall: the booth is built for them
 const OUT = { x: 0, z: 4.6 };  // just outside the booth door (towards +z)
 const SPEED = 4.2, SPRINT = 7;
+const TAG_MAX = 16, TAG_RANGE = 30; // name tags are DOM elements that move every frame: only the nearest ones get one
+const TagCtx = createContext<Set<string>>(new Set());
+
+/** Every 0.4 s: which players and ghosts get a name tag (the nearest, plus anyone nearby who is talking). */
+function TagSelector({ onChange }: { onChange: (s: Set<string>) => void }) {
+  const acc = useRef(0), prev = useRef("");
+  useFrame((_, dt) => {
+    acc.current += dt;
+    if (acc.current < 0.4) return;
+    acc.current = 0;
+    const st = useUnity.getState(), me = fx.me;
+    const cand: { id: string; d: number }[] = [];
+    for (const p of Object.values(st.room.peers)) { const l = live.get(p.id); if (l) cand.push({ id: p.id, d: Math.hypot(l.x - me.x, l.z - me.z) }); }
+    for (const g of st.room.ghosts) cand.push({ id: g.id, d: Math.hypot(g.x - me.x, g.z - me.z) });
+    cand.sort((a, b) => a.d - b.d);
+    const ids = cand.filter((c) => c.d < TAG_RANGE).slice(0, TAG_MAX).map((c) => c.id);
+    for (const c of cand) if (st.room.bubbles[c.id] && c.d < TAG_RANGE + 10 && !ids.includes(c.id)) ids.push(c.id);
+    const key = ids.join(",");
+    if (key !== prev.current) { prev.current = key; onChange(new Set(ids)); }
+  });
+  return null;
+}
 const arrivalEnergy = (): number => Math.max(0, 1 - (performance.now() - fx.arrival) / 1400);
 const clipFor = (speed: number): PoseClip => (speed < 0.4 ? "idle" : speed > SPEED * 1.3 ? "sprint" : "walk");
 
@@ -43,11 +66,15 @@ function Tag({ id, name, height, sub, ghost = false, last = "" }: { id: string; 
 
 /** Another player: eases towards the position the relay last reported and walks, runs or stands depending on how fast that is. */
 function Peer({ p }: { p: UPeer }) {
+  const tagged = useContext(TagCtx).has(p.id);
   const g = useRef<Group>(null);
   const cur = useRef({ x: NaN, z: NaN, r: 0 });
   const motion = useRef<Motion>({ clip: "idle", t: 0, speed: 0 });
   const height = useMemo(() => ownerHeight(p.avatar, p.look), [p.avatar, p.look]);
-  useFrame((_, dtRaw) => {
+  const bot = useRef<Group>(null);
+  const far = useRef(false);
+  useEffect(() => () => { farSolid.delete(p.id); }, [p.id]);
+  useFrame(({ camera }, dtRaw) => {
     const dt = Math.min(dtRaw, 0.1), t = live.get(p.id), node = g.current;
     if (!t || !node) return;
     const c = cur.current;
@@ -62,11 +89,19 @@ function Peer({ p }: { p: UPeer }) {
     m.t += dt * 11 * (m.speed / SPEED);
     node.position.set(c.x, 0, c.z);
     node.rotation.y = c.r;
+    // far from the camera: hide the full character and let FarCrowd draw a stand-in
+    const d = Math.hypot(camera.position.x - c.x, camera.position.z - c.z);
+    const isFar = d > (far.current ? FAR_NEAR : FAR_FAR);
+    if (isFar !== far.current) { far.current = isFar; if (bot.current) bot.current.visible = !isFar; }
+    if (isFar) {
+      const e = (farSolid.get(p.id) ?? { x: 0, z: 0, r: 0, h: height, legs: p.color, body: p.avatar === "developer" ? p.look.topColor : p.color, head: p.avatar === "developer" ? "#e8b998" : p.color }) as FarEntry;
+      e.x = c.x; e.z = c.z; e.r = c.r; e.h = height; farSolid.set(p.id, e);
+    } else farSolid.delete(p.id);
   });
   return (
     <group ref={g}>
-      <OwnerBot avatar={p.avatar} look={p.look} color={p.color} motion={() => motion.current} />
-      <Tag id={p.id} name={p.name} height={height} />
+      <group ref={bot}><OwnerBot avatar={p.avatar} look={p.look} color={p.color} motion={() => motion.current} skip={() => far.current} /></group>
+      {tagged && <Tag id={p.id} name={p.name} height={height} />}
     </group>
   );
 }
@@ -88,16 +123,27 @@ function Sparks() {
 
 /** Somebody who left. Said goodbye (with or without a message): a faint figure. Connection just dropped: a broken heap with sparks. */
 function GhostFigure({ g, radius }: { g: UGhost; radius: number }) {
+  const tagged = useContext(TagCtx).has(g.id);
   const p = clampToFloor(g.x, g.z, radius - 0.8);
   const ref = useRef<Group>(null);
   const broken = g.kind === "broken";
   const height = useMemo(() => ownerHeight(g.avatar, g.look), [g.avatar, g.look]);
-  useFrame(({ clock }) => { if (ref.current && !broken) ref.current.position.y = 0.1 + Math.sin(clock.elapsedTime * 1.2 + p.x) * 0.07; });
+  const bot = useRef<Group>(null);
+  const far = useRef(false);
+  useEffect(() => () => { farGhost.delete(g.id); }, [g.id]);
+  useFrame(({ clock, camera }) => {
+    if (ref.current && !broken) ref.current.position.y = 0.1 + Math.sin(clock.elapsedTime * 1.2 + p.x) * 0.07;
+    // far from the camera: a see-through stand-in (a broken heap is just not drawn: it is only worth seeing up close)
+    const d = Math.hypot(camera.position.x - p.x, camera.position.z - p.z);
+    const isFar = d > (far.current ? FAR_NEAR : FAR_FAR);
+    if (isFar !== far.current) { far.current = isFar; if (bot.current) bot.current.visible = !isFar; if (!isFar) farGhost.delete(g.id); }
+    if (isFar && !broken && !farGhost.has(g.id)) farGhost.set(g.id, { x: p.x, z: p.z, r: g.r, h: height, legs: g.color, body: g.look.topColor, head: "#e8b998" });
+  });
   return (
     <group ref={ref} position={[p.x, 0, p.z]} rotation={[0, g.r, 0]}>
-      <OwnerBot avatar={g.avatar} look={g.look} color={g.color} mode={broken ? "broken" : "ghost"} seed={g.id} />
+      <group ref={bot}><OwnerBot avatar={g.avatar} look={g.look} color={g.color} mode={broken ? "broken" : "ghost"} seed={g.id} skip={() => far.current} /></group>
       {broken && <Sparks />}
-      <Tag id={g.id} name={g.name} height={broken ? 0.9 : height} sub={`${broken ? "connection lost" : "was here"} ${ago(g.leftAt)}`} ghost last={g.kind === "message" ? g.text : ""} />
+      {tagged && <Tag id={g.id} name={g.name} height={broken ? 0.9 : height} sub={`${broken ? "connection lost" : "was here"} ${ago(g.leftAt)}`} ghost last={g.kind === "message" ? g.text : ""} />}
     </group>
   );
 }
@@ -231,9 +277,26 @@ function Floor({ radius }: { radius: number }) {
   );
 }
 
+/** Only in `?unitycrowd=N` mode: publishes frames per second, draw calls, triangles and the JS time spent in the frame callbacks
+ *  (window.__unityPerf, every 2 seconds). The two halves run first and last among the frame callbacks (a priority above 0 would take
+ *  over rendering, so the end probe relies on being mounted last). */
+const probe = { t0: 0, js: 0, n: 0, time: 0 };
+function PerfProbeStart() { useFrame(() => { probe.t0 = performance.now(); }, -1000); return null; }
+function PerfProbe() {
+  useFrame(({ gl }, dt) => {
+    probe.js += performance.now() - probe.t0; probe.n++; probe.time += dt;
+    if (probe.time >= 2) {
+      (window as unknown as { __unityPerf: object }).__unityPerf = { fps: Math.round((probe.n / probe.time) * 10) / 10, jsMs: Math.round((probe.js / probe.n) * 100) / 100, calls: gl.info.render.calls, triangles: gl.info.render.triangles };
+      probe.js = 0; probe.n = 0; probe.time = 0;
+    }
+  });
+  return null;
+}
+
 export default function UnityScene() {
   const peers = useUnity((s) => s.room.peers);
   const ghosts = useUnity((s) => s.room.ghosts);
+  const [tagged, setTagged] = useState<Set<string>>(() => new Set());
   const people = 1 + Object.keys(peers).length;
   const count = itemCount(people);
   // the amenities are the same for everybody and never move; busy rooms get more of them, and a bigger floor
@@ -241,6 +304,7 @@ export default function UnityScene() {
   useEffect(() => () => { document.body.style.cursor = ""; }, []);
   return (
     <Canvas dpr={[1, 1.5]} camera={{ position: [BOOTH.x, 9.5, BOOTH.z + 12.5], fov: 50, near: 0.1, far: 400 }} style={{ position: "absolute", inset: 0 }}>
+      {new URLSearchParams(location.search).has("unitycrowd") && <PerfProbeStart />}
       <color attach="background" args={["#040a07"]} />
       <fog attach="fog" args={["#040a07", 40, 150]} />
       <ambientLight intensity={0.6} />
@@ -248,9 +312,14 @@ export default function UnityScene() {
       <Stars />
       <Floor radius={layout.radius} />
       <Amenities items={layout.items} />
-      {ghosts.map((g) => <GhostFigure key={g.id} g={g} radius={layout.radius} />)}
-      {Object.values(peers).map((p) => <Peer key={p.id} p={p} />)}
+      <FarCrowd />
+      <TagSelector onChange={setTagged} />
+      <TagCtx.Provider value={tagged}>
+        {ghosts.map((g) => <GhostFigure key={g.id} g={g} radius={layout.radius} />)}
+        {Object.values(peers).map((p) => <Peer key={p.id} p={p} />)}
+      </TagCtx.Provider>
       <Me radius={layout.radius} />
+      {new URLSearchParams(location.search).has("unitycrowd") && <PerfProbe />}
     </Canvas>
   );
 }

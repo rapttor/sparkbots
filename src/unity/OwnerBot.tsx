@@ -52,23 +52,26 @@ function textures(avatar: Avatar, color: string, look: ULook): AvatarTextures {
 /** Deterministic 0..1 from a string (so a broken figure lies the same way for everybody). */
 function rnd(s: string): number { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0) % 10000) / 10000; }
 
-export function OwnerBot({ avatar: id, look, color, mode = "live", motion, seed = "" }: {
-  avatar: UAvatar; look: ULook; color: string; mode?: "live" | "ghost" | "broken" | "gold"; motion?: () => Motion; seed?: string;
+export function OwnerBot({ avatar: id, look, color, mode = "live", motion, seed = "", skip }: {
+  avatar: UAvatar; look: ULook; color: string; mode?: "live" | "ghost" | "broken" | "gold"; motion?: () => Motion; seed?: string; skip?: () => boolean;
 }) {
   const lookKey = JSON.stringify(look);
   const b = useMemo(() => build(id, look), [id, lookKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const tex = useMemo(() => textures(b.avatar, color, look), [b, color, lookKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const refs = useRef<Record<string, Mesh | null>>({});
+  const settled = useRef(0);
   const dull = useMemo(() => new Color(color).lerp(new Color("#4b5563"), 0.55).getStyle(), [color]);
 
   useFrame(({ clock }, dtRaw) => {
     const dt = Math.min(dtRaw, 0.1);
+    if (skip?.()) return; // far away: the parent draws a cheap stand-in and this figure is hidden
     if (mode === "broken") { // the visor of a broken bot flickers
       const t = clock.elapsedTime, on = Math.sin(t * 23 + rnd(seed) * 6) > 0.5;
       for (const name of b.avatar.glow) { const m = refs.current[name]; if (m) (m.material as MeshBasicMaterial).color.set(on ? "#7dffb0" : "#1f2d26"); }
       return;
     }
-    const m = (mode === "live" ? motion?.() : null) ?? IDLE; // ghosts and statues stand still
+    if (mode !== "live") { if (settled.current > 40) return; settled.current++; } // ghosts and the statue stand still: ease into the idle pose, then stop updating
+    const m = (mode === "live" ? motion?.() : null) ?? IDLE;
     const targets = b.avatar.pose(m);
     const ease = 1 - Math.exp(-14 * dt);
     for (const name of Object.keys(targets)) {

@@ -1,7 +1,9 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import { CanvasTexture, type Group, type Mesh, type PointLight, type Sprite } from "three";
+import { AMENITY_SCALE, AmenityCtx, B, Cyl, M, Sph, hash, mesh, textTexture, useAnim, type Ctx, type V3 } from "./amenityKit";
+import { Aquarium, BugLottery, GitTree, Hammock, LavaLamp, NeonSign, SnackTable, Telescope, TrophyCase } from "./amenities2";
 import { OwnerBot } from "./OwnerBot";
 import { POD_GREEN } from "./PodModel";
 import { fx, live } from "./store";
@@ -13,35 +15,8 @@ import { CATALOGUE, type Placed } from "../shared/unityLayout";
  * client-side (no network), and built from primitives. Each model has its front on +z and stands on the floor at the origin; the
  * wrapper turns it towards the booth. Only amenities near you animate. Press E next to one to use it.
  */
-type V3 = [number, number, number];
-const GATHER = 4.2; // how close you must be to use or read one
-
-// ---- small building blocks
-
-function M({ c, e = 0, o = 1, r = 0.6, m = 0 }: { c: string; e?: number; o?: number; r?: number; m?: number }) {
-  return <meshStandardMaterial color={c} emissive={e ? c : "#000000"} emissiveIntensity={e} transparent={o < 1} opacity={o} depthWrite={o >= 1} roughness={r} metalness={m} toneMapped={e === 0} />;
-}
-type Mat = { c: string; e?: number; o?: number; r?: number; m?: number };
-const B = ({ s, p, rot, ...m }: { s: V3; p: V3; rot?: V3 } & Mat) => <mesh position={p} rotation={rot}><boxGeometry args={s} /><M {...m} /></mesh>;
-const Cyl = ({ a, p, rot, ...m }: { a: [number, number, number, number?]; p: V3; rot?: V3 } & Mat) => <mesh position={p} rotation={rot}><cylinderGeometry args={a} /><M {...m} /></mesh>;
-const Sph = ({ rad, p, s, ...m }: { rad: number; p: V3; s?: V3 } & Mat) => <mesh position={p} scale={s}><sphereGeometry args={[rad, 16, 12]} /><M {...m} /></mesh>;
-
-interface Ctx { id: string; near: { current: boolean }; energy: () => number }
-const AmenityCtx = createContext<Ctx>({ id: "", near: { current: true }, energy: () => 0 });
-/** A frame callback that only runs while the amenity is near you. `e` is 0..1 right after you used it (E). */
-function useAnim(fn: (t: number, dt: number, e: number) => void) {
-  const c = useContext(AmenityCtx);
-  useFrame(({ clock }, dt) => { if (c.near.current) fn(clock.elapsedTime, Math.min(dt, 0.1), c.energy()); });
-}
-const hash = (n: number): number => { let h = Math.imul(n + 0x9e3779b9, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-const mesh = (a: (Mesh | null)[], i: number) => (m: Mesh | null) => { a[i] = m; };
-
-const texCache: Record<string, CanvasTexture> = {};
-function textTexture(key: string, w: number, h: number, draw: (g: CanvasRenderingContext2D) => void): CanvasTexture {
-  let t = texCache[key];
-  if (!t) { const c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d")!); t = new CanvasTexture(c); texCache[key] = t; }
-  return t;
-}
+const RING = 3.4;   // the ring on the floor: where people stand to use an amenity and to talk
+const GATHER = 3.6; // how close you must be to use or read one (just outside the ring)
 
 // ---- 1. water cooler
 function WaterCooler() {
@@ -148,7 +123,7 @@ function Statue() {
     <group>
       <B s={[2.4, 0.9, 2.4]} p={[0, 0.45, 0]} c="#2b2f36" r={0.5} />
       <B s={[1.2, 0.22, 0.04]} p={[0, 0.5, 1.21]} c="#f2c14e" e={0.5} m={0.9} />
-      <group position={[0, 0.9, 0]} rotation={[0, Math.PI, 0]} scale={2}><OwnerBot avatar="developer" look={DEFAULT_DEV_LOOK} color="#f2c14e" mode="gold" /></group>
+      <group position={[0, 0.9, 0]} rotation={[0, Math.PI, 0]} scale={2 / AMENITY_SCALE}><OwnerBot avatar="developer" look={DEFAULT_DEV_LOOK} color="#f2c14e" mode="gold" /></group>
       <pointLight position={[0, 6, 2.5]} color="#ffd27a" intensity={2} distance={14} />
     </group>
   );
@@ -424,7 +399,7 @@ function Keyboard({ item }: { item: Placed }) {
       if (!k) return;
       const kx = (i % KEY_COLS - (KEY_COLS - 1) / 2) * 0.62, kz = (Math.floor(i / KEY_COLS) - (KEY_ROWS - 1) / 2) * 0.62;
       let lit = 0;
-      for (const w of walkers) { const dx = w.x - item.x, dz = w.z - item.z, lx = dx * cs - dz * sn, lz = dx * sn + dz * cs; if (Math.hypot(lx - kx, lz - kz) < 0.55) { lit = 1; break; } }
+      for (const w of walkers) { const dx = w.x - item.x, dz = w.z - item.z, lx = (dx * cs - dz * sn) / AMENITY_SCALE, lz = (dx * sn + dz * cs) / AMENITY_SCALE; if (Math.hypot(lx - kx, lz - kz) < 0.8) { lit = 1; break; } }
       k.position.y = 0.12 - lit * 0.05;
       const m = k.material as unknown as { emissiveIntensity: number };
       m.emissiveIntensity += (lit * 1.6 - m.emissiveIntensity) * 0.3;
@@ -444,16 +419,21 @@ function Keyboard({ item }: { item: Placed }) {
 const MODELS: Record<string, ComponentType<{ item: Placed }>> = {
   "water-cooler": WaterCooler, fax: FaxShredder, copier: Copier, statue: Statue, boxing: BoxingRing, plant: Plant, stapler: Stapler,
   coffee: Coffee, vending: Vending, duck: Duck, whiteboard: Whiteboard, pingpong: PingPong, arcade: Arcade, campfire: Campfire, jukebox: Jukebox, keyboard: Keyboard,
+  // busy rooms (above 32 people)
+  aquarium: Aquarium, lava: LavaLamp, neon: NeonSign, trophies: TrophyCase, lottery: BugLottery, snacks: SnackTable, hammock: Hammock, gittree: GitTree, telescope: Telescope,
 };
 /** How many catalogue entries (from the start) have a model; layoutFor() never places more than this. */
 export const IMPLEMENTED = (() => { const i = CATALOGUE.findIndex((c) => !MODELS[c.id]); return i < 0 ? CATALOGUE.length : i; })();
 
 const pill: React.CSSProperties = { whiteSpace: "nowrap", padding: "3px 10px", borderRadius: 999, background: "rgba(8,16,12,.88)", border: "1px solid #2f6f4d", color: "#d1fae5", fontSize: 12, pointerEvents: "none" };
 
+const LABEL_Y: Record<string, number> = { statue: 6.2 };
+
 function AmenityWrap({ item }: { item: Placed }) {
   const g = useRef<Group>(null);
   const near = useRef(true);
   const [label, setLabel] = useState<"" | "name" | "quip">("");
+  const [chat, setChat] = useState(0); // how many people stand in the ring
   const ctx = useMemo<Ctx>(() => ({ id: item.id, near, energy: () => Math.max(0, 1 - (performance.now() - (fx.pulse[item.id] ?? -1e9)) / 2500) }), [item.id]);
   useFrame(() => {
     const d = Math.hypot(fx.me.x - item.x, fx.me.z - item.z);
@@ -462,16 +442,24 @@ function AmenityWrap({ item }: { item: Placed }) {
     const used = performance.now() - (fx.pulse[item.id] ?? -1e9) < 5000;
     const want = d < GATHER ? (used ? "quip" : "name") : "";
     setLabel((p) => (p === want ? p : want));
+    // the ring is a place to stand and talk: count everybody inside it (you and the others)
+    let inside = d < RING ? 1 : 0;
+    live.forEach((p) => { if (Math.hypot(p.x - item.x, p.z - item.z) < RING) inside++; });
+    setChat((p) => (p === inside ? p : inside));
   });
   const Model = MODELS[item.id];
+  const talking = chat >= 2;
   return (
     <group position={[item.x, 0, item.z]} rotation={[0, item.facing, 0]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}><circleGeometry args={[3.5, 40]} /><meshBasicMaterial color="#0f2a1f" /></mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}><ringGeometry args={[GATHER - 0.1, GATHER, 48]} /><meshBasicMaterial color={POD_GREEN} transparent opacity={label ? 0.8 : 0.25} toneMapped={false} /></mesh>
-      <AmenityCtx.Provider value={ctx}><group ref={g}>{Model ? <Model item={item} /> : null}</group></AmenityCtx.Provider>
-      {label && (
-        <Html position={[0, 4.2, 0]} center distanceFactor={13} zIndexRange={[12, 0]} style={{ pointerEvents: "none" }}>
-          <div style={pill}>{label === "quip" ? item.quip : <>{item.name} <span style={{ opacity: 0.65 }}>· press E</span></>}</div>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}><circleGeometry args={[RING + 0.1, 40]} /><meshBasicMaterial color={talking ? "#1d3b2a" : "#0f2a1f"} /></mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}><ringGeometry args={[RING - 0.1, RING, 48]} /><meshBasicMaterial color={talking ? "#fde68a" : POD_GREEN} transparent opacity={talking ? 0.95 : label || chat ? 0.8 : 0.25} toneMapped={false} /></mesh>
+      <AmenityCtx.Provider value={ctx}><group ref={g} scale={AMENITY_SCALE}>{Model ? <Model item={item} /> : null}</group></AmenityCtx.Provider>
+      {(label || talking) && (
+        <Html position={[0, LABEL_Y[item.id] ?? 3.2, 0]} center distanceFactor={13} zIndexRange={[12, 0]} style={{ pointerEvents: "none" }}>
+          <div style={pill}>
+            {label === "quip" ? item.quip : <>{item.name}{label ? <span style={{ opacity: 0.65 }}> · press E</span> : null}</>}
+            {talking && <span style={{ marginLeft: 8, color: "#fde68a" }}>💬 {chat} chatting</span>}
+          </div>
         </Html>
       )}
     </group>

@@ -113,6 +113,14 @@ function Hud() {
 /** Covers the 3D office while you are inside Unity (the office is paused underneath). */
 export function UnityOverlay() {
   const inside = useUnity((s) => s.inside);
+  // ?unitycrowd=N: a made-up crowd for checking performance and layout (client-only, no network)
+  useEffect(() => {
+    const n = Number(new URLSearchParams(location.search).get("unitycrowd"));
+    if (!(n > 0)) return;
+    let stop = () => {};
+    void import("./crowd").then((m) => { stop = m.startCrowd(n); });
+    return () => stop();
+  }, []);
   if (!inside) return null;
   return (
     <div className="unity-overlay" role="dialog" aria-label="Unity, the public lobby">

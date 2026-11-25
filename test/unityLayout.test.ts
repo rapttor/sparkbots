@@ -72,13 +72,13 @@ describe("unity layout: positions", () => {
 });
 
 describe("unity amenities", () => {
-  it("every one of the first 16 catalogue entries has a model", () => {
+  it("every catalogue entry has a model", () => {
     const src = readFileSync("src/unity/amenities.tsx", "utf8");
     const models = src.slice(src.indexOf("const MODELS"), src.indexOf("export const IMPLEMENTED"));
-    for (const c of CATALOGUE.slice(0, BASE_ITEMS)) expect(models, c.id).toMatch(new RegExp(`(^|[\\s{,])"?${c.id}"?:`));
+    for (const c of CATALOGUE) expect(models, c.id).toMatch(new RegExp(`(^|[\\s{,])"?${c.id}"?:`));
   });
   it("amenities are cosmetic: no network, no storage, no new windows", () => {
-    const src = readFileSync("src/unity/amenities.tsx", "utf8");
+    const src = ["amenities", "amenities2", "amenityKit"].map((f) => readFileSync(`src/unity/${f}.tsx`, "utf8")).join("\n");
     for (const bad of ["fetch(", "WebSocket", "localStorage", "window.open", "XMLHttpRequest"]) expect(src.includes(bad), bad).toBe(false);
   });
 });
