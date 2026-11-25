@@ -20,6 +20,14 @@ describe("zones", () => {
       if (q.clip) expect(clipIds.has(q.clip), `${z.id}:${q.id} clip ${q.clip}`).toBe(true);
     }
   });
+  it("still builds the plaza with every room when there are no sessions at all", () => {
+    const snap = { ...makeFixtureSnapshot(1), teams: [] };
+    const l = computeLayout(snap);
+    expect(l.desks).toHaveLength(0);
+    expect(l.zones.length).toBe(ZONES.length);
+    expect(l.maxX - l.minX).toBeGreaterThan(30);
+  });
+
   it("the campus layout places every zone without overlapping team areas", () => {
     const l = computeLayout(makeFixtureSnapshot(40));
     expect(l.zones.length).toBe(ZONES.length);

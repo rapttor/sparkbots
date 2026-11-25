@@ -33,7 +33,6 @@ export function computeLayout(snap: Snapshot | null, showAll = false): Layout {
   const empty: Layout = { desks: [], areas: [], zones: [], minX: -5, maxX: 5, minZ: -5, maxZ: 5 };
   if (!snap) return empty;
   const vis = visibleTeams(snap, showAll);
-  if (vis.length === 0) return empty;
 
   // Select visible workers: non-asleep + 12 most recent per team, then cap globally.
   const cands: { w: Worker; team: string; awake: boolean }[] = [];
@@ -47,11 +46,10 @@ export function computeLayout(snap: Snapshot | null, showAll = false): Layout {
   const teams = [...vis].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   const per = teams.map((t) => t.workers.filter((w) => keep.has(w.id)).sort((a, b) => (a.id < b.id ? -1 : 1)));
   const shown = teams.map((t, i) => ({ t, ws: per[i] })).filter((x) => x.ws.length > 0);
-  if (shown.length === 0) return empty;
 
   const dcOf = (n: number) => Math.max(1, Math.ceil(Math.sqrt(n)));
-  const maxDc = Math.max(...shown.map((s) => dcOf(s.ws.length)));
-  const maxRows = Math.max(...shown.map((s) => Math.ceil(s.ws.length / dcOf(s.ws.length))));
+  const maxDc = Math.max(1, ...shown.map((s) => dcOf(s.ws.length)));
+  const maxRows = Math.max(1, ...shown.map((s) => Math.ceil(s.ws.length / dcOf(s.ws.length))));
   const cellW = maxDc * PITCH_X + MARGIN;
   const cellD = maxRows * PITCH_Z + MARGIN + 1;
   // Team cells sit on a k x k grid (k odd) around a central plaza that holds the amenities.
