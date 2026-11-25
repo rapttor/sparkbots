@@ -7,7 +7,9 @@ import { OwnerBot, ownerHeight, type Motion } from "./OwnerBot";
 import { fx, live, useUnity } from "./store";
 import { useStore } from "../state/store";
 import { getAvatar, type PoseClip } from "../world/avatar";
-import { UNITY_RADIUS, ago, avatarOf, clampToFloor, type UGhost, type UPeer } from "../shared/unity";
+import { ago, avatarOf, clampToFloor, type UGhost, type UPeer } from "../shared/unity";
+import { itemCount, layoutFor } from "../shared/unityLayout";
+import { Amenities, IMPLEMENTED } from "./amenities";
 
 /**
  * The Unity space: a floating green platform with a starry sky and the phone booth in the middle, where everybody arrives.
@@ -85,8 +87,8 @@ function Sparks() {
 }
 
 /** Somebody who left. Said goodbye (with or without a message): a faint figure. Connection just dropped: a broken heap with sparks. */
-function GhostFigure({ g }: { g: UGhost }) {
-  const p = clampToFloor(g.x, g.z);
+function GhostFigure({ g, radius }: { g: UGhost; radius: number }) {
+  const p = clampToFloor(g.x, g.z, radius - 0.8);
   const ref = useRef<Group>(null);
   const broken = g.kind === "broken";
   const height = useMemo(() => ownerHeight(g.avatar, g.look), [g.avatar, g.look]);
@@ -101,8 +103,9 @@ function GhostFigure({ g }: { g: UGhost }) {
 }
 
 /** You, as the owner character from your Settings: WASD / arrows (Shift to sprint) or click the floor. You step out of the booth on arrival; the camera follows. */
-function Me() {
+function Me({ radius }: { radius: number }) {
   const g = useRef<Group>(null);
+  const rad = useRef(radius); rad.current = radius;
   const color = useStore((s) => s.managerColor);
   const avatarId = useStore((s) => s.avatar);
   const look = useStore((s) => s.devLook);
@@ -112,6 +115,7 @@ function Me() {
   const pos = useRef({ x: BOOTH.x, z: BOOTH.z, r: Math.PI }); // facing the door
   const target = useRef<{ x: number; z: number } | null>({ ...OUT });
   const keys = useRef(new Set<string>());
+  const zoom = useRef(1.2); // mouse wheel: how far the camera stands back
   const motion = useRef<Motion>({ clip: "idle", t: 0, speed: 0 });
   const me = useUnity((s) => s.room.me);
   const status = useUnity((s) => s.status);
@@ -129,9 +133,15 @@ function Me() {
     return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); window.removeEventListener("blur", blur); };
   }, []);
 
+  useEffect(() => {
+    const w = (e: WheelEvent) => { if (e.target instanceof HTMLCanvasElement) zoom.current = Math.min(3.4, Math.max(0.7, zoom.current * (e.deltaY > 0 ? 1.1 : 0.91))); };
+    window.addEventListener("wheel", w, { passive: true });
+    return () => window.removeEventListener("wheel", w);
+  }, []);
+
   // clicks on the floor arrive through a window event so the floor mesh stays dumb
   useEffect(() => {
-    const h = (e: Event) => { const d = (e as CustomEvent<{ x: number; z: number }>).detail; target.current = clampToFloor(d.x, d.z); };
+    const h = (e: Event) => { const d = (e as CustomEvent<{ x: number; z: number }>).detail; target.current = clampToFloor(d.x, d.z, rad.current - 0.8); };
     window.addEventListener("unity-goto", h);
     return () => window.removeEventListener("unity-goto", h);
   }, []);
@@ -150,18 +160,19 @@ function Me() {
     const spd = moving ? (k.has("shift") ? SPRINT : SPEED) : 0;
     if (moving) {
       const len = Math.hypot(dx, dz); dx /= len; dz /= len;
-      const c = clampToFloor(pos.current.x + dx * spd * dt, pos.current.z + dz * spd * dt);
+      const c = clampToFloor(pos.current.x + dx * spd * dt, pos.current.z + dz * spd * dt, rad.current - 0.8);
       pos.current.x = c.x; pos.current.z = c.z; pos.current.r = Math.atan2(-dx, -dz); // the owner faces -z at rotation 0, like in the office
     }
     const m = motion.current;
     m.speed = spd; m.clip = clipFor(spd); m.t += dt * 11 * (spd / SPEED);
+    fx.me.x = pos.current.x; fx.me.z = pos.current.z; // the amenities read where you are
     const node = g.current;
     if (node) { node.position.set(pos.current.x, 0, pos.current.z); node.rotation.y = pos.current.r; }
     // follow camera, looking at chest height like the office camera
     const f = 1 - Math.exp(-4 * dt);
     camera.position.x += (pos.current.x - camera.position.x) * f;
-    camera.position.y += (9.5 - camera.position.y) * f;
-    camera.position.z += (pos.current.z + 12.5 - camera.position.z) * f;
+    camera.position.y += (9.5 * zoom.current - camera.position.y) * f;
+    camera.position.z += (pos.current.z + 12.5 * zoom.current - camera.position.z) * f;
     camera.lookAt(pos.current.x, focusY, pos.current.z);
     if (status === "online") useUnity.getState().move(pos.current.x, pos.current.z, pos.current.r);
   });
@@ -200,14 +211,15 @@ function ArrivalBeam() {
   return <mesh ref={m} position={[0, 1.8, 0]} visible={false}><cylinderGeometry args={[0.8, 0.8, 3.6, 18, 1, true]} /><meshBasicMaterial color="#86efac" transparent opacity={0} depthWrite={false} toneMapped={false} /></mesh>;
 }
 
-function Floor() {
+function Floor({ radius }: { radius: number }) {
   const click = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent("unity-goto", { detail: { x: e.point.x, z: e.point.z } })); };
+  const rings = Array.from({ length: Math.floor(radius / 10) }, (_, i) => (i + 1) * 10).filter((r) => r < radius - 1);
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} onClick={click}><circleGeometry args={[UNITY_RADIUS, 72]} /><meshStandardMaterial color="#0e1f18" roughness={0.85} /></mesh>
-      {[4, 8, 12].map((r) => <mesh key={r} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}><ringGeometry args={[r - 0.04, r, 72]} /><meshBasicMaterial color={POD_GREEN} transparent opacity={0.18} toneMapped={false} /></mesh>)}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}><ringGeometry args={[UNITY_RADIUS - 0.25, UNITY_RADIUS, 96]} /><meshBasicMaterial color={POD_GREEN} toneMapped={false} /></mesh>
-      <mesh position={[0, -0.6, 0]}><cylinderGeometry args={[UNITY_RADIUS, UNITY_RADIUS * 0.55, 1.2, 48]} /><meshStandardMaterial color="#08140f" roughness={0.9} /></mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} onClick={click}><circleGeometry args={[radius, 96]} /><meshStandardMaterial color="#0e1f18" roughness={0.85} /></mesh>
+      {rings.map((r) => <mesh key={r} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}><ringGeometry args={[r - 0.05, r, 96]} /><meshBasicMaterial color={POD_GREEN} transparent opacity={0.14} toneMapped={false} /></mesh>)}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}><ringGeometry args={[radius - 0.3, radius, 128]} /><meshBasicMaterial color={POD_GREEN} toneMapped={false} /></mesh>
+      <mesh position={[0, -0.6, 0]}><cylinderGeometry args={[radius, radius * 0.55, 1.2, 64]} /><meshStandardMaterial color="#08140f" roughness={0.9} /></mesh>
       {/* the phone booth: everybody arrives here. Click it, press Esc or use the button to leave (the HUD opens the goodbye menu). */}
       <group position={[BOOTH.x, 0, BOOTH.z]} scale={BOOTH_SCALE} onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new Event("unity-exit")); }}
         onPointerOver={() => { document.body.style.cursor = "pointer"; }} onPointerOut={() => { document.body.style.cursor = ""; }}>
@@ -222,6 +234,10 @@ function Floor() {
 export default function UnityScene() {
   const peers = useUnity((s) => s.room.peers);
   const ghosts = useUnity((s) => s.room.ghosts);
+  const people = 1 + Object.keys(peers).length;
+  const count = itemCount(people);
+  // the amenities are the same for everybody and never move; busy rooms get more of them, and a bigger floor
+  const layout = useMemo(() => layoutFor(people, IMPLEMENTED), [count]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { document.body.style.cursor = ""; }, []);
   return (
     <Canvas dpr={[1, 1.5]} camera={{ position: [BOOTH.x, 9.5, BOOTH.z + 12.5], fov: 50, near: 0.1, far: 400 }} style={{ position: "absolute", inset: 0 }}>
@@ -230,10 +246,11 @@ export default function UnityScene() {
       <ambientLight intensity={0.6} />
       <directionalLight position={[6, 14, 8]} intensity={0.95} color="#e8fff2" />
       <Stars />
-      <Floor />
-      {ghosts.map((g) => <GhostFigure key={g.id} g={g} />)}
+      <Floor radius={layout.radius} />
+      <Amenities items={layout.items} />
+      {ghosts.map((g) => <GhostFigure key={g.id} g={g} radius={layout.radius} />)}
       {Object.values(peers).map((p) => <Peer key={p.id} p={p} />)}
-      <Me />
+      <Me radius={layout.radius} />
     </Canvas>
   );
 }

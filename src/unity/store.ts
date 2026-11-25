@@ -16,7 +16,7 @@ export interface Live { x: number; y: number; z: number; r: number }
 /** Latest known position of every peer (target for interpolation). Not reactive on purpose. */
 export const live = new Map<string, Live>();
 /** Non-reactive effect clock: when someone last arrived through the booth (performance.now()), read by the 3D scene each frame. */
-export const fx = { arrival: -1e9 };
+export const fx = { arrival: -1e9, me: { x: 0, z: 0 }, pulse: {} as Record<string, number> }; // me = where you stand; pulse[id] = when you last used an amenity
 
 interface UnityState {
   inside: boolean;

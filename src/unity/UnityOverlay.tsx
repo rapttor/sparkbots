@@ -102,7 +102,7 @@ function Hud() {
             style={{ flex: 1, background: "#0b1f17", border: "1px solid #2f6f4d", borderRadius: 8, color: "#ecfdf5", padding: "6px 10px", fontSize: 13, minWidth: 0 }} />
           <button style={{ ...mini, padding: "5px 12px", fontSize: 12 }} disabled={!ok || !text.trim()} onClick={submit}>Send</button>
         </div>
-        <div style={{ fontSize: 11, color: "#86efac99" }}>WASD / arrows or click to walk · Shift sprints · everyone here can read what you say</div>
+        <div style={{ fontSize: 11, color: "#86efac99" }}>WASD / arrows or click to walk · Shift sprints · wheel zooms · E uses what you stand next to · everyone here can read what you say</div>
       </div>
 
       {exiting && <ExitMenu onStay={() => setExiting(false)} />}

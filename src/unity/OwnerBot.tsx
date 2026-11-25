@@ -53,7 +53,7 @@ function textures(avatar: Avatar, color: string, look: ULook): AvatarTextures {
 function rnd(s: string): number { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0) % 10000) / 10000; }
 
 export function OwnerBot({ avatar: id, look, color, mode = "live", motion, seed = "" }: {
-  avatar: UAvatar; look: ULook; color: string; mode?: "live" | "ghost" | "broken"; motion?: () => Motion; seed?: string;
+  avatar: UAvatar; look: ULook; color: string; mode?: "live" | "ghost" | "broken" | "gold"; motion?: () => Motion; seed?: string;
 }) {
   const lookKey = JSON.stringify(look);
   const b = useMemo(() => build(id, look), [id, lookKey]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -68,7 +68,7 @@ export function OwnerBot({ avatar: id, look, color, mode = "live", motion, seed 
       for (const name of b.avatar.glow) { const m = refs.current[name]; if (m) (m.material as MeshBasicMaterial).color.set(on ? "#7dffb0" : "#1f2d26"); }
       return;
     }
-    const m = (mode === "live" ? motion?.() : null) ?? IDLE;
+    const m = (mode === "live" ? motion?.() : null) ?? IDLE; // ghosts and statues stand still
     const targets = b.avatar.pose(m);
     const ease = 1 - Math.exp(-14 * dt);
     for (const name of Object.keys(targets)) {
@@ -100,7 +100,8 @@ export function OwnerBot({ avatar: id, look, color, mode = "live", motion, seed 
         const common = { transparent: ghost, opacity: ghost ? 0.3 : 1, depthWrite: !ghost } as const;
         return (
           <mesh key={`${b.avatar.id}:${name}`} ref={(el) => { refs.current[name] = el; }} geometry={b.geoms[name]} position={position} rotation={rotation}>
-            {isGlow ? <meshBasicMaterial color={mode === "broken" ? "#1f2d26" : "#7dffb0"} toneMapped={false} transparent={ghost} opacity={ghost ? 0.5 : 1} />
+            {mode === "gold" ? <meshStandardMaterial color="#f5c542" metalness={0.5} roughness={0.35} emissive="#b8860b" emissiveIntensity={isGlow ? 1.4 : 0.6} />
+              : isGlow ? <meshBasicMaterial color={mode === "broken" ? "#1f2d26" : "#7dffb0"} toneMapped={false} transparent={ghost} opacity={ghost ? 0.5 : 1} />
               : isDecal ? <meshBasicMaterial map={tex.emoji!} transparent toneMapped={false} side={DoubleSide} opacity={ghost ? 0.4 : 1} />
               : isPlaid ? <meshStandardMaterial map={tex.plaid!} roughness={0.7} {...common} />
               : mode === "broken" ? <meshStandardMaterial color={name === "legL" || name === "legR" ? dull : new Color(base).lerp(new Color("#4b5563"), 0.45).getStyle()} roughness={0.8} />
