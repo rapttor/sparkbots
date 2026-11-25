@@ -206,6 +206,7 @@ The server can start `claude` processes, so treat it as sensitive even on localh
 - Random token generated at start, passed in the opened URL (`?t=`) and required on every HTTP/WS request.
 - Reject requests whose `Host` isn't `127.0.0.1:<port>` / `localhost:<port>` (DNS rebinding) and whose `Origin` isn't the app's own (CSRF from other sites).
 - Transcript content is shown only in the client. Nothing is sent anywhere. No telemetry, no external requests at all except optional asset CDN (prefer bundled assets).
+- **One opt-in exception: Unity** (the public lobby, `relay/` + `src/unity/` + `server/unity.ts`, Phase 15). Off by default (`config.unityEnabled`); only when switched on does the *browser* open a WebSocket to the relay, sending display name, colour, position and short plain-text bubbles. Never agents, projects, paths, prompts or transcripts. The identity is a random secret in `~/.agent-office/unity.json` (mode 600) that is sent in a `hello` message only, never in a URL; the relay stores its hash. The relay is not trusted by the client (`parseMsg` validates every frame; text is rendered as plain text). Moderation (limits, reports, bans) lives in the relay; the admin API is CLI-only behind a secret token.
 - Message previews in the 3D world (speech bubbles) are truncated and can be turned off entirely (screen-sharing / streaming mode).
 
 ---

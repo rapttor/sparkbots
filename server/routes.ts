@@ -15,6 +15,7 @@ import { registerUploads, resolveAttachments, withAttachments } from "./uploads"
 import { registerServices } from "./services/routes";
 import { registerGames } from "./games";
 import { registerRewards } from "./rewards";
+import { registerUnity } from "./unity";
 import { claudeDir } from "./adapters/claude-code/discover";
 import { listSubagents } from "./adapters/claude-code/subagents";
 import { ADAPTERS, adapterOf } from "./adapters/registry";
@@ -323,5 +324,6 @@ export function registerRoutes(app: FastifyInstance, c: Company, onChange: () =>
   registerServices(app, () => ping("services"));
   registerGames(app, () => c.db);
   registerRewards(app, () => c.db);
+  registerUnity(app, () => c.cfg);
   return runs;
 }

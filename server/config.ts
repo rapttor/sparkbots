@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { AgentSource } from "./adapters/types";
+import { DEFAULT_RELAY } from "../src/shared/unity";
 
 export function aoHome(): string {
   return process.env.AO_HOME ?? path.join(os.homedir(), ".agent-office");
@@ -42,6 +43,10 @@ export interface Config {
   opencodeModel: string; // model for OpenCode runs ("" = the session's own model, then OpenCode's default)
   cleanEnv: boolean;     // start runs without ANTHROPIC_* variables inherited from the server's shell
   liveApproval: boolean; // experimental: one long-lived claude process per chat, so tool permissions can be answered in the chat (default off)
+  unityEnabled: boolean; // Unity, the optional public lobby (default off: nothing leaves the machine)
+  unityName: string;     // display name in Unity ("" = Guest)
+  unityGhost: boolean;   // leave a ghost behind when you go
+  unityRelay: string;    // wss:// address of the relay
 }
 
 export const defaultConfig: Config = {
@@ -57,6 +62,10 @@ export const defaultConfig: Config = {
   opencodeModel: "",
   cleanEnv: false,
   liveApproval: false,
+  unityEnabled: false,
+  unityName: "",
+  unityGhost: true,
+  unityRelay: DEFAULT_RELAY,
 };
 
 export function loadConfig(): Config {

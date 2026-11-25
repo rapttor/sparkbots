@@ -13,6 +13,7 @@ const PATHS: Record<string, ReactNode> = {
   data: <><circle cx="10.5" cy="10.5" r="6" /><path d="m15 15 5.5 5.5M8 9.5h5M8 12h3" /></>,
   services: <><path d="M9 3v5M15 3v5" /><path d="M6 8h12v4a6 6 0 0 1-12 0z" /><path d="M12 18v3" /></>,
   server: <><rect x="3" y="4" width="18" height="6" rx="1.5" /><rect x="3" y="14" width="18" height="6" rx="1.5" /><path d="M7 7h.01M7 17h.01M11 7h6M11 17h6" /></>,
+  unity: <><path d="M12 3.5 19 7.5v9L12 20.5 5 16.5v-9z" /><circle cx="12" cy="12" r="2.4" /><path d="M12 3.5v4M12 16.5v4" /></>,
   settings: <><circle cx="12" cy="12" r="2.6" /><circle cx="12" cy="12" r="6.4" /><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7" /></>,
   about: <><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.5M12 7.6h.01" /></>,
   view: <><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></>,

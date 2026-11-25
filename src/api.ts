@@ -9,6 +9,7 @@ import type { WorkSpan } from "../server/history";
 import type { OpenCodeModel } from "./shared/opencode";
 
 export type { Config, Teams };
+export interface UnitySettings { enabled: boolean; name: string; ghost: boolean; relay: string; key?: string }
 import type { ChatMessage } from "../server/adapters/claude-code/transcript";
 
 export type { RunRecord, Card, Column, WorkSpan, ChatMessage };
@@ -98,6 +99,8 @@ export const api = {
   sessionMessages: (id: string) => call<{ messages: ChatMessage[] }>("GET", `/api/sessions/${encodeURIComponent(id)}/messages`),
   mcp: () => call<{ projects: McpProject[] }>("GET", "/api/mcp"),
   processes: () => call<Processes>("GET", "/api/processes"),
+  unity: () => call<UnitySettings>("GET", "/api/unity"),
+  saveUnity: (p: Partial<Omit<UnitySettings, "key">>) => call<UnitySettings>("PUT", "/api/unity", p),
 };
 
 /** Poll helper: runs fn now and every ms; returns a cleanup. */

@@ -3,7 +3,7 @@
  * each one shows its panel in the dock (click it again to hide it). Only chats are tabs: one per agent.
  * Pure functions, easy to test.
  */
-export type PanelId = "world" | "view" | "projects" | "map" | "chats" | "teams" | "control" | "stats" | "board" | "notes" | "data" | "services" | "server" | "settings" | "about";
+export type PanelId = "world" | "view" | "projects" | "map" | "chats" | "teams" | "control" | "stats" | "board" | "notes" | "data" | "services" | "server" | "unity" | "settings" | "about";
 export type TabKey = string; // "panel" or "chat:<workerId>"
 
 export interface DockState {
@@ -84,5 +84,5 @@ export const panelShowing = (d: DockState, id: PanelId): boolean => (id === "boa
 export const activeChatId = (d: DockState): string | undefined => (d.open && isChat(d.active) ? chatOf(d.active) : undefined);
 
 export const PANEL_TITLES: Record<PanelId, string> = {
-  world: "Office", view: "View", projects: "Projects", map: "Map", chats: "Chats", teams: "Teams", control: "Control Room", stats: "Stats", board: "Board", notes: "Notes", data: "Data room", services: "Services", server: "Server room", settings: "Settings", about: "About rapttor",
+  world: "Office", view: "View", projects: "Projects", map: "Map", chats: "Chats", teams: "Teams", control: "Control Room", stats: "Stats", board: "Board", notes: "Notes", data: "Data room", services: "Services", server: "Server room", unity: "Unity", settings: "Settings", about: "About rapttor",
 };

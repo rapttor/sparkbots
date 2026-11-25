@@ -645,3 +645,9 @@ button.project-link:hover{background:#ffffff10}
 .view-btns .vb{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:rgba(14,20,36,.82);color:#dfe6ff;font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center;user-select:none;touch-action:none}
 .view-btns .vb:hover{border-color:#60a5fa;background:rgba(30,41,70,.92)}
 .view-btns .vb:active{background:rgba(96,165,250,.3)}
+
+/* Unity: the public lobby covers the 3D office (which is paused underneath); it opens like stepping through a doorway */
+.unity-overlay{position:absolute;inset:0;z-index:20;background:#040a07;overflow:hidden;animation:unity-in .85s ease-out}
+@keyframes unity-in{from{clip-path:circle(0% at 50% 62%);opacity:.5}to{clip-path:circle(150% at 50% 62%);opacity:1}}
+@media (prefers-reduced-motion:reduce){.unity-overlay{animation:none}}
+.stage.unity-on>*:not(.unity-overlay){visibility:hidden} /* the office and its labels (keymap, race and room overlays) stay out of the way while you are in Unity */

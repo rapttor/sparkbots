@@ -115,6 +115,8 @@ Other local AI servers (Ollama, LM Studio, llama.cpp, ...) show up as *services*
 
 **Nothing leaves your machine.** The server binds to `127.0.0.1` only, requires a random token on every request, rejects foreign `Host`/`Origin` headers, makes no external requests and sends no telemetry. It only **reads** `~/.claude/`, `~/.codex/` and the local OpenCode database; its own files live in `~/.agent-office/` (the folder name is kept for compatibility). Message previews and speech bubbles can be turned off (`streamingMode` in `config.json`) for screen sharing.
 
+**One optional exception: Unity, off by default.** If you switch on the public Unity lobby (Unity panel, or the glowing pod in the office), your browser connects to a small relay (a Cloudflare Worker, source in `relay/`) and shares your display name, colour, position in Unity and the short messages you type with the other people in the lobby, who are strangers. The relay sees your IP address (kept only as a short hash, to limit abuse) and stores a "ghost" (name, last position, last message, time) for up to 7 days unless you turn ghosts off. Your identity is a random secret in `~/.agent-office/unity.json`. Your agents, projects, folders, prompts and transcripts are never sent. While Unity is off, nothing connects anywhere.
+
 ## Safety
 
 - Prompts reach `claude`, Codex or OpenCode as argv entries, never through a shell.

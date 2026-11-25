@@ -6,7 +6,7 @@ import { useMatch } from "./useLayout";
 
 const ITEMS: { id: PanelId; hint?: string }[] = [
   { id: "view" }, { id: "map" }, { id: "projects" }, { id: "chats" }, { id: "teams" }, { id: "control" }, { id: "board", hint: "opens in a window" },
-  { id: "stats" }, { id: "notes" }, { id: "data" }, { id: "services" }, { id: "server" }, { id: "settings" },
+  { id: "stats" }, { id: "notes" }, { id: "data" }, { id: "services" }, { id: "server" }, { id: "unity" }, { id: "settings" },
 ];
 
 /** Top-right menu that opens the panels as dock tabs (the Board in the big window). On small screens it is the main menu. */

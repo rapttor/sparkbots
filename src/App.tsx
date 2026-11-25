@@ -15,6 +15,8 @@ import { StopModes } from "./dock/StopModes";
 import { api } from "./api";
 import { useLive } from "./state/live";
 import { makeFixtureSnapshot } from "./world/fixture";
+import { UnityOverlay } from "./unity/UnityOverlay";
+import { useUnity } from "./unity/store";
 
 const World = lazy(() => import("./world/World"));
 
@@ -37,7 +39,8 @@ export function App() {
   useLive(async () => { try { useStore.setState({ tasks: await api.tasks() }); } catch { /* ignore */ } }, ["tasks"]);
 
   // the 3D office is always on screen; its keys pause while a dialog (or, on a phone, the bottom sheet) covers it
-  const worldActive = !dock.dialog && !(narrow && dock.open);
+  const inUnity = useUnity((s) => s.inside);
+  const worldActive = !dock.dialog && !(narrow && dock.open) && !inUnity; // inside Unity the office is paused underneath
   return (
     <div className="shell">
       <header className="topbar">
@@ -51,8 +54,9 @@ export function App() {
         <PanelMenu />
       </header>
       <div className="body" style={{ "--dock-l": `${dockInset(dock, narrow, "left")}px`, "--dock-r": `${dockInset(dock, narrow, "right")}px` } as React.CSSProperties}>
-        <main className="stage">
+        <main className={`stage${inUnity ? " unity-on" : ""}`}>
           <ErrorBoundary label="the 3D office"><Suspense fallback={<p className="muted">Loading the 3D office…</p>}><World active={worldActive} /></Suspense></ErrorBoundary>
+          <UnityOverlay />
         </main>
         <Dock narrow={narrow} />
       </div>
